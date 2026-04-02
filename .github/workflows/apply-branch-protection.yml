@@ -1,0 +1,108 @@
+name: 应用分支保护规则 / Apply Branch Protection Rules
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '输入 "yes" 确认应用分支保护规则 / Type "yes" to confirm applying branch protection rules'
+        required: true
+        default: 'no'
+
+permissions:
+  contents: read
+  administration: write
+
+jobs:
+  apply-protection:
+    name: 应用保护规则 / Apply Protection Rules
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'yes' }}
+    steps:
+      - name: 保护 main 分支 / Protect main branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "🔒 正在为 main 分支应用保护规则..."
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${REPO}/branches/main/protection \
+            --input - <<'EOF'
+          {
+            "required_status_checks": {
+              "strict": true,
+              "contexts": ["代码检查 / Lint & Validate"]
+            },
+            "enforce_admins": true,
+            "required_pull_request_reviews": {
+              "dismiss_stale_reviews": true,
+              "require_code_owner_reviews": true,
+              "required_approving_review_count": 1,
+              "require_last_push_approval": true
+            },
+            "restrictions": null,
+            "allow_force_pushes": false,
+            "allow_deletions": false,
+            "block_creations": false,
+            "required_conversation_resolution": true,
+            "lock_branch": false
+          }
+          EOF
+          echo "✅ main 分支保护规则已应用"
+
+      - name: 保护 dev 分支 / Protect dev branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "🔒 正在为 dev 分支应用保护规则..."
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${REPO}/branches/dev/protection \
+            --input - <<'EOF'
+          {
+            "required_status_checks": {
+              "strict": false,
+              "contexts": []
+            },
+            "enforce_admins": false,
+            "required_pull_request_reviews": {
+              "dismiss_stale_reviews": true,
+              "require_code_owner_reviews": false,
+              "required_approving_review_count": 1,
+              "require_last_push_approval": false
+            },
+            "restrictions": null,
+            "allow_force_pushes": false,
+            "allow_deletions": false,
+            "block_creations": false,
+            "required_conversation_resolution": false,
+            "lock_branch": false
+          }
+          EOF
+          echo "✅ dev 分支保护规则已应用"
+
+      - name: 输出规则摘要 / Output rules summary
+        run: |
+          echo ""
+          echo "===== 分支保护规则摘要 / Branch Protection Summary ====="
+          echo ""
+          echo "📌 main 分支 (严格保护):"
+          echo "  ✅ 合并前需要 Pull Request（至少 1 次审批）"
+          echo "  ✅ 需要代码所有者审查（CODEOWNERS）"
+          echo "  ✅ 旧审批在新提交后自动作废"
+          echo "  ✅ 最后一次推送必须经过审批"
+          echo "  ✅ 必须通过 CI 状态检查（代码检查 / Lint & Validate）"
+          echo "  ✅ 分支必须与基础分支保持最新（strict）"
+          echo "  ✅ 合并前需解决所有对话"
+          echo "  ✅ 对管理员同样强制执行"
+          echo "  🚫 禁止强制推送"
+          echo "  🚫 禁止删除分支"
+          echo ""
+          echo "📌 dev 分支 (基础保护):"
+          echo "  ✅ 合并前需要 Pull Request（至少 1 次审批）"
+          echo "  ✅ 旧审批在新提交后自动作废"
+          echo "  🚫 禁止强制推送"
+          echo "  🚫 禁止删除分支"
