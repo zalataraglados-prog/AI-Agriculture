@@ -1,0 +1,7 @@
+# CODEOWNERS - 代码所有者配置
+# 指定代码审查责任人，所有 Pull Request 需经过对应代码所有者的审查。
+# 格式：<路径模式>  <GitHub 用户名或团队>
+# 详见：https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# 默认所有者：对任何未明确匹配的文件，由仓库所有者进行审查
+*       @zalataraglados-prog
