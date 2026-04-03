@@ -1,0 +1,20 @@
+pub(crate) const DEFAULT_BIND: &str = "0.0.0.0:9000";
+pub(crate) const DEFAULT_CONFIG_PATH: &str = "config/sensors.toml";
+pub(crate) const DEFAULT_ACK_MATCH_LEGACY: &str = "ack:success";
+pub(crate) const DEFAULT_ACK_MISMATCH: &str = "ack:error";
+pub(crate) const DEFAULT_ACK_UNKNOWN_SENSOR: &str = "ack:unknown_sensor";
+pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+pub(crate) const DEFAULT_ONCE: bool = false;
+pub(crate) const UDP_BUFFER_SIZE: usize = 65_535;
+
+pub(crate) fn default_bind() -> String {
+    DEFAULT_BIND.to_string()
+}
+
+pub(crate) fn default_ack_mismatch() -> String {
+    DEFAULT_ACK_MISMATCH.to_string()
+}
+
+pub(crate) fn default_ack_unknown_sensor() -> String {
+    DEFAULT_ACK_UNKNOWN_SENSOR.to_string()
+}
