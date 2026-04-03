@@ -3,6 +3,7 @@
 Rust UDP receiver for cloud-side connectivity testing.
 
 It is designed to pair with the `gateway-wsl` sender that transmits payload `success`.
+For each received packet, it sends an ACK back to the sender.
 
 ## Run locally
 
@@ -14,6 +15,8 @@ cargo run -- --bind 0.0.0.0:9000 --expected success --once
 
 - `--bind <ip:port>`: listen address (default `0.0.0.0:9000`)
 - `--expected <payload>`: expected payload (default `success`)
+- `--ack-match <payload>`: ACK when payload matches (default `ack:success`)
+- `--ack-mismatch <payload>`: ACK when payload mismatches (default `ack:error`)
 - `--once`: exit after first successful match
 - `--max-packets <n>`: stop after receiving `n` packets
 - `--timeout-ms <ms>`: read timeout in milliseconds, `0` means no timeout
@@ -46,4 +49,4 @@ Use your gateway sender to send:
 cargo run -- --target <cloud-ip>:9000 --count 1
 ```
 
-You should see `MATCH` in cloud receiver logs.
+You should see `MATCH` and ACK logs in cloud receiver output.

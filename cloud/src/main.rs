@@ -5,12 +5,16 @@ use std::time::Duration;
 
 const DEFAULT_BIND: &str = "0.0.0.0:9000";
 const DEFAULT_EXPECTED: &str = "success";
+const DEFAULT_ACK_MATCH: &str = "ack:success";
+const DEFAULT_ACK_MISMATCH: &str = "ack:error";
 const DEFAULT_ONCE: bool = true;
 
 #[derive(Debug)]
 struct Config {
     bind: String,
     expected: String,
+    ack_match: String,
+    ack_mismatch: String,
     once: bool,
     max_packets: Option<u64>,
     timeout: Option<Duration>,
@@ -19,11 +23,13 @@ struct Config {
 fn print_usage(binary: &str) {
     eprintln!(
         "Usage:
-  {binary} [--bind <ip:port>] [--expected <payload>] [--once] [--max-packets <n>] [--timeout-ms <ms>]
+  {binary} [--bind <ip:port>] [--expected <payload>] [--ack-match <payload>] [--ack-mismatch <payload>] [--once] [--max-packets <n>] [--timeout-ms <ms>]
 
 Defaults:
   --bind {DEFAULT_BIND}
   --expected {DEFAULT_EXPECTED}
+  --ack-match {DEFAULT_ACK_MATCH}
+  --ack-mismatch {DEFAULT_ACK_MISMATCH}
   --once {DEFAULT_ONCE}
 
 Notes:
@@ -36,6 +42,8 @@ Notes:
 fn parse_args() -> Result<Config, String> {
     let mut bind = DEFAULT_BIND.to_string();
     let mut expected = DEFAULT_EXPECTED.to_string();
+    let mut ack_match = DEFAULT_ACK_MATCH.to_string();
+    let mut ack_mismatch = DEFAULT_ACK_MISMATCH.to_string();
     let mut once = DEFAULT_ONCE;
     let mut max_packets: Option<u64> = None;
     let mut timeout = Some(Duration::from_secs(30));
@@ -52,6 +60,16 @@ fn parse_args() -> Result<Config, String> {
                 expected = args
                     .next()
                     .ok_or_else(|| "Missing value for --expected".to_string())?;
+            }
+            "--ack-match" => {
+                ack_match = args
+                    .next()
+                    .ok_or_else(|| "Missing value for --ack-match".to_string())?;
+            }
+            "--ack-mismatch" => {
+                ack_mismatch = args
+                    .next()
+                    .ok_or_else(|| "Missing value for --ack-mismatch".to_string())?;
             }
             "--once" => {
                 once = true;
@@ -94,6 +112,8 @@ fn parse_args() -> Result<Config, String> {
     Ok(Config {
         bind,
         expected,
+        ack_match,
+        ack_mismatch,
         once,
         max_packets,
         timeout,
@@ -108,6 +128,10 @@ fn run(cfg: &Config) -> Result<(), String> {
 
     println!("[cloud] Listening on {}", cfg.bind);
     println!("[cloud] Expected payload: \"{}\"", cfg.expected);
+    println!(
+        "[cloud] ACK payloads: match=\"{}\", mismatch=\"{}\"",
+        cfg.ack_match, cfg.ack_mismatch
+    );
     println!(
         "[cloud] Mode: {}",
         if cfg.once {
@@ -138,9 +162,19 @@ fn run(cfg: &Config) -> Result<(), String> {
             success_count += 1;
         }
 
+        let ack_payload = if is_match {
+            cfg.ack_match.as_str()
+        } else {
+            cfg.ack_mismatch.as_str()
+        };
+        socket
+            .send_to(ack_payload.as_bytes(), peer)
+            .map_err(|e| format!("ACK send failed to {peer}: {e}"))?;
+
         println!(
-            "[cloud] Packet #{received_count} from {peer}: \"{payload}\" => {}",
-            if is_match { "MATCH" } else { "MISMATCH" }
+            "[cloud] Packet #{received_count} from {peer}: \"{payload}\" => {} ; ACK=\"{}\"",
+            if is_match { "MATCH" } else { "MISMATCH" },
+            ack_payload
         );
 
         if cfg.once && is_match {
