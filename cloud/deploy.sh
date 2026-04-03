@@ -26,9 +26,9 @@ cd "$SCRIPT_DIR"
 cargo build --release
 
 echo "[deploy] Installing binary to ${INSTALL_ROOT} ..."
-$SUDO mkdir -p "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/log" "${INSTALL_ROOT}/config"
+$SUDO mkdir -p "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/log" "$(dirname -- "${CONFIG_PATH}")"
 $SUDO cp "target/release/${BIN_NAME}" "${INSTALL_ROOT}/bin/${APP_NAME}"
-$SUDO cp "config/sensors.toml" "${INSTALL_ROOT}/config/sensors.toml"
+$SUDO cp "config/sensors.toml" "${CONFIG_PATH}"
 $SUDO chmod +x "${INSTALL_ROOT}/bin/${APP_NAME}"
 
 if command -v systemctl >/dev/null 2>&1; then

@@ -10,7 +10,7 @@ cd "${CLOUD_DIR}"
 LOG_FILE="$(mktemp /tmp/cloud-config-test.XXXXXX.log)"
 echo "[smoke] receiver log: ${LOG_FILE}"
 
-cargo build >/dev/null 2>&1
+cargo build
 target/debug/cloud --config config/sensors.toml --bind "127.0.0.1:${PORT}" --max-packets 3 --timeout-ms 15000 >"${LOG_FILE}" 2>&1 &
 receiver_pid=$!
 

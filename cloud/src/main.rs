@@ -14,8 +14,9 @@ const DEFAULT_ACK_MISMATCH: &str = "ack:error";
 const DEFAULT_ACK_UNKNOWN_SENSOR: &str = "ack:unknown_sensor";
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_ONCE: bool = false;
+const UDP_BUFFER_SIZE: usize = 65_535;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct CliConfig {
     bind_override: Option<String>,
     config_path: String,
@@ -149,6 +150,9 @@ Config mode:
   Example sensor payload:
     mq7:raw=206,voltage=0.166
 
+Flag note:
+  --once conflicts with --max-packets
+
 Legacy compatibility:
   --expected / --ack-match adds one temporary exact rule at runtime."
     );
@@ -180,6 +184,9 @@ fn parse_args() -> Result<CliConfig, String> {
                     .ok_or_else(|| "Missing value for --config".to_string())?;
             }
             "--once" => {
+                if max_packets.is_some() {
+                    return Err("--once conflicts with --max-packets".to_string());
+                }
                 once = Some(true);
             }
             "--max-packets" => {
@@ -192,8 +199,10 @@ fn parse_args() -> Result<CliConfig, String> {
                 if value == 0 {
                     return Err("--max-packets must be >= 1".to_string());
                 }
+                if once == Some(true) {
+                    return Err("--max-packets conflicts with --once".to_string());
+                }
                 max_packets = Some(value);
-                once = Some(false);
             }
             "--timeout-ms" => {
                 let raw = args
@@ -258,12 +267,11 @@ fn parse_args() -> Result<CliConfig, String> {
     })
 }
 
-fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, String> {
-    let content = fs::read_to_string(&cli.config_path)
-        .map_err(|e| format!("Failed to read config file {}: {e}", cli.config_path))?;
-    let file_cfg: ConfigFile =
-        toml::from_str(&content).map_err(|e| format!("Failed to parse TOML config: {e}"))?;
+fn parse_config_file(content: &str) -> Result<ConfigFile, String> {
+    toml::from_str(content).map_err(|e| format!("Failed to parse TOML config: {e}"))
+}
 
+fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Result<RuntimeConfig, String> {
     let mut exact_rules = HashMap::new();
     for rule in file_cfg.exact_payloads {
         if rule.payload.trim().is_empty() {
@@ -298,15 +306,17 @@ fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, String> {
         }
     }
 
-    if let Some(legacy_expected) = cli.legacy_expected {
+    if let Some(legacy_expected) = cli.legacy_expected.as_ref() {
         let ack = cli
             .legacy_ack_match
+            .clone()
             .unwrap_or_else(|| DEFAULT_ACK_MATCH_LEGACY.to_string());
-        exact_rules.insert(legacy_expected, ack);
+        exact_rules.insert(legacy_expected.clone(), ack);
     }
 
     let bind = cli
         .bind_override
+        .clone()
         .unwrap_or_else(|| file_cfg.receiver.bind.clone());
 
     let once = cli
@@ -320,10 +330,12 @@ fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, String> {
 
     let ack_mismatch = cli
         .ack_mismatch_override
+        .clone()
         .unwrap_or_else(|| file_cfg.receiver.ack_mismatch.clone());
 
     let ack_unknown_sensor = cli
         .ack_unknown_sensor_override
+        .clone()
         .unwrap_or_else(|| file_cfg.receiver.ack_unknown_sensor.clone());
 
     Ok(RuntimeConfig {
@@ -336,6 +348,13 @@ fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, String> {
         exact_rules,
         sensor_rules,
     })
+}
+
+fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, String> {
+    let content = fs::read_to_string(&cli.config_path)
+        .map_err(|e| format!("Failed to read config file {}: {e}", cli.config_path))?;
+    let file_cfg = parse_config_file(&content)?;
+    build_runtime_config(&cli, file_cfg)
 }
 
 fn parse_sensor_kv_payload(payload: &str) -> Result<(String, HashMap<String, String>), String> {
@@ -475,7 +494,7 @@ fn run(cfg: &RuntimeConfig) -> Result<(), String> {
         }
     );
 
-    let mut buf = [0_u8; 2048];
+    let mut buf = [0_u8; UDP_BUFFER_SIZE];
     let mut received_count: u64 = 0;
     let mut success_count: u64 = 0;
 
@@ -491,8 +510,17 @@ fn run(cfg: &RuntimeConfig) -> Result<(), String> {
         };
 
         received_count += 1;
-        let payload = String::from_utf8_lossy(&buf[..size]).trim().to_string();
-        let result = evaluate_payload(&payload, cfg);
+        let result = if size == buf.len() {
+            EvalResult {
+                matched: false,
+                ack: cfg.ack_mismatch.clone(),
+                detail: "packet size reached receive buffer limit; possible truncation".to_string(),
+            }
+        } else {
+            let payload = String::from_utf8_lossy(&buf[..size]).trim().to_string();
+            evaluate_payload(&payload, cfg)
+        };
+        let payload_display = String::from_utf8_lossy(&buf[..size]).trim().to_string();
 
         if result.matched {
             success_count += 1;
@@ -503,7 +531,7 @@ fn run(cfg: &RuntimeConfig) -> Result<(), String> {
             .map_err(|e| format!("ACK send failed to {peer}: {e}"))?;
 
         println!(
-            "[cloud] Packet #{received_count} from {peer}: \"{payload}\" => {} ; ACK=\"{}\" ; {}",
+            "[cloud] Packet #{received_count} from {peer}: \"{payload_display}\" => {} ; ACK=\"{}\" ; {}",
             if result.matched { "MATCH" } else { "MISMATCH" },
             result.ack,
             result.detail
@@ -557,10 +585,26 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        evaluate_payload, parse_sensor_kv_payload, FieldType, RuntimeConfig, SensorRule,
-        DEFAULT_ACK_MISMATCH, DEFAULT_ACK_UNKNOWN_SENSOR,
+        build_runtime_config, evaluate_payload, parse_config_file, parse_sensor_kv_payload,
+        CliConfig, FieldType, RuntimeConfig, SensorRule, DEFAULT_ACK_MISMATCH,
+        DEFAULT_ACK_UNKNOWN_SENSOR,
     };
     use std::collections::HashMap;
+    use std::time::Duration;
+
+    fn default_cli() -> CliConfig {
+        CliConfig {
+            bind_override: None,
+            config_path: "config/sensors.toml".to_string(),
+            once: None,
+            max_packets: None,
+            timeout_override: None,
+            ack_mismatch_override: None,
+            ack_unknown_sensor_override: None,
+            legacy_expected: None,
+            legacy_ack_match: None,
+        }
+    }
 
     fn test_runtime() -> RuntimeConfig {
         let mut exact_rules = HashMap::new();
@@ -629,5 +673,82 @@ mod tests {
         let result = evaluate_payload("mq7:raw=abc,voltage=0.166", &cfg);
         assert!(!result.matched);
         assert_eq!(result.ack, "ack:error");
+    }
+
+    #[test]
+    fn build_runtime_config_from_toml_ok() {
+        let content = r#"
+[receiver]
+bind = "127.0.0.1:9001"
+once = true
+timeout_ms = 5000
+ack_mismatch = "ack:bad"
+ack_unknown_sensor = "ack:unknown"
+
+[[exact_payloads]]
+payload = "success"
+ack = "ack:success"
+
+[[sensors]]
+id = "mq7"
+required_fields = ["raw", "voltage"]
+
+[sensors.field_types]
+raw = "u16"
+voltage = "f32"
+"#;
+
+        let file_cfg = parse_config_file(content).expect("valid toml");
+        let cfg = build_runtime_config(&default_cli(), file_cfg).expect("build runtime config");
+
+        assert_eq!(cfg.bind, "127.0.0.1:9001");
+        assert!(cfg.once);
+        assert_eq!(cfg.timeout, Some(Duration::from_millis(5000)));
+        assert_eq!(cfg.ack_mismatch, "ack:bad");
+        assert_eq!(cfg.ack_unknown_sensor, "ack:unknown");
+        assert_eq!(
+            cfg.exact_rules.get("success"),
+            Some(&"ack:success".to_string())
+        );
+        assert!(cfg.sensor_rules.contains_key("mq7"));
+        assert_eq!(
+            cfg.sensor_rules.get("mq7").map(|r| r.ack.as_str()),
+            Some("ack:mq7")
+        );
+    }
+
+    #[test]
+    fn build_runtime_config_duplicate_sensor_id_error() {
+        let content = r#"
+[[sensors]]
+id = "mq7"
+
+[[sensors]]
+id = "mq7"
+"#;
+
+        let file_cfg = parse_config_file(content).expect("valid toml");
+        let err = build_runtime_config(&default_cli(), file_cfg).expect_err("should fail");
+        assert!(err.contains("duplicate sensor id"));
+    }
+
+    #[test]
+    fn build_runtime_config_legacy_rule_injection() {
+        let content = r#"
+[[exact_payloads]]
+payload = "success"
+ack = "ack:success"
+"#;
+
+        let mut cli = default_cli();
+        cli.legacy_expected = Some("success".to_string());
+        cli.legacy_ack_match = Some("ack:legacy".to_string());
+
+        let file_cfg = parse_config_file(content).expect("valid toml");
+        let cfg = build_runtime_config(&cli, file_cfg).expect("build runtime config");
+        assert_eq!(
+            cfg.exact_rules.get("success"),
+            Some(&"ack:legacy".to_string())
+        );
     }
 }
