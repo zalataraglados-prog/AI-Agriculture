@@ -1,0 +1,11 @@
+# Rust build output
+target/
+**/target/
+
+# Local env/config
+.env
+.env.*
+
+# OS/editor
+.DS_Store
+Thumbs.db

@@ -1,14 +1,24 @@
 use std::env;
-use std::io::ErrorKind;
+use std::io::{BufRead, BufReader, ErrorKind};
 use std::net::UdpSocket;
 use std::thread;
 use std::time::Duration;
+
+use serialport::SerialPort;
 
 const DEFAULT_TARGET: &str = "127.0.0.1:9000";
 const DEFAULT_INTERVAL_MS: u64 = 5000;
 const DEFAULT_ACK_TIMEOUT_MS: u64 = 3000;
 const DEFAULT_EXPECTED_ACK: &str = "ack:success";
-const PAYLOAD: &[u8] = b"success";
+const DEFAULT_PAYLOAD_SUCCESS: &str = "success";
+const DEFAULT_SERIAL_BAUD: u32 = 115200;
+const DEFAULT_SERIAL_TIMEOUT_MS: u64 = 1200;
+
+#[derive(Debug, Clone, Copy)]
+enum PayloadMode {
+    FixedSuccess,
+    SerialMq7,
+}
 
 #[derive(Debug)]
 struct Config {
@@ -18,11 +28,112 @@ struct Config {
     wait_ack: bool,
     ack_timeout: Duration,
     expected_ack: String,
+    payload_mode: PayloadMode,
+    serial_port: Option<String>,
+    serial_baud: u32,
+}
+
+#[derive(Debug)]
+struct Mq7Reading {
+    raw: u16,
+    voltage: f32,
+}
+
+struct SerialMq7Source {
+    reader: BufReader<Box<dyn SerialPort>>,
+}
+
+impl SerialMq7Source {
+    fn open(port: &str, baud: u32) -> Result<Self, String> {
+        let serial = serialport::new(port, baud)
+            .timeout(Duration::from_millis(DEFAULT_SERIAL_TIMEOUT_MS))
+            .open()
+            .map_err(|e| format!("Failed to open serial port {port} at {baud} baud: {e}"))?;
+
+        Ok(Self {
+            reader: BufReader::new(serial),
+        })
+    }
+
+    fn next_payload(&mut self) -> Result<String, String> {
+        let mut line = String::new();
+
+        loop {
+            line.clear();
+            match self.reader.read_line(&mut line) {
+                Ok(0) => continue,
+                Ok(_) => {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match parse_mq7_line(trimmed) {
+                        Some(reading) => {
+                            println!(
+                                "[gateway-wsl] SERIAL <- {} | parsed raw={} voltage={:.3}V",
+                                trimmed, reading.raw, reading.voltage
+                            );
+                            return Ok(format!(
+                                "mq7:raw={},voltage={:.3}",
+                                reading.raw, reading.voltage
+                            ));
+                        }
+                        None => {
+                            println!("[gateway-wsl] SERIAL skip: {}", trimmed);
+                        }
+                    }
+                }
+                Err(err)
+                    if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
+                {
+                    continue;
+                }
+                Err(err) => return Err(format!("Failed to read from serial source: {err}")),
+            }
+        }
+    }
+}
+
+fn parse_mq7_line(line: &str) -> Option<Mq7Reading> {
+    let mut raw: Option<u16> = None;
+    let mut voltage: Option<f32> = None;
+
+    for token in line.split_whitespace() {
+        if let Some(value) = token.strip_prefix("raw=") {
+            raw = value.parse::<u16>().ok();
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("voltage=") {
+            let stripped = value.strip_suffix('V').unwrap_or(value);
+            voltage = stripped.parse::<f32>().ok();
+        }
+    }
+
+    match (raw, voltage) {
+        (Some(raw), Some(voltage)) => Some(Mq7Reading { raw, voltage }),
+        _ => None,
+    }
 }
 
 fn print_usage(binary: &str) {
     eprintln!(
-        "Usage:\n  {binary} [--target <ip:port>] [--count <n>] [--interval-ms <ms>] [--no-wait-ack] [--ack-timeout-ms <ms>] [--expected-ack <payload>]\n\nDefaults:\n  --target {DEFAULT_TARGET}\n  --interval-ms {DEFAULT_INTERVAL_MS}\n  --count not set (send forever)\n  --ack-timeout-ms {DEFAULT_ACK_TIMEOUT_MS}\n  --expected-ack {DEFAULT_EXPECTED_ACK}\n\nPacket payload is fixed as: \"success\""
+        "Usage:
+  {binary} [--target <ip:port>] [--count <n>] [--interval-ms <ms>] [--no-wait-ack]
+          [--ack-timeout-ms <ms>] [--expected-ack <payload>]
+          [--serial-port </dev/ttyUSB0>] [--serial-baud <baud>]
+
+Defaults:
+  --target {DEFAULT_TARGET}
+  --interval-ms {DEFAULT_INTERVAL_MS}
+  --count not set (send forever)
+  --ack-timeout-ms {DEFAULT_ACK_TIMEOUT_MS}
+  --expected-ack {DEFAULT_EXPECTED_ACK}
+  --serial-baud {DEFAULT_SERIAL_BAUD}
+
+Payload mode:
+  1) default (no --serial-port): fixed payload \"{DEFAULT_PAYLOAD_SUCCESS}\"
+  2) with --serial-port: parse serial line \"MQ7 raw=<n> voltage=<v>V\"
+     and send payload \"mq7:raw=<n>,voltage=<v>\""
     );
 }
 
@@ -33,6 +144,8 @@ fn parse_args() -> Result<Config, String> {
     let mut wait_ack = true;
     let mut ack_timeout_ms = DEFAULT_ACK_TIMEOUT_MS;
     let mut expected_ack = DEFAULT_EXPECTED_ACK.to_string();
+    let mut serial_port: Option<String> = None;
+    let mut serial_baud = DEFAULT_SERIAL_BAUD;
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -67,14 +180,31 @@ fn parse_args() -> Result<Config, String> {
                 let value = args
                     .next()
                     .ok_or_else(|| "Missing value for --ack-timeout-ms".to_string())?;
-                ack_timeout_ms = value
-                    .parse::<u64>()
-                    .map_err(|_| "Invalid --ack-timeout-ms, expected unsigned integer".to_string())?;
+                ack_timeout_ms = value.parse::<u64>().map_err(|_| {
+                    "Invalid --ack-timeout-ms, expected unsigned integer".to_string()
+                })?;
             }
             "--expected-ack" => {
                 expected_ack = args
                     .next()
                     .ok_or_else(|| "Missing value for --expected-ack".to_string())?;
+            }
+            "--serial-port" => {
+                serial_port = Some(
+                    args.next()
+                        .ok_or_else(|| "Missing value for --serial-port".to_string())?,
+                );
+            }
+            "--serial-baud" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| "Missing value for --serial-baud".to_string())?;
+                serial_baud = value
+                    .parse::<u32>()
+                    .map_err(|_| "Invalid --serial-baud, expected unsigned integer".to_string())?;
+                if serial_baud == 0 {
+                    return Err("--serial-baud must be >= 1".to_string());
+                }
             }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "gateway".to_string());
@@ -95,6 +225,12 @@ fn parse_args() -> Result<Config, String> {
         return Err("--ack-timeout-ms must be >= 1".to_string());
     }
 
+    let payload_mode = if serial_port.is_some() {
+        PayloadMode::SerialMq7
+    } else {
+        PayloadMode::FixedSuccess
+    };
+
     Ok(Config {
         target,
         count,
@@ -102,30 +238,56 @@ fn parse_args() -> Result<Config, String> {
         wait_ack,
         ack_timeout: Duration::from_millis(ack_timeout_ms),
         expected_ack,
+        payload_mode,
+        serial_port,
+        serial_baud,
     })
 }
 
 fn run(config: &Config) -> Result<(), String> {
-    let socket =
-        UdpSocket::bind("0.0.0.0:0").map_err(|e| format!("Failed to bind local UDP socket: {e}"))?;
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Failed to bind local UDP socket: {e}"))?;
     if config.wait_ack {
         socket
             .set_read_timeout(Some(config.ack_timeout))
             .map_err(|e| format!("Failed to set ACK timeout: {e}"))?;
     }
 
+    let mut serial_source = match config.payload_mode {
+        PayloadMode::FixedSuccess => None,
+        PayloadMode::SerialMq7 => {
+            let port = config
+                .serial_port
+                .as_deref()
+                .ok_or_else(|| "Serial mode enabled but --serial-port is missing".to_string())?;
+            Some(SerialMq7Source::open(port, config.serial_baud)?)
+        }
+    };
+
     println!(
         "[gateway-wsl] Start sending Orange Pi Zero3 simulated packets -> {}",
         config.target
     );
-    println!(
-        "[gateway-wsl] Payload fixed to \"{}\"",
-        String::from_utf8_lossy(PAYLOAD)
-    );
-    println!(
-        "[gateway-wsl] Interval: {} ms",
-        config.interval.as_millis()
-    );
+    match config.payload_mode {
+        PayloadMode::FixedSuccess => {
+            println!(
+                "[gateway-wsl] Payload mode: fixed \"{}\"",
+                DEFAULT_PAYLOAD_SUCCESS
+            );
+            println!("[gateway-wsl] Interval: {} ms", config.interval.as_millis());
+        }
+        PayloadMode::SerialMq7 => {
+            let port = config
+                .serial_port
+                .as_deref()
+                .ok_or_else(|| "Serial mode enabled but --serial-port is missing".to_string())?;
+            println!(
+                "[gateway-wsl] Payload mode: serial MQ-7 from {} @ {} baud",
+                port, config.serial_baud
+            );
+            println!("[gateway-wsl] Interval: ignored in serial mode (send per serial line)");
+        }
+    }
     if let Some(total) = config.count {
         println!("[gateway-wsl] Mode: finite loop, count={total}");
     } else {
@@ -143,14 +305,21 @@ fn run(config: &Config) -> Result<(), String> {
 
     let mut index: u64 = 1;
     loop {
+        let payload = match serial_source.as_mut() {
+            Some(source) => source.next_payload()?,
+            None => DEFAULT_PAYLOAD_SUCCESS.to_string(),
+        };
+
         socket
-            .send_to(PAYLOAD, &config.target)
+            .send_to(payload.as_bytes(), &config.target)
             .map_err(|e| format!("Send failed at packet #{index}: {e}"))?;
         if config.wait_ack {
             let mut ack_buf = [0_u8; 1024];
             let (ack_size, ack_peer) = match socket.recv_from(&mut ack_buf) {
                 Ok(v) => v,
-                Err(err) if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock => {
+                Err(err)
+                    if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
+                {
                     return Err(format!(
                         "ACK timeout at packet #{index}, expected \"{}\"",
                         config.expected_ack
@@ -161,8 +330,8 @@ fn run(config: &Config) -> Result<(), String> {
             let ack_payload = String::from_utf8_lossy(&ack_buf[..ack_size]).to_string();
             if ack_payload != config.expected_ack {
                 return Err(format!(
-                    "ACK mismatch at packet #{index}: got \"{}\" from {}, expected \"{}\"",
-                    ack_payload, ack_peer, config.expected_ack
+                    "ACK mismatch at packet #{index}: got \"{}\" from {}, expected \"{}\"; sent payload=\"{}\"",
+                    ack_payload, ack_peer, config.expected_ack, payload
                 ));
             }
             println!("[gateway-wsl] ACK packet #{index} from {ack_peer}: \"{ack_payload}\"");
@@ -180,12 +349,17 @@ fn run(config: &Config) -> Result<(), String> {
                 }
             }
             None => {
-                println!("[gateway-wsl] Sent packet #{index}/inf to {}", config.target);
+                println!(
+                    "[gateway-wsl] Sent packet #{index}/inf to {} payload=\"{}\"",
+                    config.target, payload
+                );
             }
         }
 
         index += 1;
-        thread::sleep(config.interval);
+        if matches!(config.payload_mode, PayloadMode::FixedSuccess) {
+            thread::sleep(config.interval);
+        }
     }
 
     Ok(())
@@ -205,5 +379,24 @@ fn main() {
     if let Err(err) = run(&config) {
         eprintln!("{err}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_mq7_line;
+
+    #[test]
+    fn parse_valid_line() {
+        let reading = parse_mq7_line("MQ7 raw=206 voltage=0.166V").expect("should parse");
+        assert_eq!(reading.raw, 206);
+        assert!((reading.voltage - 0.166_f32).abs() < 1e-6);
+    }
+
+    #[test]
+    fn parse_invalid_line_returns_none() {
+        assert!(parse_mq7_line("random noise").is_none());
+        assert!(parse_mq7_line("MQ7 raw=abc voltage=0.166V").is_none());
+        assert!(parse_mq7_line("MQ7 raw=200").is_none());
     }
 }
