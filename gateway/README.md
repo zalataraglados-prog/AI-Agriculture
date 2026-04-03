@@ -10,11 +10,17 @@ Current goal: connectivity smoke test with fixed packet payload `success`.
 cargo run -- --target 127.0.0.1:9000
 ```
 
+By default, it runs in an infinite loop and sends one packet every 5 seconds.
+It also waits for ACK payload `ack:success` after each packet.
+
 ## Optional Args
 
 - `--target <ip:port>`: destination address, default `127.0.0.1:9000`
-- `--count <n>`: number of packets, default `1`
-- `--interval-ms <ms>`: interval between packets in milliseconds, default `1000`
+- `--count <n>`: finite packet count; if omitted, send forever
+- `--interval-ms <ms>`: interval between packets in milliseconds, default `5000`
+- `--no-wait-ack`: disable ACK waiting mode
+- `--ack-timeout-ms <ms>`: ACK timeout in milliseconds, default `3000`
+- `--expected-ack <payload>`: expected ACK payload, default `ack:success`
 
 Example (5 packets, 500ms interval):
 
