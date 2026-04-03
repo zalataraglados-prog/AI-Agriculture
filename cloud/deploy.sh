@@ -8,7 +8,7 @@ APP_NAME="ai-agri-cloud-receiver"
 INSTALL_ROOT="${INSTALL_ROOT:-/opt/ai-agriculture/cloud}"
 SERVICE_NAME="${SERVICE_NAME:-ai-agri-cloud-receiver}"
 BIND_ADDR="${BIND_ADDR:-0.0.0.0:9000}"
-EXPECTED_PAYLOAD="${EXPECTED_PAYLOAD:-success}"
+CONFIG_PATH="${CONFIG_PATH:-${INSTALL_ROOT}/config/sensors.toml}"
 
 if ! command -v cargo >/dev/null 2>&1; then
   echo "[deploy] ERROR: cargo not found. Please install Rust first."
@@ -26,8 +26,9 @@ cd "$SCRIPT_DIR"
 cargo build --release
 
 echo "[deploy] Installing binary to ${INSTALL_ROOT} ..."
-$SUDO mkdir -p "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/log"
+$SUDO mkdir -p "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/log" "${INSTALL_ROOT}/config"
 $SUDO cp "target/release/${BIN_NAME}" "${INSTALL_ROOT}/bin/${APP_NAME}"
+$SUDO cp "config/sensors.toml" "${INSTALL_ROOT}/config/sensors.toml"
 $SUDO chmod +x "${INSTALL_ROOT}/bin/${APP_NAME}"
 
 if command -v systemctl >/dev/null 2>&1; then
@@ -40,7 +41,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${INSTALL_ROOT}/bin/${APP_NAME} --bind ${BIND_ADDR} --expected ${EXPECTED_PAYLOAD} --timeout-ms 0
+ExecStart=${INSTALL_ROOT}/bin/${APP_NAME} --config ${CONFIG_PATH} --bind ${BIND_ADDR} --timeout-ms 0
 Restart=always
 RestartSec=2
 WorkingDirectory=${INSTALL_ROOT}
@@ -58,7 +59,7 @@ EOF
   echo "[deploy] Done."
 else
   echo "[deploy] systemctl not found. Starting process with nohup..."
-  nohup "${INSTALL_ROOT}/bin/${APP_NAME}" --bind "${BIND_ADDR}" --expected "${EXPECTED_PAYLOAD}" --timeout-ms 0 \
+  nohup "${INSTALL_ROOT}/bin/${APP_NAME}" --config "${CONFIG_PATH}" --bind "${BIND_ADDR}" --timeout-ms 0 \
     > "${INSTALL_ROOT}/log/receiver.log" 2> "${INSTALL_ROOT}/log/receiver.err.log" &
   echo $! > "${INSTALL_ROOT}/cloud_receiver.pid"
   echo "[deploy] Started with PID $(cat "${INSTALL_ROOT}/cloud_receiver.pid")"
