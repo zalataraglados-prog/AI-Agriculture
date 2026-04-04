@@ -5,7 +5,7 @@ Now supports config-driven sensor rules, so adding a new sensor only requires co
 
 It is designed to pair with the `gateway-wsl` sender:
 - fixed smoke packet: `success`
-- sensor packet: `sensor_id:key=value,key2=value2` (examples: `mq7:raw=206,voltage=0.166`, `dht22:temp_c=28.0,hum=48.9`)
+- sensor packet: `sensor_id:key=value,key2=value2` (examples: `mq7:raw=206,voltage=0.166`, `dht22:temp_c=28.0,hum=48.9`, `adc:pin=34,raw=523,voltage=0.421`, `pcf8591:addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129`)
 
 For each received packet, it sends an ACK back to the sender.
 
@@ -58,6 +58,28 @@ required_fields = ["temp_c", "hum"]
 [sensors.field_types]
 temp_c = "f32"
 hum = "f32"
+
+[[sensors]]
+id = "adc"
+ack = "ack:adc"
+required_fields = ["pin", "raw", "voltage"]
+
+[sensors.field_types]
+pin = "u8"
+raw = "u16"
+voltage = "f32"
+
+[[sensors]]
+id = "pcf8591"
+ack = "ack:pcf8591"
+required_fields = ["addr", "ain0", "ain1", "ain2", "ain3"]
+
+[sensors.field_types]
+addr = "string"
+ain0 = "u8"
+ain1 = "u8"
+ain2 = "u8"
+ain3 = "u8"
 ```
 
 Supported `field_types`:
@@ -103,6 +125,8 @@ Or send sensor packet (from your updated gateway serial mode):
 ```text
 mq7:raw=206,voltage=0.166
 dht22:temp_c=28.0,hum=48.9
+adc:pin=34,raw=523,voltage=0.421
+pcf8591:addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129
 ```
 
 You should see `MATCH` and ACK logs in cloud receiver output.
@@ -118,4 +142,6 @@ This validates:
 - `success -> ack:success`
 - `mq7:raw=206,voltage=0.166 -> ack:mq7`
 - `dht22:temp_c=28.0,hum=48.9 -> ack:dht22`
+- `adc:pin=34,raw=523,voltage=0.421 -> ack:adc`
+- `pcf8591:addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129 -> ack:pcf8591`
 - invalid typed packet -> `ack:error`

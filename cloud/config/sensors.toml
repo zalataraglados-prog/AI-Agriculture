@@ -26,3 +26,25 @@ required_fields = ["temp_c", "hum"]
 [sensors.field_types]
 temp_c = "f32"
 hum = "f32"
+
+[[sensors]]
+id = "adc"
+ack = "ack:adc"
+required_fields = ["pin", "raw", "voltage"]
+
+[sensors.field_types]
+pin = "u8"
+raw = "u16"
+voltage = "f32"
+
+[[sensors]]
+id = "pcf8591"
+ack = "ack:pcf8591"
+required_fields = ["addr", "ain0", "ain1", "ain2", "ain3"]
+
+[sensors.field_types]
+addr = "string"
+ain0 = "u8"
+ain1 = "u8"
+ain2 = "u8"
+ain3 = "u8"
