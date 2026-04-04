@@ -2,7 +2,7 @@
 
 Rust gateway for WSL / Linux:
 - fixed payload smoke test (`success`)
-- serial ingest mode (read ESP32 MQ-7 serial output and forward via UDP)
+- serial ingest mode (read ESP32 sensor serial output and forward via UDP)
 
 ## Quick Start
 
@@ -15,9 +15,9 @@ Default mode is fixed payload:
 - interval: 5 seconds
 - ACK expected: `ack:success`
 
-## Serial Mode (MQ-7)
+## Serial Mode (MQ-7 / DHT22)
 
-Expected serial line format from ESP32 firmware:
+### MQ-7 format
 
 ```text
 MQ7 raw=206 voltage=0.166V
@@ -32,7 +32,27 @@ mq7:raw=206,voltage=0.166
 Run:
 
 ```bash
-cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --expected-ack ack:mq7
+cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format mq7 --expected-ack ack:mq7
+```
+
+### DHT22 format
+
+Expected serial line format from ESP32 firmware:
+
+```text
+DHT22 temp_c=31.5 hum=67.0
+```
+
+Gateway will parse this and forward:
+
+```text
+dht22:temp_c=31.5,hum=67.0
+```
+
+Run:
+
+```bash
+cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format dht22 --expected-ack ack:success
 ```
 
 Note:
@@ -49,6 +69,7 @@ Note:
 - `--expected-ack <payload>`: expected ACK payload, default `ack:success`
 - `--serial-port <path>`: enable serial ingest mode, e.g. `/dev/ttyUSB0`
 - `--serial-baud <baud>`: serial baud rate, default `115200`
+- `--serial-format <mq7|dht22>`: serial parser format, default `mq7`
 
 Example (5 packets, 500ms interval):
 

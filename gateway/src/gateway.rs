@@ -2,9 +2,9 @@ use std::io::ErrorKind;
 use std::net::UdpSocket;
 use std::thread;
 
-use crate::config::{Config, PayloadMode};
+use crate::config::{Config, PayloadMode, SerialFormat};
 use crate::constants::DEFAULT_PAYLOAD_SUCCESS;
-use crate::serial::SerialMq7Source;
+use crate::serial::SerialSensorSource;
 
 pub fn run(config: &Config) -> Result<(), String> {
     let socket =
@@ -17,12 +17,16 @@ pub fn run(config: &Config) -> Result<(), String> {
 
     let mut serial_source = match config.payload_mode {
         PayloadMode::FixedSuccess => None,
-        PayloadMode::SerialMq7 => {
+        PayloadMode::SerialSensor => {
             let port = config
                 .serial_port
                 .as_deref()
                 .ok_or_else(|| "Serial mode enabled but --serial-port is missing".to_string())?;
-            Some(SerialMq7Source::open(port, config.serial_baud)?)
+            Some(SerialSensorSource::open(
+                port,
+                config.serial_baud,
+                config.serial_format,
+            )?)
         }
     };
 
@@ -38,14 +42,18 @@ pub fn run(config: &Config) -> Result<(), String> {
             );
             println!("[gateway-wsl] Interval: {} ms", config.interval.as_millis());
         }
-        PayloadMode::SerialMq7 => {
+        PayloadMode::SerialSensor => {
             let port = config
                 .serial_port
                 .as_deref()
                 .ok_or_else(|| "Serial mode enabled but --serial-port is missing".to_string())?;
+            let sensor_kind = match config.serial_format {
+                SerialFormat::Mq7 => "MQ-7",
+                SerialFormat::Dht22 => "DHT22",
+            };
             println!(
-                "[gateway-wsl] Payload mode: serial MQ-7 from {} @ {} baud",
-                port, config.serial_baud
+                "[gateway-wsl] Payload mode: serial {} from {} @ {} baud",
+                sensor_kind, port, config.serial_baud
             );
             println!("[gateway-wsl] Interval: ignored in serial mode (send per serial line)");
         }

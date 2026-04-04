@@ -9,7 +9,13 @@ use crate::constants::{
 #[derive(Debug, Clone, Copy)]
 pub enum PayloadMode {
     FixedSuccess,
-    SerialMq7,
+    SerialSensor,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum SerialFormat {
+    Mq7,
+    Dht22,
 }
 
 #[derive(Debug)]
@@ -23,6 +29,7 @@ pub struct Config {
     pub payload_mode: PayloadMode,
     pub serial_port: Option<String>,
     pub serial_baud: u32,
+    pub serial_format: SerialFormat,
 }
 
 pub fn print_usage(binary: &str) {
@@ -30,7 +37,7 @@ pub fn print_usage(binary: &str) {
         "Usage:
   {binary} [--target <ip:port>] [--count <n>] [--interval-ms <ms>] [--no-wait-ack]
           [--ack-timeout-ms <ms>] [--expected-ack <payload>]
-          [--serial-port </dev/ttyUSB0>] [--serial-baud <baud>]
+          [--serial-port </dev/ttyUSB0>] [--serial-baud <baud>] [--serial-format <mq7|dht22>]
 
 Defaults:
   --target {DEFAULT_TARGET}
@@ -39,11 +46,14 @@ Defaults:
   --ack-timeout-ms {DEFAULT_ACK_TIMEOUT_MS}
   --expected-ack {DEFAULT_EXPECTED_ACK}
   --serial-baud {DEFAULT_SERIAL_BAUD}
+  --serial-format mq7
 
 Payload mode:
   1) default (no --serial-port): fixed payload \"{DEFAULT_PAYLOAD_SUCCESS}\"
-  2) with --serial-port: parse serial line \"MQ7 raw=<n> voltage=<v>V\"
-     and send payload \"mq7:raw=<n>,voltage=<v>\""
+  2) with --serial-port + --serial-format mq7: parse \"MQ7 raw=<n> voltage=<v>V\"
+     and send payload \"mq7:raw=<n>,voltage=<v>\"
+  3) with --serial-port + --serial-format dht22: parse \"DHT22 temp_c=<t> hum=<h>\"
+     and send payload \"dht22:temp_c=<t>,hum=<h>\""
     );
 }
 
@@ -56,6 +66,7 @@ pub fn parse_args() -> Result<Config, String> {
     let mut expected_ack = DEFAULT_EXPECTED_ACK.to_string();
     let mut serial_port: Option<String> = None;
     let mut serial_baud = DEFAULT_SERIAL_BAUD;
+    let mut serial_format = SerialFormat::Mq7;
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -116,6 +127,16 @@ pub fn parse_args() -> Result<Config, String> {
                     return Err("--serial-baud must be >= 1".to_string());
                 }
             }
+            "--serial-format" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| "Missing value for --serial-format".to_string())?;
+                serial_format = match value.as_str() {
+                    "mq7" => SerialFormat::Mq7,
+                    "dht22" => SerialFormat::Dht22,
+                    _ => return Err("Invalid --serial-format, expected mq7|dht22".to_string()),
+                };
+            }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "gateway".to_string());
                 print_usage(&binary);
@@ -136,7 +157,7 @@ pub fn parse_args() -> Result<Config, String> {
     }
 
     let payload_mode = if serial_port.is_some() {
-        PayloadMode::SerialMq7
+        PayloadMode::SerialSensor
     } else {
         PayloadMode::FixedSuccess
     };
@@ -151,5 +172,6 @@ pub fn parse_args() -> Result<Config, String> {
         payload_mode,
         serial_port,
         serial_baud,
+        serial_format,
     })
 }
