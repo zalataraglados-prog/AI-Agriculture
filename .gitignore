@@ -1,11 +1,39 @@
 # Rust build output
 target/
 **/target/
+**/*.rs.bk
+
+# Test/coverage artifacts
+coverage/
+*.profraw
+*.profdata
 
 # Local env/config
 .env
 .env.*
+!.env.example
+*.local
+
+# Logs/runtime
+*.log
+logs/
+*.pid
 
 # OS/editor
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.suo
+*.user
+*.tmp
+*.temp
+~$*
+
+# Python helper cache
+__pycache__/
+*.pyc
+
+# Node artifacts (future web/docs tooling)
+node_modules/
