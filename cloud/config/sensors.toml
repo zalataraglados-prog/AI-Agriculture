@@ -17,3 +17,12 @@ required_fields = ["raw", "voltage"]
 [sensors.field_types]
 raw = "u16"
 voltage = "f32"
+
+[[sensors]]
+id = "dht22"
+ack = "ack:dht22"
+required_fields = ["temp_c", "hum"]
+
+[sensors.field_types]
+temp_c = "f32"
+hum = "f32"

@@ -11,7 +11,7 @@ LOG_FILE="$(mktemp /tmp/cloud-config-test.XXXXXX.log)"
 echo "[smoke] receiver log: ${LOG_FILE}"
 
 cargo build
-target/debug/cloud --config config/sensors.toml --bind "127.0.0.1:${PORT}" --max-packets 3 --timeout-ms 15000 >"${LOG_FILE}" 2>&1 &
+target/debug/cloud --config config/sensors.toml --bind "127.0.0.1:${PORT}" --max-packets 4 --timeout-ms 15000 >"${LOG_FILE}" 2>&1 &
 receiver_pid=$!
 
 cleanup() {
@@ -34,6 +34,7 @@ addr = ("127.0.0.1", ${PORT})
 packets = [
     b"success",
     b"mq7:raw=206,voltage=0.166",
+    b"dht22:temp_c=28.0,hum=48.9",
     b"mq7:raw=oops,voltage=0.166",
 ]
 

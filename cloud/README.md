@@ -5,7 +5,7 @@ Now supports config-driven sensor rules, so adding a new sensor only requires co
 
 It is designed to pair with the `gateway-wsl` sender:
 - fixed smoke packet: `success`
-- sensor packet: `sensor_id:key=value,key2=value2` (example: `mq7:raw=206,voltage=0.166`)
+- sensor packet: `sensor_id:key=value,key2=value2` (examples: `mq7:raw=206,voltage=0.166`, `dht22:temp_c=28.0,hum=48.9`)
 
 For each received packet, it sends an ACK back to the sender.
 
@@ -49,6 +49,15 @@ required_fields = ["raw", "voltage"]
 [sensors.field_types]
 raw = "u16"
 voltage = "f32"
+
+[[sensors]]
+id = "dht22"
+ack = "ack:dht22"
+required_fields = ["temp_c", "hum"]
+
+[sensors.field_types]
+temp_c = "f32"
+hum = "f32"
 ```
 
 Supported `field_types`:
@@ -93,6 +102,7 @@ Or send sensor packet (from your updated gateway serial mode):
 
 ```text
 mq7:raw=206,voltage=0.166
+dht22:temp_c=28.0,hum=48.9
 ```
 
 You should see `MATCH` and ACK logs in cloud receiver output.
@@ -107,4 +117,5 @@ chmod +x scripts/local_config_smoke_test.sh
 This validates:
 - `success -> ack:success`
 - `mq7:raw=206,voltage=0.166 -> ack:mq7`
+- `dht22:temp_c=28.0,hum=48.9 -> ack:dht22`
 - invalid typed packet -> `ack:error`
