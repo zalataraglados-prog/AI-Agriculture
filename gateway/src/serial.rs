@@ -18,6 +18,22 @@ pub struct Dht22Reading {
     pub hum: f32,
 }
 
+#[derive(Debug)]
+pub struct AdcReading {
+    pub pin: u8,
+    pub raw: u16,
+    pub voltage: f32,
+}
+
+#[derive(Debug)]
+pub struct Pcf8591Reading {
+    pub addr: String,
+    pub ain0: u8,
+    pub ain1: u8,
+    pub ain2: u8,
+    pub ain3: u8,
+}
+
 pub struct SerialSensorSource {
     reader: BufReader<Box<dyn SerialPort>>,
     format: SerialFormat,
@@ -88,6 +104,26 @@ fn parse_line(line: &str, format: SerialFormat) -> Option<ParsedLine> {
             payload: format!("dht22:temp_c={:.1},hum={:.1}", reading.temp_c, reading.hum),
             summary: format!("temp_c={:.1} hum={:.1}", reading.temp_c, reading.hum),
         }),
+        SerialFormat::Adc => parse_adc_line(line).map(|reading| ParsedLine {
+            payload: format!(
+                "adc:pin={},raw={},voltage={:.3}",
+                reading.pin, reading.raw, reading.voltage
+            ),
+            summary: format!(
+                "pin={} raw={} voltage={:.3}V",
+                reading.pin, reading.raw, reading.voltage
+            ),
+        }),
+        SerialFormat::Pcf8591 => parse_pcf8591_line(line).map(|reading| ParsedLine {
+            payload: format!(
+                "pcf8591:addr={},ain0={},ain1={},ain2={},ain3={}",
+                reading.addr, reading.ain0, reading.ain1, reading.ain2, reading.ain3
+            ),
+            summary: format!(
+                "addr={} ain0={} ain1={} ain2={} ain3={}",
+                reading.addr, reading.ain0, reading.ain1, reading.ain2, reading.ain3
+            ),
+        }),
     }
 }
 
@@ -133,9 +169,77 @@ pub fn parse_dht22_line(line: &str) -> Option<Dht22Reading> {
     }
 }
 
+pub fn parse_adc_line(line: &str) -> Option<AdcReading> {
+    let mut pin: Option<u8> = None;
+    let mut raw: Option<u16> = None;
+    let mut voltage: Option<f32> = None;
+
+    for token in line.split_whitespace() {
+        if let Some(value) = token.strip_prefix("pin=") {
+            pin = value.parse::<u8>().ok();
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("raw=") {
+            raw = value.parse::<u16>().ok();
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("voltage=") {
+            let stripped = value.strip_suffix('V').unwrap_or(value);
+            voltage = stripped.parse::<f32>().ok();
+        }
+    }
+
+    match (pin, raw, voltage) {
+        (Some(pin), Some(raw), Some(voltage)) => Some(AdcReading { pin, raw, voltage }),
+        _ => None,
+    }
+}
+
+pub fn parse_pcf8591_line(line: &str) -> Option<Pcf8591Reading> {
+    let mut addr = "0x48".to_string();
+    let mut ain0: Option<u8> = None;
+    let mut ain1: Option<u8> = None;
+    let mut ain2: Option<u8> = None;
+    let mut ain3: Option<u8> = None;
+
+    for token in line.split_whitespace() {
+        let lower = token.to_ascii_lowercase();
+        if let Some(value) = lower.strip_prefix("addr=") {
+            addr = value.to_string();
+            continue;
+        }
+        if let Some(value) = lower.strip_prefix("ain0=") {
+            ain0 = value.parse::<u8>().ok();
+            continue;
+        }
+        if let Some(value) = lower.strip_prefix("ain1=") {
+            ain1 = value.parse::<u8>().ok();
+            continue;
+        }
+        if let Some(value) = lower.strip_prefix("ain2=") {
+            ain2 = value.parse::<u8>().ok();
+            continue;
+        }
+        if let Some(value) = lower.strip_prefix("ain3=") {
+            ain3 = value.parse::<u8>().ok();
+        }
+    }
+
+    match (ain0, ain1, ain2, ain3) {
+        (Some(ain0), Some(ain1), Some(ain2), Some(ain3)) => Some(Pcf8591Reading {
+            addr,
+            ain0,
+            ain1,
+            ain2,
+            ain3,
+        }),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{parse_dht22_line, parse_mq7_line};
+    use super::{parse_adc_line, parse_dht22_line, parse_mq7_line, parse_pcf8591_line};
 
     #[test]
     fn parse_valid_line() {
@@ -163,5 +267,44 @@ mod tests {
         assert!(parse_dht22_line("hello world").is_none());
         assert!(parse_dht22_line("DHT22 temp_c=abc hum=55.1").is_none());
         assert!(parse_dht22_line("DHT22 temp_c=25.2").is_none());
+    }
+
+    #[test]
+    fn parse_valid_adc_line() {
+        let reading = parse_adc_line("ADC pin=34 raw=523 voltage=0.421V").expect("should parse");
+        assert_eq!(reading.pin, 34);
+        assert_eq!(reading.raw, 523);
+        assert!((reading.voltage - 0.421_f32).abs() < 1e-6);
+    }
+
+    #[test]
+    fn parse_invalid_adc_line_returns_none() {
+        assert!(parse_adc_line("ADC raw=500 voltage=0.400V").is_none());
+        assert!(parse_adc_line("ADC pin=34 raw=abc voltage=0.400V").is_none());
+        assert!(parse_adc_line("ADC pin=34 raw=500").is_none());
+    }
+
+    #[test]
+    fn parse_valid_pcf8591_line() {
+        let reading = parse_pcf8591_line("PCF8591 addr=0x48 AIN0=172 AIN1=255 AIN2=90 AIN3=129")
+            .expect("should parse");
+        assert_eq!(reading.addr, "0x48");
+        assert_eq!(reading.ain0, 172);
+        assert_eq!(reading.ain1, 255);
+        assert_eq!(reading.ain2, 90);
+        assert_eq!(reading.ain3, 129);
+    }
+
+    #[test]
+    fn parse_pcf8591_line_without_addr_uses_default() {
+        let reading = parse_pcf8591_line("AIN0=172 AIN1=255 AIN2=90 AIN3=129")
+            .expect("should parse");
+        assert_eq!(reading.addr, "0x48");
+    }
+
+    #[test]
+    fn parse_invalid_pcf8591_line_returns_none() {
+        assert!(parse_pcf8591_line("PCF8591 addr=0x48 AIN0=172 AIN1=255").is_none());
+        assert!(parse_pcf8591_line("PCF8591 addr=0x48 AIN0=abc AIN1=255 AIN2=90 AIN3=129").is_none());
     }
 }

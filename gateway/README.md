@@ -15,7 +15,7 @@ Default mode is fixed payload:
 - interval: 5 seconds
 - ACK expected: `ack:success`
 
-## Serial Mode (MQ-7 / DHT22)
+## Serial Mode (MQ-7 / DHT22 / ADC / PCF8591)
 
 ### MQ-7 format
 
@@ -55,6 +55,46 @@ Run:
 cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format dht22 --expected-ack ack:success
 ```
 
+### ADC format (example: GPIO34 analog module)
+
+Expected serial line format from ESP32 firmware:
+
+```text
+ADC pin=34 raw=523 voltage=0.421V
+```
+
+Gateway will parse this and forward:
+
+```text
+adc:pin=34,raw=523,voltage=0.421
+```
+
+Run:
+
+```bash
+cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format adc --expected-ack ack:adc
+```
+
+### PCF8591 format (example: MQ-7 on AIN0)
+
+Expected serial line format from ESP32 firmware:
+
+```text
+PCF8591 addr=0x48 AIN0=172 AIN1=255 AIN2=90 AIN3=129
+```
+
+Gateway will parse this and forward:
+
+```text
+pcf8591:addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129
+```
+
+Run:
+
+```bash
+cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format pcf8591 --expected-ack ack:pcf8591
+```
+
 Note:
 - in serial mode, `--interval-ms` is ignored (send one UDP packet per valid serial line)
 - if your cloud ACK still returns `ack:success`, set `--expected-ack ack:success`
@@ -69,7 +109,7 @@ Note:
 - `--expected-ack <payload>`: expected ACK payload, default `ack:success`
 - `--serial-port <path>`: enable serial ingest mode, e.g. `/dev/ttyUSB0`
 - `--serial-baud <baud>`: serial baud rate, default `115200`
-- `--serial-format <mq7|dht22>`: serial parser format, default `mq7`
+- `--serial-format <mq7|dht22|adc|pcf8591>`: serial parser format, default `mq7`
 
 Example (5 packets, 500ms interval):
 

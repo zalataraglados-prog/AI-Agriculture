@@ -16,6 +16,8 @@ pub enum PayloadMode {
 pub enum SerialFormat {
     Mq7,
     Dht22,
+    Adc,
+    Pcf8591,
 }
 
 #[derive(Debug)]
@@ -37,7 +39,7 @@ pub fn print_usage(binary: &str) {
         "Usage:
   {binary} [--target <ip:port>] [--count <n>] [--interval-ms <ms>] [--no-wait-ack]
           [--ack-timeout-ms <ms>] [--expected-ack <payload>]
-          [--serial-port </dev/ttyUSB0>] [--serial-baud <baud>] [--serial-format <mq7|dht22>]
+          [--serial-port </dev/ttyUSB0>] [--serial-baud <baud>] [--serial-format <mq7|dht22|adc|pcf8591>]
 
 Defaults:
   --target {DEFAULT_TARGET}
@@ -53,7 +55,12 @@ Payload mode:
   2) with --serial-port + --serial-format mq7: parse \"MQ7 raw=<n> voltage=<v>V\"
      and send payload \"mq7:raw=<n>,voltage=<v>\"
   3) with --serial-port + --serial-format dht22: parse \"DHT22 temp_c=<t> hum=<h>\"
-     and send payload \"dht22:temp_c=<t>,hum=<h>\""
+     and send payload \"dht22:temp_c=<t>,hum=<h>\"
+  4) with --serial-port + --serial-format adc: parse \"ADC pin=<p> raw=<n> voltage=<v>V\"
+     and send payload \"adc:pin=<p>,raw=<n>,voltage=<v>\"
+  5) with --serial-port + --serial-format pcf8591: parse
+     \"PCF8591 addr=<hex> ain0=<n> ain1=<n> ain2=<n> ain3=<n>\"
+     and send payload \"pcf8591:addr=<hex>,ain0=<n>,ain1=<n>,ain2=<n>,ain3=<n>\""
     );
 }
 
@@ -134,7 +141,14 @@ pub fn parse_args() -> Result<Config, String> {
                 serial_format = match value.as_str() {
                     "mq7" => SerialFormat::Mq7,
                     "dht22" => SerialFormat::Dht22,
-                    _ => return Err("Invalid --serial-format, expected mq7|dht22".to_string()),
+                    "adc" => SerialFormat::Adc,
+                    "pcf8591" => SerialFormat::Pcf8591,
+                    _ => {
+                        return Err(
+                            "Invalid --serial-format, expected mq7|dht22|adc|pcf8591"
+                                .to_string(),
+                        )
+                    }
                 };
             }
             "-h" | "--help" => {

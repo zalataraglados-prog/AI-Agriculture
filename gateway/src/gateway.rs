@@ -50,6 +50,8 @@ pub fn run(config: &Config) -> Result<(), String> {
             let sensor_kind = match config.serial_format {
                 SerialFormat::Mq7 => "MQ-7",
                 SerialFormat::Dht22 => "DHT22",
+                SerialFormat::Adc => "ADC",
+                SerialFormat::Pcf8591 => "PCF8591",
             };
             println!(
                 "[gateway-wsl] Payload mode: serial {} from {} @ {} baud",
