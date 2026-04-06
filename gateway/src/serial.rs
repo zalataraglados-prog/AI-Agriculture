@@ -1,10 +1,8 @@
+﻿use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufRead, BufReader, ErrorKind};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serialport::SerialPort;
-
-use crate::config::SerialFormat;
-use crate::constants::DEFAULT_SERIAL_TIMEOUT_MS;
 
 #[derive(Debug)]
 pub struct Mq7Reading {
@@ -34,96 +32,270 @@ pub struct Pcf8591Reading {
     pub ain3: u8,
 }
 
-pub struct SerialSensorSource {
-    reader: BufReader<Box<dyn SerialPort>>,
-    format: SerialFormat,
+#[derive(Debug, Clone)]
+pub struct SensorEvent {
+    pub sensor_id: String,
+    pub feature: String,
+    pub fields: BTreeMap<String, String>,
+    pub raw_line: String,
 }
 
-impl SerialSensorSource {
-    pub fn open(port: &str, baud: u32, format: SerialFormat) -> Result<Self, String> {
+#[derive(Debug, Default, Clone)]
+pub struct DiscoveryResult {
+    pub known_sensors: BTreeSet<String>,
+    pub unknown_features: BTreeSet<String>,
+    pub sample_lines: Vec<String>,
+}
+
+pub struct SerialEsp32Source {
+    reader: BufReader<Box<dyn SerialPort>>,
+    port: String,
+    baud: u32,
+}
+
+impl SerialEsp32Source {
+    pub fn open(port: &str, baud: u32) -> Result<Self, String> {
         let serial = serialport::new(port, baud)
-            .timeout(Duration::from_millis(DEFAULT_SERIAL_TIMEOUT_MS))
+            .timeout(Duration::from_millis(1200))
             .open()
             .map_err(|e| format!("Failed to open serial port {port} at {baud} baud: {e}"))?;
 
         Ok(Self {
             reader: BufReader::new(serial),
-            format,
+            port: port.to_string(),
+            baud,
         })
     }
 
-    pub fn next_payload(&mut self) -> Result<String, String> {
-        let mut line = String::new();
+    pub fn describe(&self) -> String {
+        format!("{}@{}", self.port, self.baud)
+    }
 
+    pub fn next_event(
+        &mut self,
+        feature_mapping: &BTreeMap<String, String>,
+    ) -> Result<Option<SensorEvent>, String> {
         loop {
-            line.clear();
-            match self.reader.read_line(&mut line) {
-                Ok(0) => continue,
-                Ok(_) => {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue;
-                    }
-                    match parse_line(trimmed, self.format) {
-                        Some(parsed) => {
-                            println!(
-                                "[gateway-wsl] SERIAL <- {} | parsed {}",
-                                trimmed, parsed.summary
-                            );
-                            return Ok(parsed.payload);
-                        }
-                        None => {
-                            println!("[gateway-wsl] SERIAL skip: {}", trimmed);
-                        }
-                    }
-                }
-                Err(err)
-                    if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
-                {
-                    continue;
-                }
-                Err(err) => return Err(format!("Failed to read from serial source: {err}")),
+            let maybe_line = self.read_line()?;
+            let line = match maybe_line {
+                Some(v) => v,
+                None => continue,
+            };
+
+            if let Some(event) = parse_known_event(&line) {
+                return Ok(Some(event));
             }
+
+            let Some(feature) = extract_feature(&line) else {
+                continue;
+            };
+
+            let sensor_id = match feature_mapping.get(&feature) {
+                Some(value) => value.clone(),
+                None => return Ok(None),
+            };
+
+            let mut fields = parse_generic_fields(&line);
+            if fields.is_empty() {
+                fields.insert("raw_text".to_string(), line.replace(',', " "));
+            }
+
+            return Ok(Some(SensorEvent {
+                sensor_id,
+                feature,
+                fields,
+                raw_line: line,
+            }));
+        }
+    }
+
+    fn read_line(&mut self) -> Result<Option<String>, String> {
+        let mut line = String::new();
+        match self.reader.read_line(&mut line) {
+            Ok(0) => Ok(None),
+            Ok(_) => {
+                let trimmed = line.trim().to_string();
+                if trimmed.is_empty() {
+                    Ok(None)
+                } else {
+                    Ok(Some(trimmed))
+                }
+            }
+            Err(err)
+                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
+            {
+                Ok(None)
+            }
+            Err(err) => Err(format!("Failed to read serial line: {err}")),
         }
     }
 }
 
-#[derive(Debug)]
-struct ParsedLine {
-    payload: String,
-    summary: String,
+pub struct NativeSensorSource;
+
+impl NativeSensorSource {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn next_event(&mut self) -> Result<SensorEvent, String> {
+        Err("Native direct sensor source is not implemented yet".to_string())
+    }
 }
 
-fn parse_line(line: &str, format: SerialFormat) -> Option<ParsedLine> {
-    match format {
-        SerialFormat::Mq7 => parse_mq7_line(line).map(|reading| ParsedLine {
-            payload: format!("mq7:raw={},voltage={:.3}", reading.raw, reading.voltage),
-            summary: format!("raw={} voltage={:.3}V", reading.raw, reading.voltage),
-        }),
-        SerialFormat::Dht22 => parse_dht22_line(line).map(|reading| ParsedLine {
-            payload: format!("dht22:temp_c={:.1},hum={:.1}", reading.temp_c, reading.hum),
-            summary: format!("temp_c={:.1} hum={:.1}", reading.temp_c, reading.hum),
-        }),
-        SerialFormat::Adc => parse_adc_line(line).map(|reading| ParsedLine {
-            payload: format!(
-                "adc:pin={},raw={},voltage={:.3}",
-                reading.pin, reading.raw, reading.voltage
-            ),
-            summary: format!(
-                "pin={} raw={} voltage={:.3}V",
-                reading.pin, reading.raw, reading.voltage
-            ),
-        }),
-        SerialFormat::Pcf8591 => parse_pcf8591_line(line).map(|reading| ParsedLine {
-            payload: format!(
-                "pcf8591:addr={},ain0={},ain1={},ain2={},ain3={}",
-                reading.addr, reading.ain0, reading.ain1, reading.ain2, reading.ain3
-            ),
-            summary: format!(
-                "addr={} ain0={} ain1={} ain2={} ain3={}",
-                reading.addr, reading.ain0, reading.ain1, reading.ain2, reading.ain3
-            ),
-        }),
+pub fn list_serial_ports() -> Result<Vec<String>, String> {
+    let ports = serialport::available_ports()
+        .map_err(|e| format!("Failed to enumerate serial ports: {e}"))?;
+    Ok(ports.into_iter().map(|p| p.port_name).collect())
+}
+
+pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<DiscoveryResult, String> {
+    let serial = serialport::new(port, baud)
+        .timeout(Duration::from_millis(600))
+        .open()
+        .map_err(|e| format!("Failed to open serial port {port} at {baud} baud: {e}"))?;
+
+    let mut reader = BufReader::new(serial);
+    let deadline = Instant::now() + window;
+    let mut found = DiscoveryResult::default();
+
+    while Instant::now() < deadline {
+        let mut line = String::new();
+        match reader.read_line(&mut line) {
+            Ok(0) => continue,
+            Ok(_) => {
+                let trimmed = line.trim().to_string();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                if found.sample_lines.len() < 5 {
+                    found.sample_lines.push(trimmed.clone());
+                }
+
+                if let Some(event) = parse_known_event(&trimmed) {
+                    found.known_sensors.insert(event.sensor_id);
+                    continue;
+                }
+
+                if let Some(feature) = extract_feature(&trimmed) {
+                    found.unknown_features.insert(feature);
+                }
+            }
+            Err(err)
+                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
+            {
+                continue;
+            }
+            Err(err) => return Err(format!("Failed to read from {port}@{baud}: {err}")),
+        }
+    }
+
+    Ok(found)
+}
+
+fn parse_known_event(line: &str) -> Option<SensorEvent> {
+    if let Some(reading) = parse_mq7_line(line) {
+        let mut fields = BTreeMap::new();
+        fields.insert("raw".to_string(), reading.raw.to_string());
+        fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
+        return Some(SensorEvent {
+            sensor_id: "mq7".to_string(),
+            feature: "mq7".to_string(),
+            fields,
+            raw_line: line.to_string(),
+        });
+    }
+
+    if let Some(reading) = parse_dht22_line(line) {
+        let mut fields = BTreeMap::new();
+        fields.insert("temp_c".to_string(), format!("{:.1}", reading.temp_c));
+        fields.insert("hum".to_string(), format!("{:.1}", reading.hum));
+        return Some(SensorEvent {
+            sensor_id: "dht22".to_string(),
+            feature: "dht22".to_string(),
+            fields,
+            raw_line: line.to_string(),
+        });
+    }
+
+    if let Some(reading) = parse_adc_line(line) {
+        let mut fields = BTreeMap::new();
+        fields.insert("pin".to_string(), reading.pin.to_string());
+        fields.insert("raw".to_string(), reading.raw.to_string());
+        fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
+        return Some(SensorEvent {
+            sensor_id: "adc".to_string(),
+            feature: "adc".to_string(),
+            fields,
+            raw_line: line.to_string(),
+        });
+    }
+
+    if let Some(reading) = parse_pcf8591_line(line) {
+        let mut fields = BTreeMap::new();
+        fields.insert("addr".to_string(), reading.addr);
+        fields.insert("ain0".to_string(), reading.ain0.to_string());
+        fields.insert("ain1".to_string(), reading.ain1.to_string());
+        fields.insert("ain2".to_string(), reading.ain2.to_string());
+        fields.insert("ain3".to_string(), reading.ain3.to_string());
+        return Some(SensorEvent {
+            sensor_id: "pcf8591".to_string(),
+            feature: "pcf8591".to_string(),
+            fields,
+            raw_line: line.to_string(),
+        });
+    }
+
+    None
+}
+
+fn parse_generic_fields(line: &str) -> BTreeMap<String, String> {
+    let mut fields = BTreeMap::new();
+
+    for token in line.replace(',', " ").split_whitespace() {
+        let Some((key, value)) = token.split_once('=') else {
+            continue;
+        };
+
+        let key = key.trim().to_ascii_lowercase();
+        if key.is_empty() {
+            continue;
+        }
+
+        let normalized = normalize_value(value);
+        if normalized.is_empty() {
+            continue;
+        }
+        fields.insert(key, normalized);
+    }
+
+    fields
+}
+
+fn normalize_value(value: &str) -> String {
+    let trimmed = value
+        .trim()
+        .trim_matches(|c: char| c == ',' || c == ';' || c == '"');
+    let trimmed = trimmed.strip_suffix('V').unwrap_or(trimmed);
+    let trimmed = trimmed.strip_suffix('%').unwrap_or(trimmed);
+    trimmed.to_string()
+}
+
+fn extract_feature(line: &str) -> Option<String> {
+    let first = line.split_whitespace().next()?;
+    let mut buf = String::new();
+    for ch in first.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
+            buf.push(ch.to_ascii_lowercase());
+        } else if !buf.is_empty() {
+            break;
+        }
+    }
+
+    if buf.is_empty() {
+        None
+    } else {
+        Some(buf)
     }
 }
 
@@ -297,14 +469,16 @@ mod tests {
 
     #[test]
     fn parse_pcf8591_line_without_addr_uses_default() {
-        let reading = parse_pcf8591_line("AIN0=172 AIN1=255 AIN2=90 AIN3=129")
-            .expect("should parse");
+        let reading = parse_pcf8591_line("AIN0=172 AIN1=255 AIN2=90 AIN3=129").expect("should parse");
         assert_eq!(reading.addr, "0x48");
     }
 
     #[test]
     fn parse_invalid_pcf8591_line_returns_none() {
         assert!(parse_pcf8591_line("PCF8591 addr=0x48 AIN0=172 AIN1=255").is_none());
-        assert!(parse_pcf8591_line("PCF8591 addr=0x48 AIN0=abc AIN1=255 AIN2=90 AIN3=129").is_none());
+        assert!(
+            parse_pcf8591_line("PCF8591 addr=0x48 AIN0=abc AIN1=255 AIN2=90 AIN3=129").is_none()
+        );
     }
 }
+
