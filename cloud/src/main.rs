@@ -1,19 +1,23 @@
-mod cli;
+﻿mod cli;
 mod config;
 mod constants;
 mod model;
 mod payload;
+mod registry;
 mod server;
+mod token;
 
 use std::env;
 
 use cli::{parse_args, print_usage};
 use config::load_runtime_config;
+use model::CliCommand;
 use server::run;
+use token::current_hour_token;
 
 fn main() {
     let binary = env::args().next().unwrap_or_else(|| "cloud".to_string());
-    let cli = match parse_args() {
+    let command = match parse_args() {
         Ok(v) => v,
         Err(err) => {
             eprintln!("Argument error: {err}\n");
@@ -22,17 +26,30 @@ fn main() {
         }
     };
 
-    let cfg = match load_runtime_config(cli) {
-        Ok(v) => v,
-        Err(err) => {
-            eprintln!("Config error: {err}");
-            std::process::exit(2);
-        }
-    };
+    match command {
+        CliCommand::Run(cli) => {
+            let cfg = match load_runtime_config(cli) {
+                Ok(v) => v,
+                Err(err) => {
+                    eprintln!("Config error: {err}");
+                    std::process::exit(2);
+                }
+            };
 
-    if let Err(err) = run(&cfg) {
-        eprintln!("[cloud] ERROR: {err}");
-        std::process::exit(1);
+            if let Err(err) = run(&cfg) {
+                eprintln!("[cloud] ERROR: {err}");
+                std::process::exit(1);
+            }
+        }
+        CliCommand::Token(token_cli) => match current_hour_token(&token_cli.token_store_path) {
+            Ok(token) => {
+                println!("{token}");
+            }
+            Err(err) => {
+                eprintln!("[cloud] ERROR: {err}");
+                std::process::exit(1);
+            }
+        },
     }
 }
 
@@ -56,6 +73,8 @@ mod tests {
             ack_unknown_sensor_override: None,
             legacy_expected: None,
             legacy_ack_match: None,
+            token_store_path_override: None,
+            registry_path_override: None,
         }
     }
 
@@ -84,6 +103,8 @@ mod tests {
             timeout: None,
             ack_mismatch: DEFAULT_ACK_MISMATCH.to_string(),
             ack_unknown_sensor: DEFAULT_ACK_UNKNOWN_SENSOR.to_string(),
+            token_store_path: "state/token_store.test.json".to_string(),
+            registry_path: "state/registry.test.json".to_string(),
             exact_rules,
             sensor_rules,
         }
@@ -92,10 +113,11 @@ mod tests {
     #[test]
     fn parse_sensor_payload_ok() {
         let (sensor, fields) =
-            parse_sensor_kv_payload("mq7:raw=206,voltage=0.166").expect("should parse");
+            parse_sensor_kv_payload("mq7:device_id=dev01,raw=206,voltage=0.166").expect("should parse");
         assert_eq!(sensor, "mq7");
         assert_eq!(fields.get("raw"), Some(&"206".to_string()));
         assert_eq!(fields.get("voltage"), Some(&"0.166".to_string()));
+        assert_eq!(fields.get("device_id"), Some(&"dev01".to_string()));
     }
 
     #[test]
@@ -115,7 +137,7 @@ mod tests {
     #[test]
     fn evaluate_sensor_success() {
         let cfg = test_runtime();
-        let result = evaluate_payload("mq7:raw=206,voltage=0.166", &cfg);
+        let result = evaluate_payload("mq7:device_id=dev01,raw=206,voltage=0.166", &cfg);
         assert!(result.matched);
         assert_eq!(result.ack, "ack:mq7");
     }
@@ -123,7 +145,7 @@ mod tests {
     #[test]
     fn evaluate_sensor_type_mismatch() {
         let cfg = test_runtime();
-        let result = evaluate_payload("mq7:raw=abc,voltage=0.166", &cfg);
+        let result = evaluate_payload("mq7:device_id=dev01,raw=abc,voltage=0.166", &cfg);
         assert!(!result.matched);
         assert_eq!(result.ack, "ack:error");
     }
@@ -137,6 +159,8 @@ once = true
 timeout_ms = 5000
 ack_mismatch = "ack:bad"
 ack_unknown_sensor = "ack:unknown"
+token_store_path = "state/token.json"
+registry_path = "state/registry.json"
 
 [[exact_payloads]]
 payload = "success"
@@ -159,6 +183,8 @@ voltage = "f32"
         assert_eq!(cfg.timeout, Some(Duration::from_millis(5000)));
         assert_eq!(cfg.ack_mismatch, "ack:bad");
         assert_eq!(cfg.ack_unknown_sensor, "ack:unknown");
+        assert_eq!(cfg.token_store_path, "state/token.json");
+        assert_eq!(cfg.registry_path, "state/registry.json");
         assert_eq!(
             cfg.exact_rules.get("success"),
             Some(&"ack:success".to_string())
@@ -205,3 +231,4 @@ ack = "ack:success"
         );
     }
 }
+

@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use std::time::Duration;
 
-use crate::constants::{DEFAULT_ACK_MATCH_LEGACY, DEFAULT_ONCE};
+use crate::constants::DEFAULT_ACK_MATCH_LEGACY;
 use crate::model::{CliConfig, ConfigFile, RuntimeConfig, SensorRule};
 
 pub(crate) fn parse_config_file(content: &str) -> Result<ConfigFile, String> {
@@ -57,9 +58,7 @@ pub(crate) fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Res
         .clone()
         .unwrap_or_else(|| file_cfg.receiver.bind.clone());
 
-    let once = cli
-        .once
-        .unwrap_or_else(|| file_cfg.receiver.once.unwrap_or(DEFAULT_ONCE));
+    let once = cli.once.unwrap_or_else(|| file_cfg.receiver.once.unwrap_or(false));
 
     let timeout = match cli.timeout_override {
         Some(override_value) => override_value,
@@ -76,6 +75,19 @@ pub(crate) fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Res
         .clone()
         .unwrap_or_else(|| file_cfg.receiver.ack_unknown_sensor.clone());
 
+    let token_store_path = cli
+        .token_store_path_override
+        .clone()
+        .unwrap_or_else(|| file_cfg.receiver.token_store_path.clone());
+
+    let registry_path = cli
+        .registry_path_override
+        .clone()
+        .unwrap_or_else(|| file_cfg.receiver.registry_path.clone());
+
+    ensure_parent_dir(&token_store_path)?;
+    ensure_parent_dir(&registry_path)?;
+
     Ok(RuntimeConfig {
         bind,
         once,
@@ -83,6 +95,8 @@ pub(crate) fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Res
         timeout,
         ack_mismatch,
         ack_unknown_sensor,
+        token_store_path,
+        registry_path,
         exact_rules,
         sensor_rules,
     })
@@ -94,3 +108,15 @@ pub(crate) fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, Strin
     let file_cfg = parse_config_file(&content)?;
     build_runtime_config(&cli, file_cfg)
 }
+
+fn ensure_parent_dir(path: &str) -> Result<(), String> {
+    let p = Path::new(path);
+    if let Some(parent) = p.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create parent dir {}: {e}", parent.display()))?;
+        }
+    }
+    Ok(())
+}
+

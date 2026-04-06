@@ -4,6 +4,8 @@ once = false
 timeout_ms = 30000
 ack_mismatch = "ack:error"
 ack_unknown_sensor = "ack:unknown_sensor"
+token_store_path = "state/token_store.json"
+registry_path = "state/registry.json"
 
 [[exact_payloads]]
 payload = "success"
