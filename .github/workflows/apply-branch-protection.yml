@@ -9,8 +9,7 @@ on:
         default: 'no'
 
 permissions:
-  contents: read
-  administration: write
+  contents: write
 
 jobs:
   apply-protection:
