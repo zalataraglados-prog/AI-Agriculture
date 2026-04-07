@@ -31,7 +31,8 @@ pub(crate) struct CliConfig {
 
 #[derive(Debug, Clone)]
 pub(crate) struct TokenCliConfig {
-    pub(crate) token_store_path: String,
+    pub(crate) config_path: String,
+    pub(crate) token_store_path_override: Option<String>,
 }
 
 #[derive(Debug)]

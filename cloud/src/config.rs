@@ -1,10 +1,10 @@
 ﻿use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::constants::DEFAULT_ACK_MATCH_LEGACY;
-use crate::model::{CliConfig, ConfigFile, RuntimeConfig, SensorRule};
+use crate::model::{CliConfig, ConfigFile, RuntimeConfig, SensorRule, TokenCliConfig};
 
 pub(crate) fn parse_config_file(content: &str) -> Result<ConfigFile, String> {
     toml::from_str(content).map_err(|e| format!("Failed to parse TOML config: {e}"))
@@ -109,6 +109,43 @@ pub(crate) fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, Strin
     build_runtime_config(&cli, file_cfg)
 }
 
+pub(crate) fn resolve_token_store_path_for_token_command(cli: &TokenCliConfig) -> Result<String, String> {
+    if let Some(path) = &cli.token_store_path_override {
+        return Ok(path.clone());
+    }
+
+    let content = fs::read_to_string(&cli.config_path)
+        .map_err(|e| format!("Failed to read config file {}: {e}", cli.config_path))?;
+    let file_cfg = parse_config_file(&content)?;
+    Ok(resolve_relative_path_from_config(
+        &cli.config_path,
+        &file_cfg.receiver.token_store_path,
+    ))
+}
+
+fn resolve_relative_path_from_config(config_path: &str, raw_path: &str) -> String {
+    let raw = Path::new(raw_path);
+    if raw.is_absolute() {
+        return raw_path.to_string();
+    }
+
+    let config = Path::new(config_path);
+    let config_dir = config.parent().unwrap_or_else(|| Path::new("."));
+
+    let base_dir: PathBuf = if config_dir
+        .file_name()
+        .and_then(|v| v.to_str())
+        .map(|v| v.eq_ignore_ascii_case("config"))
+        .unwrap_or(false)
+    {
+        config_dir.parent().unwrap_or(config_dir).to_path_buf()
+    } else {
+        config_dir.to_path_buf()
+    };
+
+    base_dir.join(raw).to_string_lossy().to_string()
+}
+
 fn ensure_parent_dir(path: &str) -> Result<(), String> {
     let p = Path::new(path);
     if let Some(parent) = p.parent() {
@@ -118,5 +155,34 @@ fn ensure_parent_dir(path: &str) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_relative_path_from_config;
+
+    #[test]
+    fn resolve_relative_path_from_config_dir_parent_when_config_folder() {
+        let resolved = resolve_relative_path_from_config(
+            "/opt/ai-agriculture/cloud/config/sensors.toml",
+            "state/token_store.json",
+        );
+        assert_eq!(
+            resolved,
+            "/opt/ai-agriculture/cloud/state/token_store.json"
+        );
+    }
+
+    #[test]
+    fn keep_absolute_path_unchanged() {
+        let resolved = resolve_relative_path_from_config(
+            "/opt/ai-agriculture/cloud/config/sensors.toml",
+            "/opt/ai-agriculture/cloud/state/token_store.json",
+        );
+        assert_eq!(
+            resolved,
+            "/opt/ai-agriculture/cloud/state/token_store.json"
+        );
+    }
 }
 
