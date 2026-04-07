@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">农业监测系统 - 登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#16a34a',
+                        secondary: '#0ea5e9',
+                        dark: '#1e293b',
+                        light: '#f8fafc',
+                        agri: '#dcfce7'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-agri-pattern {
+                background-image: url('https://picsum.photos/id/145/1920/1080');
+                background-size: cover;
+                background-position: center;
+                background-blend-mode: overlay;
+            }
+            .glass {
+                background: rgba(255, 255, 255, 0.88);
+                backdrop-filter: blur(8px);
+            }
+            .input-focus {
+                @apply focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
+            }
+            .btn-hover {
+                @apply hover:shadow-lg hover:shadow-primary/20 transition-all duration-300;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-agri-pattern bg-dark/50 flex items-center justify-center p-4">
+    <div class="w-full max-w-lg">
+        <div class="glass rounded-2xl shadow-xl overflow-hidden">
+            <!-- 头部 -->
+            <div class="bg-primary text-white p-6 text-center relative">
+                <!-- 语言切换 -->
+                <div class="absolute top-3 right-4 flex gap-2">
+                    <button onclick="switchLang('zh')" class="px-2 py-0.5 text-xs rounded border border-white/30 hover:bg-white/20">中文</button>
+                    <button onclick="switchLang('en')" class="px-2 py-0.5 text-xs rounded border border-white/30 hover:bg-white/20">En</button>
+                </div>
+
+                <h1 id="sysName" class="text-[clamp(1.5rem,3vw,2rem)] font-bold flex items-center justify-center gap-2">
+                    <i class="fa fa-leaf"></i>农业监测管理系统
+                </h1>
+                <p id="sysEnName" class="text-sm opacity-90 mt-1">Agricultural Monitoring System</p>
+            </div>
+
+            <!-- 表单区域 -->
+            <div class="p-6 md:p-8">
+                <div id="loginForm">
+                    <div class="mb-5">
+                        <label id="labelUser" class="block text-sm font-medium text-dark mb-1">账号</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <i class="fa fa-user"></i>
+                            </span>
+                            <input type="text" id="username" 
+                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg input-focus"
+                                placeholder="请输入管理员账号">
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label id="labelPwd" class="block text-sm font-medium text-dark mb-1">密码</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <i class="fa fa-lock"></i>
+                            </span>
+                            <input type="password" id="password"
+                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg input-focus"
+                                placeholder="请输入登录密码">
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label id="labelCaptcha" class="block text-sm font-medium text-dark mb-1">图形验证码</label>
+                        <div class="flex gap-3">
+                            <input type="text" id="captcha" maxlength="4"
+                                class="flex-1 pl-4 pr-4 py-2.5 border border-gray-300 rounded-lg input-focus">
+                            <div id="captchaImg" class="w-32 h-11 bg-gray-100 rounded-lg flex items-center justify-center text-xl font-mono tracking-widest cursor-pointer select-none">
+                                8A5F
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="goToVerify()"
+                        class="w-full bg-primary text-white py-2.5 rounded-lg font-medium btn-hover flex items-center justify-center gap-2">
+                        <i class="fa fa-sign-in"></i> <span id="btnNext">下一步验证</span>
+                    </button>
+                </div>
+
+                <!-- 二次验证 -->
+                <div id="verifyForm" class="hidden">
+                    <div class="mb-5">
+                        <label id="labelCode" class="block text-sm font-medium text-dark mb-1">二次验证码</label>
+                        <div class="flex gap-3">
+                            <input type="text" id="code" maxlength="6"
+                                class="flex-1 pl-4 pr-4 py-2.5 border border-gray-300 rounded-lg input-focus">
+                            <button id="sendBtn" onclick="sendCode()"
+                                class="whitespace-nowrap px-4 bg-secondary text-white rounded-lg btn-hover">
+                                获取验证码
+                            </button>
+                        </div>
+                        <p id="codeTip" class="text-xs text-gray-500 mt-1.5">验证码已发送至管理员预留联系方式</p>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="backToLogin()"
+                            class="flex-1 py-2.5 border border-gray-300 rounded-lg font-medium btn-hover">
+                            <span id="btnBack">返回</span>
+                        </button>
+                        <button onclick="doLogin()"
+                            class="flex-1 bg-primary text-white py-2.5 rounded-lg font-medium btn-hover flex items-center justify-center gap-2">
+                            <i class="fa fa-spinner fa-spin hidden" id="loading"></i> <span id="btnLogin">登录系统</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-8 pb-6 text-center text-xs text-gray-500">
+                <p id="copyright">© 2025 农业监测系统 版权所有</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 多语言配置
+        const langData = {
+            zh: {
+                pageTitle: "农业监测系统 - 登录",
+                sysName: "农业监测管理系统",
+                sysEnName: "Agricultural Monitoring System",
+                labelUser: "账号",
+                labelPwd: "密码",
+                labelCaptcha: "图形验证码",
+                btnNext: "下一步验证",
+                labelCode: "二次验证码",
+                sendBtn: "获取验证码",
+                codeTip: "验证码已发送至管理员预留联系方式",
+                btnBack: "返回",
+                btnLogin: "登录系统",
+                copyright: "© 2025 农业监测系统 版权所有",
+                msgEmpty: "请完成账号、密码、验证码填写",
+                msgCodeErr: "请输入有效的6位二次验证码",
+                msgLoginSuccess: "登录成功，正在进入系统",
+                msgSending: "秒后重新获取"
+            },
+            en: {
+                pageTitle: "Agri System - Login",
+                sysName: "Agri Monitoring System",
+                sysEnName: "Professional Monitoring Platform",
+                labelUser: "Username",
+                labelPwd: "Password",
+                labelCaptcha: "Captcha",
+                btnNext: "Next",
+                labelCode: "Security Code",
+                sendBtn: "Send Code",
+                codeTip: "Code sent to admin contact",
+                btnBack: "Back",
+                btnLogin: "Login",
+                copyright: "© 2025 All Rights Reserved",
+                msgEmpty: "Please fill in all fields",
+                msgCodeErr: "Please enter a valid 6-digit code",
+                msgLoginSuccess: "Login successful, entering system",
+                msgSending: "s to resend"
+            }
+        };
+
+        // 切换语言
+        function switchLang(lang) {
+            document.documentElement.lang = lang;
+            const data = langData[lang];
+            for (let key in data) {
+                const el = document.getElementById(key);
+                if (el) el.innerText = data[key];
+            }
+            // 刷新按钮文字
+            const btn = document.getElementById('sendBtn');
+            if (!btn.disabled) btn.innerText = data.sendBtn;
+        }
+
+        // 切换到二次验证
+        function goToVerify() {
+            let user = document.getElementById('username').value.trim();
+            let pwd = document.getElementById('password').value.trim();
+            let captcha = document.getElementById('captcha').value.trim();
+            const lang = document.documentElement.lang;
+
+            if (!user || !pwd || !captcha) {
+                alert(langData[lang].msgEmpty);
+                return;
+            }
+
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('verifyForm').classList.remove('hidden');
+        }
+
+        // 返回登录
+        function backToLogin() {
+            document.getElementById('verifyForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        }
+
+        // 发送验证码倒计时
+        let countdown = 60;
+        let timer = null;
+        function sendCode() {
+            const lang = document.documentElement.lang;
+            let btn = document.getElementById('sendBtn');
+            if (timer) return;
+
+            btn.disabled = true;
+            btn.innerText = `${countdown}${langData[lang].msgSending}`;
+
+            // TODO: 调用实际获取验证码的API
+            /*
+            fetch('/api/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    username: document.getElementById('username').value.trim() 
+                })
+            }).then(res => res.json()).then(data => {
+                if(!data.success) {
+                    alert('验证码发送失败');
+                    // 清除定时器并复原按钮状态
+                }
+            }).catch(err => {
+                console.error(err);
+            });
+            */
+
+            timer = setInterval(() => {
+                countdown--;
+                btn.innerText = `${countdown}${langData[lang].msgSending}`;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    timer = null;
+                    countdown = 60;
+                    btn.disabled = false;
+                    btn.innerText = langData[lang].sendBtn;
+                }
+            }, 1000);
+        }
+
+        // 登录
+        async function doLogin() {
+            const lang = document.documentElement.lang;
+            let code = document.getElementById('code').value.trim();
+
+            if (!code || code.length !== 6) {
+                alert(langData[lang].msgCodeErr);
+                return;
+            }
+
+            let loading = document.getElementById('loading');
+            loading.classList.remove('hidden');
+
+            try {
+                // TODO: 替换为实际的后台登录验证API
+                /*
+                let requestBody = {
+                    username: document.getElementById('username').value.trim(),
+                    password: document.getElementById('password').value.trim(),
+                    captcha: document.getElementById('captcha').value.trim(),
+                    code: code
+                };
+                
+                let res = await fetch('/api/login', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody) 
+                });
+                let result = await res.json();
+                
+                if (result.success) {
+                    alert(langData[lang].msgLoginSuccess);
+                    window.location.href = './index.html';
+                } else {
+                    alert(result.message || '登录失败');
+                    loading.classList.add('hidden');
+                }
+                */
+                
+                // 暂时保留占位演示，方便查看效果
+                setTimeout(() => {
+                    loading.classList.add('hidden');
+                    console.log('API trigger placeholder');
+                    // alert(langData[lang].msgLoginSuccess);
+                    // window.location.href = './index.html';
+                }, 1000);
+            } catch (err) {
+                loading.classList.add('hidden');
+                alert("请求失败，请稍后重试");
+            }
+        }
+
+        // 切换验证码
+        document.getElementById('captchaImg').onclick = function () {
+            const chars = '0123456789ABCDEFGHJKLMNPQRSTWXYZ';
+            let str = '';
+            for (let i = 0; i < 4; i++) {
+                str += chars[Math.floor(Math.random() * chars.length)];
+            }
+            this.innerText = str;
+        };
+
+        // 默认中文
+        switchLang('zh');
+    </script>
+</body>
+</html>
