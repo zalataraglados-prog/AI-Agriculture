@@ -27,6 +27,20 @@ cargo run -- --config config/sensors.toml --bind 0.0.0.0:9000 --timeout-ms 0
 - legacy compatibility:
   - `--expected <payload>` and `--ack-match <payload>` add one temporary exact rule at runtime
 
+### Generate register token safely
+
+Prefer generating token with config path so token store matches running service location:
+
+```bash
+cargo run --quiet -- token --config /opt/ai-agriculture/cloud/config/sensors.toml
+```
+
+Or explicitly pin token store path:
+
+```bash
+cargo run --quiet -- token --token-store /opt/ai-agriculture/cloud/state/token_store.json
+```
+
 ## Config format (`config/sensors.toml`)
 
 ```toml

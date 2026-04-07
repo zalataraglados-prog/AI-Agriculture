@@ -14,7 +14,7 @@ pub(crate) fn print_usage(binary: &str) {
                [--ack-mismatch <payload>] [--ack-unknown-sensor <payload>]
                [--token-store <path>] [--registry <path>]
                [--expected <legacy-payload>] [--ack-match <legacy-ack>]
-  {binary} token [--token-store <path>]
+      {binary} token [--config <path>] [--token-store <path>]
 
 Defaults:
   --config {DEFAULT_CONFIG_PATH}
@@ -162,15 +162,22 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<CliConfig, String> {
 }
 
 fn parse_token_args(raw_args: Vec<String>) -> Result<TokenCliConfig, String> {
-    let mut token_store_path = DEFAULT_TOKEN_STORE_PATH.to_string();
+    let mut config_path = DEFAULT_CONFIG_PATH.to_string();
+    let mut token_store_path_override: Option<String> = None;
 
     let mut args = raw_args.into_iter();
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "--token-store" => {
-                token_store_path = args
+            "--config" => {
+                config_path = args
                     .next()
-                    .ok_or_else(|| "Missing value for --token-store".to_string())?;
+                    .ok_or_else(|| "Missing value for --config".to_string())?;
+            }
+            "--token-store" => {
+                token_store_path_override = Some(
+                    args.next()
+                        .ok_or_else(|| "Missing value for --token-store".to_string())?,
+                );
             }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "cloud".to_string());
@@ -181,7 +188,10 @@ fn parse_token_args(raw_args: Vec<String>) -> Result<TokenCliConfig, String> {
         }
     }
 
-    Ok(TokenCliConfig { token_store_path })
+    Ok(TokenCliConfig {
+        config_path,
+        token_store_path_override,
+    })
 }
 
 fn default_run_cli() -> CliConfig {

@@ -1,4 +1,4 @@
-﻿mod cli;
+mod cli;
 mod config;
 mod constants;
 mod model;
@@ -6,11 +6,12 @@ mod payload;
 mod registry;
 mod server;
 mod token;
+mod http_server;
 
 use std::env;
 
 use cli::{parse_args, print_usage};
-use config::load_runtime_config;
+use config::{load_runtime_config, resolve_token_store_path_for_token_command};
 use model::CliCommand;
 use server::run;
 use token::current_hour_token;
@@ -36,20 +37,33 @@ fn main() {
                 }
             };
 
+            // 启动 HTTP 后台和前端仪表盘服务 (端口 8080)
+            http_server::start_http_server("0.0.0.0:8080");
+
             if let Err(err) = run(&cfg) {
                 eprintln!("[cloud] ERROR: {err}");
                 std::process::exit(1);
             }
         }
-        CliCommand::Token(token_cli) => match current_hour_token(&token_cli.token_store_path) {
-            Ok(token) => {
-                println!("{token}");
+        CliCommand::Token(token_cli) => {
+            let token_store_path = match resolve_token_store_path_for_token_command(&token_cli) {
+                Ok(v) => v,
+                Err(err) => {
+                    eprintln!("Config error: {err}");
+                    std::process::exit(2);
+                }
+            };
+
+            match current_hour_token(&token_store_path) {
+                Ok(token) => {
+                    println!("{token}");
+                }
+                Err(err) => {
+                    eprintln!("[cloud] ERROR: {err}");
+                    std::process::exit(1);
+                }
             }
-            Err(err) => {
-                eprintln!("[cloud] ERROR: {err}");
-                std::process::exit(1);
-            }
-        },
+        }
     }
 }
 
