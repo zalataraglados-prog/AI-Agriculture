@@ -1,4 +1,4 @@
-﻿use std::env;
+use std::env;
 use std::time::Duration;
 
 use crate::constants::{
@@ -162,7 +162,7 @@ fn parse_flash_args(raw_args: Vec<String>) -> Result<FlashConfig, String> {
         port: None,
         baud: 921_600,
         firmware_path: None,
-        fallback_script: None,
+        fallback_script: Some("scripts/flash_esp32_rust.sh".to_string()),
     };
 
     let mut args = raw_args.into_iter();

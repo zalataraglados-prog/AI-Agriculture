@@ -1,5 +1,5 @@
 ﻿use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::io::{self, ErrorKind, Write};
+use std::io::{self, BufRead, ErrorKind, Write};
 use std::net::UdpSocket;
 use std::path::Path;
 use std::process::Command;
@@ -28,6 +28,15 @@ struct DiscoveredDevice {
     sensors: Vec<String>,
     feature_mapping: BTreeMap<String, String>,
     device_id: String,
+}
+
+#[derive(Debug, Default, Clone)]
+struct PortDiscoveryOutcome {
+    port_opened: bool,
+    managed_protocol_detected: bool,
+    detected_baud: Option<u32>,
+    sensors: Vec<String>,
+    feature_mapping: BTreeMap<String, String>,
 }
 
 #[derive(Clone)]
@@ -87,6 +96,7 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     println!("[gateway] Recursively scanning serial ports and baud rates...");
 
     let mut running: HashMap<String, JoinHandle<()>> = HashMap::new();
+    let mut flash_prompted_ports: BTreeSet<String> = BTreeSet::new();
 
     loop {
         reap_finished_sessions(&mut running);
@@ -101,8 +111,32 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
                 continue;
             }
 
-            let maybe_device = discover_device_for_port(&port, &shared, &device_index)?;
-            if let Some(device) = maybe_device {
+            let discovery = discover_device_for_port(&port, &shared)?;
+            if !discovery.port_opened {
+                continue;
+            }
+
+            if !discovery.managed_protocol_detected {
+                if !flash_prompted_ports.contains(&port) {
+                    let flashed = maybe_flash_new_device(&port, &shared.prompt_lock)?;
+                    if flashed {
+                        flash_prompted_ports.insert(port.clone());
+                    }
+                }
+                continue;
+            }
+            flash_prompted_ports.remove(&port);
+
+            if let Some(baud) = discovery.detected_baud {
+                let (device_id, _) =
+                    get_or_create_device_id(&port, &shared.state_dir, &device_index)?;
+                let device = DiscoveredDevice {
+                    port: port.clone(),
+                    baud,
+                    sensors: discovery.sensors,
+                    feature_mapping: discovery.feature_mapping,
+                    device_id,
+                };
                 println!(
                     "[gateway] Device discovered: {} @ {} sensors={:?}",
                     device.port, device.baud, device.sensors
@@ -115,7 +149,7 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
                     }
                 });
                 running.insert(thread_port, handle);
-            }
+            }            
         }
 
         thread::sleep(run_cfg.scan_interval);
@@ -147,20 +181,34 @@ fn reap_finished_sessions(running: &mut HashMap<String, JoinHandle<()>>) {
 fn discover_device_for_port(
     port: &str,
     shared: &SharedContext,
-    device_index: &Arc<Mutex<DeviceIndexStore>>,
-) -> Result<Option<DiscoveredDevice>, String> {
+) -> Result<PortDiscoveryOutcome, String> {
+    let mut outcome = PortDiscoveryOutcome::default();
+    let mut first_opened_baud: Option<u32> = None;
+
     for &baud in &shared.run_cfg.baud_list {
         let result = match discover_on_port(port, baud, shared.run_cfg.scan_window) {
             Ok(v) => v,
             Err(_) => continue,
         };
-
-        if result.known_sensors.is_empty() && result.unknown_features.is_empty() {
-            continue;
+        outcome.port_opened = true;
+        if first_opened_baud.is_none() {
+            first_opened_baud = Some(baud);
         }
 
         if !result.sample_lines.is_empty() {
             println!("[gateway] Discovery sample {port}@{baud}: {:?}", result.sample_lines);
+        }
+
+        if !result.managed_protocol_detected {
+            continue;
+        }
+
+        outcome.managed_protocol_detected = true;
+        println!("[gateway] Managed protocol detected on {port}@{baud}");
+        outcome.detected_baud = Some(baud);
+
+        if result.known_sensors.is_empty() && result.unknown_features.is_empty() {
+            return Ok(outcome);
         }
 
         let mut feature_mapping_guard = shared
@@ -192,34 +240,38 @@ fn discover_device_for_port(
             },
         )?;
 
-        let device_id = {
-            let mut index_guard = device_index
-                .lock()
-                .map_err(|_| "Device index lock poisoned".to_string())?;
-            if let Some(existing) = index_guard.port_to_device_id.get(port) {
-                existing.clone()
-            } else {
-                let created = generate_device_id(port);
-                index_guard
-                    .port_to_device_id
-                    .insert(port.to_string(), created.clone());
-                save_device_index(&shared.state_dir, &index_guard)?;
-                created
-            }
-        };
-
-        let discovered = DiscoveredDevice {
-            port: port.to_string(),
-            baud,
-            sensors: sensors.into_iter().collect(),
-            feature_mapping: feature_mapping_snapshot,
-            device_id,
-        };
-
-        return Ok(Some(discovered));
+        outcome.detected_baud = Some(baud);
+        outcome.sensors = sensors.into_iter().collect();
+        outcome.feature_mapping = feature_mapping_snapshot;
+        return Ok(outcome);
     }
 
-    Ok(None)
+    if outcome.port_opened {
+        outcome.managed_protocol_detected = false;
+        outcome.detected_baud = first_opened_baud;
+    }
+
+    Ok(outcome)
+}
+
+fn get_or_create_device_id(
+    port: &str,
+    state_dir: &Path,
+    device_index: &Arc<Mutex<DeviceIndexStore>>,
+) -> Result<(String, bool), String> {
+    let mut index_guard = device_index
+        .lock()
+        .map_err(|_| "Device index lock poisoned".to_string())?;
+    if let Some(existing) = index_guard.port_to_device_id.get(port) {
+        return Ok((existing.clone(), false));
+    }
+
+    let created = generate_device_id(port);
+    index_guard
+        .port_to_device_id
+        .insert(port.to_string(), created.clone());
+    save_device_index(state_dir, &index_guard)?;
+    Ok((created, true))
 }
 
 fn run_device_session_loop(device: DiscoveredDevice, shared: SharedContext) -> Result<(), String> {
@@ -411,13 +463,38 @@ fn run_flash(cfg: FlashConfig) -> Result<(), String> {
         .port
         .ok_or_else(|| "flash requires --port (for example /dev/ttyUSB0)".to_string())?;
 
-    let firmware = cfg
-        .firmware_path
-        .unwrap_or_else(|| "firmware/esp32/unified.bin".to_string());
+    let rust_flash_script = cfg
+        .fallback_script
+        .clone()
+        .unwrap_or_else(|| "scripts/flash_esp32_rust.sh".to_string());
+
+    if Path::new(&rust_flash_script).exists() {
+        println!("[gateway] Flash via Rust script: {rust_flash_script}");
+        let status = Command::new(&rust_flash_script)
+            .args([&port, &cfg.baud.to_string()])
+            .status()
+            .map_err(|e| format!("Failed to run rust flash script {rust_flash_script}: {e}"))?;
+
+        if status.success() {
+            println!("[gateway] Flash success via Rust script");
+            return Ok(());
+        }
+
+        return Err(format!("Rust flash script exited with status {status}"));
+    }
+
+    let firmware = if let Some(path) = cfg.firmware_path.clone() {
+        path
+    } else {
+        return Err(format!(
+            "Rust flash script not found: {}. Provide script or pass --firmware <path>.",
+            rust_flash_script
+        ));
+    };
 
     if !Path::new(&firmware).exists() {
         return Err(format!(
-            "Firmware not found: {}. Put ESP32 unified firmware there or pass --firmware.",
+            "Firmware not found: {}. Pass valid --firmware path.",
             firmware
         ));
     }
@@ -448,22 +525,7 @@ fn run_flash(cfg: FlashConfig) -> Result<(), String> {
         }
     }
 
-    if let Some(script) = cfg.fallback_script {
-        println!("[gateway] Trying fallback script: {script}");
-        let status = Command::new(&script)
-            .args([&port, &cfg.baud.to_string(), &firmware])
-            .status()
-            .map_err(|e| format!("Failed to run fallback script {script}: {e}"))?;
-
-        if status.success() {
-            println!("[gateway] Flash success via fallback script");
-            return Ok(());
-        }
-
-        return Err(format!("Fallback script exited with status {status}"));
-    }
-
-    Err("Built-in flash failed and no --fallback-script provided".to_string())
+    Err("Built-in binary flash failed".to_string())
 }
 
 fn run_diag(cfg: DiagConfig) -> Result<(), String> {
@@ -536,6 +598,31 @@ fn prompt_unknown_feature_mapping(feature: &str, prompt_lock: &Arc<Mutex<()>>) -
     )
 }
 
+fn maybe_flash_new_device(port: &str, prompt_lock: &Arc<Mutex<()>>) -> Result<bool, String> {
+    let _guard = prompt_lock
+        .lock()
+        .map_err(|_| "Prompt lock poisoned".to_string())?;
+    println!("[gateway] New device detected on {port}, auto flashing Rust firmware...");
+    let cfg = FlashConfig {
+        port: Some(port.to_string()),
+        baud: 921_600,
+        firmware_path: None,
+        fallback_script: Some("scripts/flash_esp32_rust.sh".to_string()),
+    };
+
+    match run_flash(cfg) {
+        Ok(()) => {
+            println!("[gateway] Flash completed on {port}");
+            Ok(true)
+        }
+        Err(err) => {
+            eprintln!("[gateway] Flash failed on {port}: {err}");
+            println!("[gateway] Continue without flashing on {port}");
+            Ok(false)
+        }
+    }
+}
+
 fn prompt_line(
     message: &str,
     default: Option<&str>,
@@ -556,16 +643,35 @@ fn prompt_line(
         .flush()
         .map_err(|e| format!("Failed to flush stdout: {e}"))?;
 
-    let mut buf = String::new();
+    let mut raw = Vec::new();
     io::stdin()
-        .read_line(&mut buf)
+        .lock()
+        .read_until(b'\n', &mut raw)
         .map_err(|e| format!("Failed to read stdin: {e}"))?;
 
-    let trimmed = buf.trim();
+    let decoded = decode_input_lossy(&raw);
+    let trimmed = decoded.trim();
     if trimmed.is_empty() {
         return Ok(default.unwrap_or("").to_string());
     }
     Ok(trimmed.to_string())
+}
+
+fn decode_input_lossy(raw: &[u8]) -> String {
+    if raw.is_empty() {
+        return String::new();
+    }
+
+    if raw.len() >= 2 && raw.chunks_exact(2).all(|chunk| chunk[1] == 0) {
+        let mut utf16 = Vec::with_capacity(raw.len() / 2);
+        for chunk in raw.chunks_exact(2) {
+            utf16.push(u16::from_le_bytes([chunk[0], chunk[1]]));
+        }
+        let text = String::from_utf16_lossy(&utf16);
+        return text.replace('\0', "");
+    }
+
+    String::from_utf8_lossy(raw).replace('\0', "")
 }
 
 fn generate_device_id(port: &str) -> String {
@@ -587,6 +693,7 @@ fn generate_device_id(port: &str) -> String {
     format!("dev_{cleaned}_{ts}")
 }
 
+#[allow(dead_code)]
 pub(crate) fn send_internal_success_probe(target: &str, ack_timeout: Duration) -> Result<(), String> {
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| format!("Failed to bind socket: {e}"))?;
     socket

@@ -1,0 +1,7 @@
+{
+  "cloud_target": "127.0.0.1:9000",
+  "farm_location": "unknown_location",
+  "crop_type": "unknown_crop",
+  "farm_note": "",
+  "last_token": null
+}

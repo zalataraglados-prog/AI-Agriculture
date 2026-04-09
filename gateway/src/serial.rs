@@ -1,4 +1,7 @@
-﻿use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet};
+use std::env;
+#[cfg(target_os = "linux")]
+use std::fs;
 use std::io::{BufRead, BufReader, ErrorKind};
 use std::time::{Duration, Instant};
 
@@ -37,6 +40,7 @@ pub struct SensorEvent {
     pub sensor_id: String,
     pub feature: String,
     pub fields: BTreeMap<String, String>,
+    #[allow(dead_code)]
     pub raw_line: String,
 }
 
@@ -45,6 +49,7 @@ pub struct DiscoveryResult {
     pub known_sensors: BTreeSet<String>,
     pub unknown_features: BTreeSet<String>,
     pub sample_lines: Vec<String>,
+    pub managed_protocol_detected: bool,
 }
 
 pub struct SerialEsp32Source {
@@ -144,9 +149,43 @@ impl NativeSensorSource {
 }
 
 pub fn list_serial_ports() -> Result<Vec<String>, String> {
-    let ports = serialport::available_ports()
+    let mut ports = serialport::available_ports()
         .map_err(|e| format!("Failed to enumerate serial ports: {e}"))?;
-    Ok(ports.into_iter().map(|p| p.port_name).collect())
+    let mut names: Vec<String> = ports.drain(..).map(|p| p.port_name).collect();
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(entries) = fs::read_dir("/dev") {
+            for entry in entries.flatten() {
+                let Some(name) = entry.file_name().to_str().map(|v| v.to_string()) else {
+                    continue;
+                };
+                if name.starts_with("ttyS")
+                    || name.starts_with("ttyUSB")
+                    || name.starts_with("ttyACM")
+                {
+                    names.push(format!("/dev/{name}"));
+                }
+            }
+        }
+    }
+
+    names.sort();
+    names.dedup();
+
+    if let Ok(extra) = env::var("GATEWAY_EXTRA_PORTS") {
+        for part in extra.split(',') {
+            let port = part.trim();
+            if port.is_empty() {
+                continue;
+            }
+            names.push(port.to_string());
+        }
+        names.sort();
+        names.dedup();
+    }
+
+    Ok(names)
 }
 
 pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<DiscoveryResult, String> {
@@ -171,6 +210,10 @@ pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<Disco
                 if found.sample_lines.len() < 5 {
                     found.sample_lines.push(trimmed.clone());
                 }
+                if is_managed_protocol_line(&trimmed) {
+                    found.managed_protocol_detected = true;
+                    continue;
+                }
 
                 if let Some(event) = parse_known_event(&trimmed) {
                     found.known_sensors.insert(event.sensor_id);
@@ -194,18 +237,6 @@ pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<Disco
 }
 
 fn parse_known_event(line: &str) -> Option<SensorEvent> {
-    if let Some(reading) = parse_mq7_line(line) {
-        let mut fields = BTreeMap::new();
-        fields.insert("raw".to_string(), reading.raw.to_string());
-        fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
-        return Some(SensorEvent {
-            sensor_id: "mq7".to_string(),
-            feature: "mq7".to_string(),
-            fields,
-            raw_line: line.to_string(),
-        });
-    }
-
     if let Some(reading) = parse_dht22_line(line) {
         let mut fields = BTreeMap::new();
         fields.insert("temp_c".to_string(), format!("{:.1}", reading.temp_c));
@@ -297,6 +328,15 @@ fn extract_feature(line: &str) -> Option<String> {
     } else {
         Some(buf)
     }
+}
+
+fn is_managed_protocol_line(line: &str) -> bool {
+    let upper = line.to_ascii_uppercase();
+    upper.starts_with("AIAG ")
+        || upper.starts_with("AIAG:")
+        || upper.contains("AIAG HELLO")
+        || upper.contains("AIAG CAPS")
+        || upper.contains("AIAG RUN")
 }
 
 pub fn parse_mq7_line(line: &str) -> Option<Mq7Reading> {

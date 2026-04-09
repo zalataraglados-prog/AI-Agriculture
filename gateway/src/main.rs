@@ -1,4 +1,4 @@
-﻿mod config;
+mod config;
 mod constants;
 mod datasource;
 mod gateway;
