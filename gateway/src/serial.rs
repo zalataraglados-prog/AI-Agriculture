@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, ErrorKind};
 use std::time::{Duration, Instant};
 
 use serialport::SerialPort;
+use crate::constants::{RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID};
 
 #[derive(Debug)]
 pub struct Mq7Reading {
@@ -236,7 +237,30 @@ pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<Disco
     Ok(found)
 }
 
+fn parse_image_channel_line(line: &str) -> Option<SensorEvent> {
+    let feature = extract_feature(line)?;
+    if feature != "image" && feature != "img" && feature != "frame" {
+        return None;
+    }
+
+    let mut fields = parse_generic_fields(line);
+    if fields.is_empty() {
+        fields.insert("raw_text".to_string(), line.replace(',', " "));
+    }
+
+    Some(SensorEvent {
+        sensor_id: RESERVED_IMAGE_SENSOR_ID.to_string(),
+        feature: RESERVED_IMAGE_FEATURE.to_string(),
+        fields,
+        raw_line: line.to_string(),
+    })
+}
+
 fn parse_known_event(line: &str) -> Option<SensorEvent> {
+    if let Some(event) = parse_image_channel_line(line) {
+        return Some(event);
+    }
+
     if let Some(reading) = parse_dht22_line(line) {
         let mut fields = BTreeMap::new();
         fields.insert("temp_c".to_string(), format!("{:.1}", reading.temp_c));

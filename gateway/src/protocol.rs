@@ -37,3 +37,23 @@ pub fn build_sensor_packet(
     format!("{sensor_id}:{}", pairs.join(","))
 }
 
+pub fn build_image_channel_packet(
+    fields: &BTreeMap<String, String>,
+    device_id: &str,
+) -> String {
+    // Placeholder channel for future image transport migration.
+    let mut pairs = Vec::new();
+    pairs.push(format!("device_id={device_id}"));
+    pairs.push("channel=image".to_string());
+    pairs.push("status=reserved".to_string());
+
+    for (key, value) in fields {
+        if key == "device_id" {
+            continue;
+        }
+        pairs.push(format!("{key}={value}"));
+    }
+
+    format!("image:{}", pairs.join(","))
+}
+

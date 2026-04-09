@@ -11,4 +11,6 @@ pub const FEATURE_MAP_FILE: &str = "feature_map.json";
 pub const DEVICE_INDEX_FILE: &str = "device_index.json";
 #[allow(dead_code)]
 pub const DEFAULT_PAYLOAD_SUCCESS: &str = "success";
+pub const RESERVED_IMAGE_SENSOR_ID: &str = "image";
+pub const RESERVED_IMAGE_FEATURE: &str = "image";
 

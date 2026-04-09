@@ -11,6 +11,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::config::{DiagConfig, FlashConfig, GatewayCommand, RunConfig};
 use crate::constants::{
     DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_PAYLOAD_SUCCESS, DEFAULT_TARGET,
+    RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID,
 };
 use crate::datasource::{DataSource, NativeSensorDataSource, SerialEsp32DataSource};
 use crate::persist::{
@@ -18,7 +19,9 @@ use crate::persist::{
     save_device_index, save_feature_map, save_profile, DeviceIndexStore, FeatureMapStore,
     GatewayProfile,
 };
-use crate::protocol::{build_register_packet, build_sensor_packet, RegisterPayload};
+use crate::protocol::{
+    build_image_channel_packet, build_register_packet, build_sensor_packet, RegisterPayload,
+};
 use crate::serial::{discover_on_port, list_serial_ports};
 
 #[derive(Debug, Clone)]
@@ -322,7 +325,13 @@ fn run_device_session_loop(device: DiscoveredDevice, shared: SharedContext) -> R
                 guard.cloud_target.clone()
             };
 
-            let payload = build_sensor_packet(&event.sensor_id, &event.fields, &device.device_id);
+            let payload = if event.sensor_id == RESERVED_IMAGE_SENSOR_ID
+                || event.feature == RESERVED_IMAGE_FEATURE
+            {
+                build_image_channel_packet(&event.fields, &device.device_id)
+            } else {
+                build_sensor_packet(&event.sensor_id, &event.fields, &device.device_id)
+            };
             socket
                 .send_to(payload.as_bytes(), &target)
                 .map_err(|e| format!("Failed to send payload to {target}: {e}"))?;
