@@ -38,6 +38,7 @@ __pycache__/
 # Node artifacts (future web/docs tooling)
 node_modules/
 
+# Dataset and model training outputs
 /local_data/
 /outputs/
 *.pth
