@@ -1,0 +1,10 @@
+[package]
+name = "cicsic_project"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+postgres = { version = "0.19", features = ["with-chrono-0_4"] }  # 关键：启用 chrono 支持
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
