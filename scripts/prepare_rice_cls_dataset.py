@@ -157,7 +157,8 @@ def main():
     parser = argparse.ArgumentParser(description="Prepare rice leaf classification samples")
     parser.add_argument(
         "--dataset-root",
-        required=True,
+        required=False,
+        default=None,
         help="Path that contains train/images and train/labels"
     )
     parser.add_argument(
@@ -189,6 +190,11 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # 如果没传参数，就用默认路径（开发用）
+    if args.dataset_root is None:
+        args.dataset_root = "local_data/rice_leaf_spot_disease_annotated_dataset"
+
 
     class_names = load_class_names(args.labels_file)
     samples, stats = collect_classification_samples(
