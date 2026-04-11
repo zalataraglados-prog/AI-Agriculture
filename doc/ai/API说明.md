@@ -1,20 +1,18 @@
 # AI API 说明
 
-## 当前接口
-- POST /api/v1/ai/infer
+## 本地推理返回结构（第一版）
 
-## 输入
-- task_id
-- image_url
-- crop_type
-- source
-- captured_at
+{
+  "predicted_class": "Leaf_Blast",
+  "confidence": 0.93,
+  "topk": [
+    {"label": "Leaf_Blast", "score": 0.93},
+    {"label": "Brown_Spot", "score": 0.05},
+    {"label": "HealthyLeaf", "score": 0.02}
+  ],
+  "model_version": "rice_cls_v0.1.0"
+}
 
-## 输出
-- status
-- model_version
-- predicted_class
-- confidence
-- topk
-- advice_code
-- latency_ms
+说明：
+- 当前这是本地推理的统一输出结构
+- 后续接入FastAPI时，保持字段名不变
