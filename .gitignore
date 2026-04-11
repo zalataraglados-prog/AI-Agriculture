@@ -37,3 +37,12 @@ __pycache__/
 
 # Node artifacts (future web/docs tooling)
 node_modules/
+
+/local_data/
+/outputs/
+*.pth
+*.pt
+*.onnx
+__pycache__/
+*.pyc
+.pytest_cache/
