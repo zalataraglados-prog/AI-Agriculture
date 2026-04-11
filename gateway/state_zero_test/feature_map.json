@@ -1,0 +1,8 @@
+{
+  "mappings": {
+    "adc": "adc",
+    "dht22": "dht22",
+    "mq7": "mq7",
+    "pcf8591": "pcf8591"
+  }
+}
