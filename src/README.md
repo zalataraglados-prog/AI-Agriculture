@@ -64,4 +64,4 @@ cargo test
 
 ## License
 
-本项目使用 MIT License，详见根目录 `LICENSE`。
+本项目使用 MIT License，详见 `src/LICENSE`。
