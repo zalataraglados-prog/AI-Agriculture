@@ -1,10 +1,18 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from PIL import Image
 
-from service.model_loader import RiceLeafClassifier
+try:
+    from service.model_loader import RiceLeafClassifier
+except ModuleNotFoundError:
+    # Support running `python service/infer.py` from the project root.
+    project_root = Path(__file__).resolve().parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    from service.model_loader import RiceLeafClassifier
 
 
 def predict_image_file(
