@@ -1,16 +1,21 @@
-# Service Layer
+# Service
 
-This directory contains model loading and inference logic.
+该目录包含模型加载和推理逻辑。
 
-## Files
+## 文件
 
 - model_loader.py  
-Load trained model
+加载训练好的模型
 
 - infer.py  
-Run inference on a single image
+对单张图片进行推理
 
-## Example
+## 模型来源
+
+* 根据要求训练出来
+* 可直接用已经训练好的示例模型：[Google Drive](https://drive.google.com/drive/folders/1o4xnzu5JXQk3l8xcMJAPr4Hta2LkkROZ?usp=sharing)
+
+## 示例
 
 ```bash
 python service/infer.py \
@@ -18,7 +23,7 @@ python service/infer.py \
 --checkpoint-path outputs/.../best_model.pth
 ```
 
-Output Format
+输出格式
 ```json
 
 {
@@ -27,9 +32,9 @@ Output Format
 "topk": [...]
 }
 ```
-Notes
+注意事项
 -----
 
-* This is NOT yet a web service
+* 这还不是一个网络服务
 
-* FastAPI integration will be added later
+* 后续将添加FastAPI集成

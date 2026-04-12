@@ -39,8 +39,16 @@ __pycache__/
 node_modules/
 
 # Dataset and model training outputs
-/local_data/
-/outputs/
+/local_data/**
+!/local_data/
+!/local_data/**/
+!/local_data/README.md
+!/local_data/**/README.md
+/outputs/**
+!/outputs/
+!/outputs/**/
+!/outputs/README.md
+!/outputs/**/README.md
 *.pth
 *.pt
 *.onnx
