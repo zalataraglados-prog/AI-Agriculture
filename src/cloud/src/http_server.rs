@@ -1,7 +1,5 @@
 use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::path::PathBuf;
 use std::thread;
 use tiny_http::{Header, Method, Response, Server};
 
