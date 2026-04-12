@@ -5,9 +5,23 @@ Now supports config-driven sensor rules, so adding a new sensor only requires co
 
 It is designed to pair with the `gateway-wsl` sender:
 - fixed smoke packet: `success`
-- sensor packet: `sensor_id:key=value,key2=value2` (examples: `mq7:raw=206,voltage=0.166`, `dht22:temp_c=28.0,hum=48.9`, `adc:pin=34,raw=523,voltage=0.421`, `pcf8591:addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129`)
+- sensor packet: `sensor_id:device_id=<registered_device_id>,key=value,key2=value2`  
+  (examples:  
+  `mq7:device_id=Greenhouse-Node-01,raw=206,voltage=0.166`,  
+  `dht22:device_id=Greenhouse-Node-01,temp_c=28.0,hum=48.9`,  
+  `adc:device_id=Greenhouse-Node-01,pin=34,raw=523,voltage=0.421`,  
+  `pcf8591:device_id=greenhouse-node-01,addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129`  
+  )
 
 For each received packet, it sends an ACK back to the sender.
+
+Sensor KV payload **must include `device_id`**.  
+If receiver enforces registration, the `device_id` must be registered first, otherwise the server will respond with:
+
+Typical flow:
+
+1. Generate/register device token first
+2. Then send sensor packets with the same `device_id`
 
 ## Run locally
 
