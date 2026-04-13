@@ -1,9 +1,7 @@
 ﻿use std::io::ErrorKind;
 use std::net::UdpSocket;
 
-use chrono::SecondsFormat;
-use chrono::Local;
-
+use crate::time_util::now_rfc3339;
 use crate::constants::{
     DEFAULT_ACK_REGISTER_CONFLICT, DEFAULT_ACK_REGISTER_OK, DEFAULT_ACK_TOKEN_INVALID,
     DEFAULT_ACK_UNREGISTERED, UDP_BUFFER_SIZE,
@@ -12,10 +10,6 @@ use crate::model::{EvalResult, RegisterOutcome, RegisterRequest, RuntimeConfig};
 use crate::payload::{evaluate_payload, parse_sensor_kv_payload};
 use crate::registry::DeviceRegistry;
 use crate::token::validate_current_hour_token;
-
-fn now_rfc3339() -> String {
-    Local::now().to_rfc3339_opts(SecondsFormat::Millis, false)
-}
 
 pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
     let socket =

@@ -5,11 +5,7 @@ use std::sync::Arc;
 use std::thread;
 use tiny_http::{Header, Method, Response, Server};
 
-use chrono::{Local, SecondsFormat};
-
-fn now_rfc3339() -> String {
-    Local::now().to_rfc3339_opts(SecondsFormat::Millis, false)
-}
+use crate::time_util::now_rfc3339;
 
 pub fn start_http_server(bind_addr: &str) {
     let server = Server::http(bind_addr.clone()).expect("Failed to start HTTP server");
