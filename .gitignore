@@ -1,0 +1,53 @@
+# Rust build output
+target/
+**/target/
+**/*.rs.bk
+
+# Test/coverage artifacts
+coverage/
+*.profraw
+*.profdata
+
+# Local env/config
+.env
+.env.*
+!.env.example
+*.local
+.venv/
+venv/
+
+# Logs/runtime
+*.log
+logs/
+*.pid
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.suo
+*.user
+*.tmp
+*.temp
+~$*
+*.iml
+
+# Python
+__pycache__/
+*.pyc
+*.py[cod]
+.pytest_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+
+# Dataset and model training outputs
+/local_data/
+/outputs/
+*.pth
+*.pt
+*.onnx
