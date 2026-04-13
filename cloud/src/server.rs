@@ -1,6 +1,7 @@
 ﻿use std::io::ErrorKind;
 use std::net::UdpSocket;
 
+use chrono::SecondsFormat;
 use chrono::Local;
 
 use crate::constants::{
@@ -13,7 +14,7 @@ use crate::registry::DeviceRegistry;
 use crate::token::validate_current_hour_token;
 
 fn now_rfc3339() -> String {
-    Local::now().to_rfc3339()
+    Local::now().to_rfc3339_opts(SecondsFormat::Millis, false)
 }
 
 pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
