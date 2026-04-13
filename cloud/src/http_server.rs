@@ -5,9 +5,15 @@ use std::sync::Arc;
 use std::thread;
 use tiny_http::{Header, Method, Response, Server};
 
+use chrono::{Local, SecondsFormat};
+
+fn now_rfc3339() -> String {
+    Local::now().to_rfc3339_opts(SecondsFormat::Millis, false)
+}
+
 pub fn start_http_server(bind_addr: &str) {
     let server = Server::http(bind_addr.clone()).expect("Failed to start HTTP server");
-    println!("[cloud-http] Listening on http://{}", bind_addr);
+    println!("{} [cloud-http] Listening on http://{}", now_rfc3339(), bind_addr);
 
     thread::spawn(move || {
         for mut request in server.incoming_requests() {
