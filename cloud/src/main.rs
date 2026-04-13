@@ -23,7 +23,7 @@ fn main() {
     let command = match parse_args() {
         Ok(v) => v,
         Err(err) => {
-            eprintln!("Argument error: {err}\n");
+            eprintln!("{} [cloud] Argument error: {err}\n", now_rfc3339());
             print_usage(&binary);
             std::process::exit(2);
         }
@@ -34,7 +34,7 @@ fn main() {
             let cfg = match load_runtime_config(cli) {
                 Ok(v) => v,
                 Err(err) => {
-                    eprintln!("Config error: {err}");
+                    eprintln!("{} [cloud] Config error: {err}", now_rfc3339());
                     std::process::exit(2);
                 }
             };
@@ -51,7 +51,7 @@ fn main() {
             let token_store_path = match resolve_token_store_path_for_token_command(&token_cli) {
                 Ok(v) => v,
                 Err(err) => {
-                    eprintln!("Config error: {err}");
+                    eprintln!("{} [cloud] Config error: {err}", now_rfc3339());
                     std::process::exit(2);
                 }
             };
