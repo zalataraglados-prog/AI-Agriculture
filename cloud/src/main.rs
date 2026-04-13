@@ -5,6 +5,7 @@ mod model;
 mod payload;
 mod registry;
 mod server;
+mod time_util;
 mod token;
 mod http_server;
 
@@ -14,6 +15,7 @@ use cli::{parse_args, print_usage};
 use config::{load_runtime_config, resolve_token_store_path_for_token_command};
 use model::CliCommand;
 use server::run;
+use time_util::now_rfc3339;
 use token::current_hour_token;
 
 fn main() {
@@ -21,7 +23,7 @@ fn main() {
     let command = match parse_args() {
         Ok(v) => v,
         Err(err) => {
-            eprintln!("Argument error: {err}\n");
+            eprintln!("{} [cloud] Argument error: {err}\n", now_rfc3339());
             print_usage(&binary);
             std::process::exit(2);
         }
@@ -32,7 +34,7 @@ fn main() {
             let cfg = match load_runtime_config(cli) {
                 Ok(v) => v,
                 Err(err) => {
-                    eprintln!("Config error: {err}");
+                    eprintln!("{} [cloud] Config error: {err}", now_rfc3339());
                     std::process::exit(2);
                 }
             };
@@ -41,7 +43,7 @@ fn main() {
             http_server::start_http_server("0.0.0.0:8080");
 
             if let Err(err) = run(&cfg) {
-                eprintln!("[cloud] ERROR: {err}");
+                eprintln!("{} [cloud] ERROR: {err}", now_rfc3339());
                 std::process::exit(1);
             }
         }
@@ -49,7 +51,7 @@ fn main() {
             let token_store_path = match resolve_token_store_path_for_token_command(&token_cli) {
                 Ok(v) => v,
                 Err(err) => {
-                    eprintln!("Config error: {err}");
+                    eprintln!("{} [cloud] Config error: {err}", now_rfc3339());
                     std::process::exit(2);
                 }
             };
@@ -59,7 +61,7 @@ fn main() {
                     println!("{token}");
                 }
                 Err(err) => {
-                    eprintln!("[cloud] ERROR: {err}");
+                    eprintln!("{} [cloud] ERROR: {err}", now_rfc3339());
                     std::process::exit(1);
                 }
             }

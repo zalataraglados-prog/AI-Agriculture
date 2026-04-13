@@ -1,6 +1,7 @@
 ﻿use std::io::ErrorKind;
 use std::net::UdpSocket;
 
+use crate::time_util::now_rfc3339;
 use crate::constants::{
     DEFAULT_ACK_REGISTER_CONFLICT, DEFAULT_ACK_REGISTER_OK, DEFAULT_ACK_TOKEN_INVALID,
     DEFAULT_ACK_UNREGISTERED, UDP_BUFFER_SIZE,
@@ -19,20 +20,21 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
 
     let mut registry = DeviceRegistry::load(&cfg.registry_path)?;
 
-    println!("[cloud] Listening on {}", cfg.bind);
+    let ts = now_rfc3339();
+    println!("{ts} [cloud] Listening on {}", cfg.bind);
     println!(
-        "[cloud] Loaded rules: exact={}, sensors={}",
+        "{ts} [cloud] Loaded rules: exact={}, sensors={}",
         cfg.exact_rules.len(),
         cfg.sensor_rules.len()
     );
     println!(
-        "[cloud] ACK defaults: mismatch=\"{}\", unknown_sensor=\"{}\"",
+        "{ts} [cloud] ACK defaults: mismatch=\"{}\", unknown_sensor=\"{}\"",
         cfg.ack_mismatch, cfg.ack_unknown_sensor
     );
-    println!("[cloud] registry={}", cfg.registry_path);
-    println!("[cloud] token_store={}", cfg.token_store_path);
+    println!("{ts} [cloud] registry={}", cfg.registry_path);
+    println!("{ts} [cloud] token_store={}", cfg.token_store_path);
     println!(
-        "[cloud] Mode: {}",
+        "{ts} [cloud] Mode: {}",
         if cfg.once {
             "exit after first successful match"
         } else {
@@ -65,7 +67,8 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
                 .map_err(|e| format!("ACK send failed to {peer}: {e}"))?;
 
             println!(
-                "[cloud] Packet #{received_count} from {peer}: register request => ACK=\"{}\"",
+                "{} [cloud] Packet #{received_count} from {peer}: register request => ACK=\"{}\"",
+                now_rfc3339(),
                 ack
             );
 
@@ -95,7 +98,8 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
             .map_err(|e| format!("ACK send failed to {peer}: {e}"))?;
 
         println!(
-            "[cloud] Packet #{received_count} from {peer}: \"{payload}\" => {} ; ACK=\"{}\" ; {}",
+            "{} [cloud] Packet #{received_count} from {peer}: \"{payload}\" => {} ; ACK=\"{}\" ; {}",
+            now_rfc3339(),
             if result.matched { "MATCH" } else { "MISMATCH" },
             result.ack,
             result.detail
@@ -112,7 +116,7 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
         }
     }
 
-    println!("[cloud] Summary: received={received_count}, matched={success_count}");
+    println!("{} [cloud] Summary: received={received_count}, matched={success_count}", now_rfc3339());
 
     if success_count == 0 {
         return Err("No matching packet received".to_string());
