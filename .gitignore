@@ -3,47 +3,36 @@ target/
 **/target/
 **/*.rs.bk
 
-# Test/coverage artifacts
-coverage/
-*.profraw
-*.profdata
-
 # Local env/config
 .env
 .env.*
-!.env.example
-*.local
+.venv/
+venv/
 
-# Logs/runtime
+# Logs
 *.log
 logs/
-*.pid
+
+# Node / frontend
+node_modules/
+dist/
+build/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Temporary files
+*.tmp
+*.swp
 
 # OS/editor
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
-*.swp
-*.suo
-*.user
-*.tmp
-*.temp
-~$*
-
-# Python helper cache
-__pycache__/
-*.pyc
-
-# Node artifacts (future web/docs tooling)
-node_modules/
-
-# Dataset and model training outputs
-/local_data/
-/outputs/
-*.pth
-*.pt
-*.onnx
-__pycache__/
-*.pyc
-.pytest_cache/
