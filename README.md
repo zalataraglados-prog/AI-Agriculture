@@ -62,6 +62,30 @@ cargo test
 - 单元测试：位于 `cloud/src/main.rs` 中
 - 集成 smoke 测试：位于 `cloud/tests/smoke_e2e.rs`
 
+## AI 模块补充说明
+
+- `service/`：本地模型加载与单张图片推理逻辑，详见 `service/README.md`
+- `scripts/`：数据集整理、训练等脚本，详见 `scripts/README.md`
+- `tests/`：AI 模块的 `pytest` 测试代码
+- `models/`：分类模型的配置文件、标签文件与说明
+- `local_data/`：本地数据说明与数据集目录
+- `outputs/`：训练输出与模型产物目录
+
+## Python 依赖与测试补充
+
+如需运行 AI 相关脚本或测试，可在仓库根目录执行：
+
+```bash
+pip install -r requirements.txt
+pytest -q
+```
+
+补充说明：
+
+- 根目录已提供 `pytest.ini`，可直接在仓库根目录运行 `pytest`，无需额外设置 `PYTHONPATH`
+- 如仅需运行 AI 模块测试，可使用 `pytest -q tests`
+- `tests/test_infer_smoke.py` 依赖 `torch` 与 `torchvision`
+
 ## License
 
 本项目使用 MIT License，详见根目录 `LICENSE`。
