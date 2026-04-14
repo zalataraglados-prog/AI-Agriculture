@@ -51,10 +51,14 @@ pub struct NativeSensorDataSource {
 }
 
 impl NativeSensorDataSource {
-    pub fn new() -> Self {
-        Self {
-            source: NativeSensorSource::new(),
-        }
+    pub fn new() -> Result<Self, String> {
+        Ok(Self {
+            source: NativeSensorSource::new()?,
+        })
+    }
+
+    pub fn sensor_ids(&self) -> Vec<String> {
+        self.source.sensor_ids()
     }
 }
 

@@ -1,5 +1,8 @@
 use std::env;
+use std::fs;
 use std::time::Duration;
+
+use serde::Deserialize;
 
 use crate::constants::{
     DEFAULT_ACK_TIMEOUT_MS, DEFAULT_BAUD_LIST, DEFAULT_SCAN_INTERVAL_MS, DEFAULT_SCAN_WINDOW_MS,
@@ -16,12 +19,17 @@ pub enum GatewayCommand {
 
 #[derive(Debug, Clone)]
 pub struct RunConfig {
+    pub config_path: Option<String>,
     pub target_override: Option<String>,
     pub state_dir: String,
     pub scan_interval: Duration,
     pub scan_window: Duration,
     pub ack_timeout: Duration,
     pub baud_list: Vec<u32>,
+    pub native_gpio: bool,
+    pub gpio_ph7: Option<u32>,
+    pub gpio_pc11: Option<u32>,
+    pub gpio_interval_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -47,8 +55,9 @@ pub struct DiagConfig {
 pub fn print_usage(binary: &str) {
     eprintln!(
         "Usage:
-  {binary} run [--target <ip:port>] [--state-dir <dir>] [--scan-interval-ms <ms>]
-               [--scan-window-ms <ms>] [--ack-timeout-ms <ms>] [--baud-list <csv>]
+  {binary} run [--config <path>] [--target <ip:port>] [--state-dir <dir>] [--scan-interval-ms <ms>]
+               [--scan-window-ms <ms>] [--ack-timeout-ms <ms>] [--baud-list <csv>] [--native-gpio]
+               [--gpio-ph7 <num>] [--gpio-pc11 <num>] [--gpio-interval-ms <ms>]
   {binary} flash [--port </dev/ttyUSB0>] [--baud <n>] [--firmware <path>] [--fallback-script <path>]
   {binary} diag [--state-dir <dir>] [--scan-window-ms <ms>] [--baud-list <csv>]
   {binary} reset [--state-dir <dir>]
@@ -63,7 +72,9 @@ Defaults:
 
 Notes:
   1) 默认命令是 run（可省略 run）。
-  2) success 固定报文能力保留为内部诊断，不再提供外部命令入口。",
+    2) --native-gpio 启用板载 GPIO 直连采集（PH7/PC11），不依赖 ESP32 串口。
+    3) --config 支持从 TOML 读取 run 配置；命令行参数优先级更高。
+    4) success 固定报文能力保留为内部诊断，不再提供外部命令入口。",
         format_baud_list(&DEFAULT_BAUD_LIST),
     );
 }
@@ -98,7 +109,9 @@ pub fn parse_args() -> Result<GatewayCommand, String> {
 fn parse_run_args(raw_args: Vec<String>) -> Result<RunConfig, String> {
     let mut cfg = default_run_config();
 
-    let mut args = raw_args.into_iter();
+    let args = preprocess_run_args(raw_args, &mut cfg)?;
+
+    let mut args = args.into_iter();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--target" => {
@@ -144,6 +157,40 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<RunConfig, String> {
                     .next()
                     .ok_or_else(|| "Missing value for --baud-list".to_string())?;
                 cfg.baud_list = parse_baud_csv(&value)?;
+            }
+            "--native-gpio" => {
+                cfg.native_gpio = true;
+            }
+            "--gpio-ph7" => {
+                let value = parse_u32_arg(
+                    args.next(),
+                    "--gpio-ph7",
+                    "Invalid --gpio-ph7, expected unsigned integer",
+                )?;
+                if value == 0 {
+                    return Err("--gpio-ph7 must be >= 1".to_string());
+                }
+                cfg.gpio_ph7 = Some(value);
+            }
+            "--gpio-pc11" => {
+                let value = parse_u32_arg(
+                    args.next(),
+                    "--gpio-pc11",
+                    "Invalid --gpio-pc11, expected unsigned integer",
+                )?;
+                if value == 0 {
+                    return Err("--gpio-pc11 must be >= 1".to_string());
+                }
+                cfg.gpio_pc11 = Some(value);
+            }
+            "--gpio-interval-ms" => {
+                let value = parse_u64_arg(
+                    args.next(),
+                    "--gpio-interval-ms",
+                    "Invalid --gpio-interval-ms, expected unsigned integer",
+                )?;
+                ensure_non_zero(value, "--gpio-interval-ms")?;
+                cfg.gpio_interval_ms = Some(value);
             }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "gateway".to_string());
@@ -276,14 +323,115 @@ fn parse_reset_args(raw_args: Vec<String>) -> Result<ResetConfig, String> {
     Ok(cfg)
 }
 
+#[derive(Debug, Deserialize, Default)]
+struct GatewayToml {
+    run: Option<RunToml>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RunToml {
+    target: Option<String>,
+    state_dir: Option<String>,
+    scan_interval_ms: Option<u64>,
+    scan_window_ms: Option<u64>,
+    ack_timeout_ms: Option<u64>,
+    baud_list: Option<Vec<u32>>,
+    native_gpio: Option<bool>,
+    gpio_ph7: Option<u32>,
+    gpio_pc11: Option<u32>,
+    gpio_interval_ms: Option<u64>,
+}
+
+fn preprocess_run_args(raw_args: Vec<String>, cfg: &mut RunConfig) -> Result<Vec<String>, String> {
+    let mut filtered = Vec::new();
+    let mut idx = 0;
+
+    while idx < raw_args.len() {
+        if raw_args[idx] == "--config" {
+            let path = raw_args
+                .get(idx + 1)
+                .ok_or_else(|| "Missing value for --config".to_string())?
+                .clone();
+            apply_run_config_toml(&path, cfg)?;
+            cfg.config_path = Some(path);
+            idx += 2;
+            continue;
+        }
+
+        filtered.push(raw_args[idx].clone());
+        idx += 1;
+    }
+
+    Ok(filtered)
+}
+
+fn apply_run_config_toml(path: &str, cfg: &mut RunConfig) -> Result<(), String> {
+    let text = fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read run config file {path}: {e}"))?;
+    let parsed: GatewayToml = toml::from_str(&text)
+        .map_err(|e| format!("Failed to parse TOML config {path}: {e}"))?;
+    let Some(run) = parsed.run else {
+        return Ok(());
+    };
+
+    if let Some(target) = run.target {
+        cfg.target_override = Some(target);
+    }
+    if let Some(state_dir) = run.state_dir {
+        cfg.state_dir = state_dir;
+    }
+    if let Some(ms) = run.scan_interval_ms {
+        ensure_non_zero(ms, "run.scan_interval_ms")?;
+        cfg.scan_interval = Duration::from_millis(ms);
+    }
+    if let Some(ms) = run.scan_window_ms {
+        ensure_non_zero(ms, "run.scan_window_ms")?;
+        cfg.scan_window = Duration::from_millis(ms);
+    }
+    if let Some(ms) = run.ack_timeout_ms {
+        ensure_non_zero(ms, "run.ack_timeout_ms")?;
+        cfg.ack_timeout = Duration::from_millis(ms);
+    }
+    if let Some(baud_list) = run.baud_list {
+        validate_baud_list(&baud_list)?;
+        cfg.baud_list = baud_list;
+    }
+    if let Some(native_gpio) = run.native_gpio {
+        cfg.native_gpio = native_gpio;
+    }
+    if let Some(gpio_ph7) = run.gpio_ph7 {
+        if gpio_ph7 == 0 {
+            return Err("run.gpio_ph7 must be >= 1".to_string());
+        }
+        cfg.gpio_ph7 = Some(gpio_ph7);
+    }
+    if let Some(gpio_pc11) = run.gpio_pc11 {
+        if gpio_pc11 == 0 {
+            return Err("run.gpio_pc11 must be >= 1".to_string());
+        }
+        cfg.gpio_pc11 = Some(gpio_pc11);
+    }
+    if let Some(gpio_interval_ms) = run.gpio_interval_ms {
+        ensure_non_zero(gpio_interval_ms, "run.gpio_interval_ms")?;
+        cfg.gpio_interval_ms = Some(gpio_interval_ms);
+    }
+
+    Ok(())
+}
+
 fn default_run_config() -> RunConfig {
     RunConfig {
+        config_path: None,
         target_override: None,
         state_dir: DEFAULT_STATE_DIR.to_string(),
         scan_interval: Duration::from_millis(DEFAULT_SCAN_INTERVAL_MS),
         scan_window: Duration::from_millis(DEFAULT_SCAN_WINDOW_MS),
         ack_timeout: Duration::from_millis(DEFAULT_ACK_TIMEOUT_MS),
         baud_list: DEFAULT_BAUD_LIST.to_vec(),
+        native_gpio: false,
+        gpio_ph7: None,
+        gpio_pc11: None,
+        gpio_interval_ms: None,
     }
 }
 
@@ -303,11 +451,18 @@ fn parse_baud_csv(value: &str) -> Result<Vec<u32>, String> {
         baud_list.push(baud);
     }
 
+    validate_baud_list(&baud_list)?;
+    Ok(baud_list)
+}
+
+fn validate_baud_list(baud_list: &[u32]) -> Result<(), String> {
     if baud_list.is_empty() {
         return Err("--baud-list must contain at least one baud".to_string());
     }
-
-    Ok(baud_list)
+    if baud_list.iter().any(|v| *v == 0) {
+        return Err("--baud-list cannot contain 0".to_string());
+    }
+    Ok(())
 }
 
 fn format_baud_list(list: &[u32]) -> String {

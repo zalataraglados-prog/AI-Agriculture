@@ -1,120 +1,139 @@
-# gateway-wsl
+# gateway
 
-Rust gateway for WSL / Linux:
-- fixed payload smoke test (`success`)
-- serial ingest mode (read ESP32 sensor serial output and forward via UDP)
+Rust gateway for Linux/WSL/OrangePi. Current CLI uses subcommands:
+
+- `run`: managed runtime (serial discovery or native GPIO)
+- `flash`: flash ESP32 firmware helper
+- `diag`: scan and print discovery diagnostics
+- `reset`: clear persisted gateway state
 
 ## Quick Start
 
 ```bash
-cargo run -- --target 127.0.0.1:9000
+cargo run -- run --target 127.0.0.1:9000
 ```
 
-Default mode is fixed payload:
-- payload: `success`
-- interval: 5 seconds
-- ACK expected: `ack:success`
+If `state/gateway_profile.json` does not exist, the process will prompt for first-time setup and then persist the profile.
 
-## Serial Mode (MQ-7 / DHT22 / ADC / PCF8591)
+## Run Mode
 
-### MQ-7 format
+### Managed Serial Discovery
 
-```text
-MQ7 raw=206 voltage=0.166V
-```
-
-Gateway will parse this and forward:
-
-```text
-mq7:raw=206,voltage=0.166
-```
-
-Run:
+In default `run` mode, gateway recursively scans serial ports and baud rates, auto-detects managed protocol devices, and starts forwarding sensor packets.
 
 ```bash
-cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format mq7 --expected-ack ack:mq7
+cargo run -- run \
+  --target 8.134.32.223:9000 \
+  --baud-list 115200,57600,9600,74880 \
+  --scan-interval-ms 5000 \
+  --scan-window-ms 1800
 ```
 
-### DHT22 format
+### Native GPIO Mode (Direct PH7 / PC11)
 
-Expected serial line format from ESP32 firmware:
-
-```text
-DHT22 temp_c=31.5 hum=67.0
-```
-
-Gateway will parse this and forward:
-
-```text
-dht22:temp_c=31.5,hum=67.0
-```
-
-Run:
+When sensors are directly wired to OrangePi GPIO (no ESP32 serial bridge):
 
 ```bash
-cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format dht22 --expected-ack ack:success
+cargo run -- run --native-gpio --target 127.0.0.1:9000
 ```
 
-### ADC format (example: GPIO34 analog module)
+Default native mapping:
 
-Expected serial line format from ESP32 firmware:
+- PH7 -> gpio231 -> sensor id `needle_ph7`
+- PC11 -> gpio75 -> sensor id `needle_pc11`
+- round interval: `800ms`
 
-```text
-ADC pin=34 raw=523 voltage=0.421V
-```
-
-Gateway will parse this and forward:
-
-```text
-adc:pin=34,raw=523,voltage=0.421
-```
-
-Run:
+Override GPIO mapping and interval with CLI flags:
 
 ```bash
-cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format adc --expected-ack ack:adc
+cargo run -- run --native-gpio --target 127.0.0.1:9000 \
+  --gpio-ph7 231 \
+  --gpio-pc11 75 \
+  --gpio-interval-ms 800
 ```
 
-### PCF8591 format (example: MQ-7 on AIN0)
-
-Expected serial line format from ESP32 firmware:
-
-```text
-PCF8591 addr=0x48 AIN0=172 AIN1=255 AIN2=90 AIN3=129
-```
-
-Gateway will parse this and forward:
-
-```text
-pcf8591:addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129
-```
-
-Run:
+Or environment variables:
 
 ```bash
-cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --serial-format pcf8591 --expected-ack ack:pcf8591
+export GATEWAY_NATIVE_GPIO_PH7=231
+export GATEWAY_NATIVE_GPIO_PC11=75
+export GATEWAY_NATIVE_GPIO_INTERVAL_MS=800
 ```
 
-Note:
-- in serial mode, `--interval-ms` is ignored (send one UDP packet per valid serial line)
-- if your cloud ACK still returns `ack:success`, set `--expected-ack ack:success`
+## TOML Config
 
-## Optional Args
-
-- `--target <ip:port>`: destination address, default `127.0.0.1:9000`
-- `--count <n>`: finite packet count; if omitted, send forever
-- `--interval-ms <ms>`: interval between packets in milliseconds, default `5000` (fixed mode only)
-- `--no-wait-ack`: disable ACK waiting mode
-- `--ack-timeout-ms <ms>`: ACK timeout in milliseconds, default `3000`
-- `--expected-ack <payload>`: expected ACK payload, default `ack:success`
-- `--serial-port <path>`: enable serial ingest mode, e.g. `/dev/ttyUSB0`
-- `--serial-baud <baud>`: serial baud rate, default `115200`
-- `--serial-format <mq7|dht22|adc|pcf8591>`: serial parser format, default `mq7`
-
-Example (5 packets, 500ms interval):
+You can preload `run` configuration from TOML and still override values on CLI.
 
 ```bash
-cargo run -- --target 192.168.1.50:9000 --count 5 --interval-ms 500
+cargo run -- run --config config/gateway.toml --target 10.0.0.5:9000
+```
+
+`--config` is applied first, then explicit CLI flags take precedence.
+
+Example `config/gateway.toml`:
+
+```toml
+[run]
+target = "127.0.0.1:9000"
+state_dir = "state"
+scan_interval_ms = 5000
+scan_window_ms = 1800
+ack_timeout_ms = 3000
+baud_list = [115200, 57600, 9600, 74880]
+native_gpio = false
+gpio_ph7 = 231
+gpio_pc11 = 75
+gpio_interval_ms = 800
+```
+
+## Script Launch
+
+`scripts/run_mq7_gateway.sh` now maps to current CLI and supports both serial-discovery and native GPIO run modes.
+
+Managed serial discovery mode:
+
+```bash
+TARGET=8.134.32.223:9000 BAUD_LIST=115200,57600,9600 ./scripts/run_mq7_gateway.sh
+```
+
+Native GPIO mode:
+
+```bash
+TARGET=8.134.32.223:9000 NATIVE_GPIO=1 GPIO_PH7=231 GPIO_PC11=75 ./scripts/run_mq7_gateway.sh
+```
+
+## CLI Flags (run)
+
+- `--config <path>`: load `[run]` config from TOML
+- `--target <ip:port>`: override cloud target; also persists to profile
+- `--state-dir <dir>`: state directory (profile, feature map, device index)
+- `--scan-interval-ms <ms>`: interval between recursive serial scans
+- `--scan-window-ms <ms>`: serial discovery read window per probe
+- `--ack-timeout-ms <ms>`: UDP ACK timeout
+- `--baud-list <csv>`: baud candidates for auto-discovery
+- `--native-gpio`: disable serial discovery and use direct GPIO source
+- `--gpio-ph7 <num>`: native PH7 GPIO number override
+- `--gpio-pc11 <num>`: native PC11 GPIO number override
+- `--gpio-interval-ms <ms>`: native GPIO polling interval override
+
+## Other Subcommands
+
+Flash helper:
+
+```bash
+cargo run -- flash --port /dev/ttyUSB0 --baud 921600
+```
+
+Diagnostics:
+
+```bash
+cargo run -- diag --state-dir state --scan-window-ms 1800 --baud-list 115200,57600,9600
+```
+
+Reset state:
+
+```bash
+cargo run -- reset --state-dir state
 ```
 
 ## Linux Build Dependencies
@@ -126,4 +145,4 @@ sudo apt-get update
 sudo apt-get install -y pkg-config libudev-dev
 ```
 
-`serialport` crate needs `libudev` on Linux.
+`serialport` crate depends on `libudev` on Linux.

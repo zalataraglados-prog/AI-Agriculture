@@ -1,8 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
-#[cfg(target_os = "linux")]
 use std::fs;
+#[cfg(target_os = "linux")]
+use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, ErrorKind};
+#[cfg(target_os = "linux")]
+use std::io::Write;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use serialport::SerialPort;
@@ -137,16 +141,165 @@ impl SerialEsp32Source {
     }
 }
 
-pub struct NativeSensorSource;
+#[derive(Debug, Clone)]
+struct NativePin {
+    gpio: u32,
+    pin_label: String,
+    sensor_id: String,
+    feature: String,
+    value_path: String,
+}
+
+pub struct NativeSensorSource {
+    pins: Vec<NativePin>,
+    next_index: usize,
+    last_round_at: Option<Instant>,
+    round_interval: Duration,
+}
 
 impl NativeSensorSource {
-    pub fn new() -> Self {
-        Self
+    pub fn new() -> Result<Self, String> {
+        #[cfg(not(target_os = "linux"))]
+        {
+            return Err("Native direct sensor source is only supported on Linux".to_string());
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let ph7_gpio = parse_gpio_env("GATEWAY_NATIVE_GPIO_PH7", 231)?;
+            let pc11_gpio = parse_gpio_env("GATEWAY_NATIVE_GPIO_PC11", 75)?;
+            let gpio_interval_ms = parse_u64_env("GATEWAY_NATIVE_GPIO_INTERVAL_MS", 800)?;
+            if gpio_interval_ms == 0 {
+                return Err("GATEWAY_NATIVE_GPIO_INTERVAL_MS must be >= 1".to_string());
+            }
+
+            let pins = vec![
+                NativePin {
+                    gpio: ph7_gpio,
+                    pin_label: "PH7".to_string(),
+                    sensor_id: "needle_ph7".to_string(),
+                    feature: "needle_ph7".to_string(),
+                    value_path: format!("/sys/class/gpio/gpio{ph7_gpio}/value"),
+                },
+                NativePin {
+                    gpio: pc11_gpio,
+                    pin_label: "PC11".to_string(),
+                    sensor_id: "needle_pc11".to_string(),
+                    feature: "needle_pc11".to_string(),
+                    value_path: format!("/sys/class/gpio/gpio{pc11_gpio}/value"),
+                },
+            ];
+
+            for pin in &pins {
+                ensure_gpio_input(pin.gpio)?;
+            }
+
+            Ok(Self {
+                pins,
+                next_index: 0,
+                last_round_at: None,
+                round_interval: Duration::from_millis(gpio_interval_ms),
+            })
+        }
+    }
+
+    pub fn sensor_ids(&self) -> Vec<String> {
+        self.pins.iter().map(|pin| pin.sensor_id.clone()).collect()
     }
 
     pub fn next_event(&mut self) -> Result<SensorEvent, String> {
-        Err("Native direct sensor source is not implemented yet".to_string())
+        if self.pins.is_empty() {
+            return Err("No native GPIO pins configured".to_string());
+        }
+
+        if self.next_index == 0 {
+            if let Some(last) = self.last_round_at {
+                let elapsed = last.elapsed();
+                if elapsed < self.round_interval {
+                    thread::sleep(self.round_interval - elapsed);
+                }
+            }
+            self.last_round_at = Some(Instant::now());
+        }
+
+        let pin = &self.pins[self.next_index];
+        self.next_index = (self.next_index + 1) % self.pins.len();
+
+        let value_raw = fs::read_to_string(&pin.value_path)
+            .map_err(|e| format!("Failed to read {}: {e}", pin.value_path))?;
+        let value = value_raw.trim();
+        if value != "0" && value != "1" {
+            return Err(format!(
+                "Unexpected GPIO value on {} (gpio{}): {}",
+                pin.pin_label, pin.gpio, value
+            ));
+        }
+
+        let mut fields = BTreeMap::new();
+        fields.insert("pin".to_string(), pin.pin_label.clone());
+        fields.insert("gpio".to_string(), pin.gpio.to_string());
+        fields.insert("value".to_string(), value.to_string());
+        fields.insert(
+            "state".to_string(),
+            if value == "1" {
+                "active".to_string()
+            } else {
+                "inactive".to_string()
+            },
+        );
+
+        Ok(SensorEvent {
+            sensor_id: pin.sensor_id.clone(),
+            feature: pin.feature.clone(),
+            fields,
+            raw_line: format!("{} gpio{} value={}", pin.pin_label, pin.gpio, value),
+        })
     }
+}
+
+#[cfg(target_os = "linux")]
+fn parse_gpio_env(name: &str, default: u32) -> Result<u32, String> {
+    match env::var(name) {
+        Ok(raw) => raw
+            .trim()
+            .parse::<u32>()
+            .map_err(|_| format!("Invalid {}='{}'", name, raw)),
+        Err(_) => Ok(default),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn parse_u64_env(name: &str, default: u64) -> Result<u64, String> {
+    match env::var(name) {
+        Ok(raw) => raw
+            .trim()
+            .parse::<u64>()
+            .map_err(|_| format!("Invalid {}='{}'", name, raw)),
+        Err(_) => Ok(default),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn ensure_gpio_input(gpio: u32) -> Result<(), String> {
+    let gpio_dir = format!("/sys/class/gpio/gpio{gpio}");
+    if fs::metadata(&gpio_dir).is_err() {
+        let mut export = OpenOptions::new()
+            .write(true)
+            .open("/sys/class/gpio/export")
+            .map_err(|e| format!("Failed to open /sys/class/gpio/export: {e}"))?;
+        export
+            .write_all(gpio.to_string().as_bytes())
+            .map_err(|e| format!("Failed to export gpio{gpio}: {e}"))?;
+    }
+
+    let mut direction = OpenOptions::new()
+        .write(true)
+        .open(format!("{gpio_dir}/direction"))
+        .map_err(|e| format!("Failed to open gpio{gpio} direction: {e}"))?;
+    direction
+        .write_all(b"in")
+        .map_err(|e| format!("Failed to set gpio{gpio} direction to input: {e}"))?;
+    Ok(())
 }
 
 pub fn list_serial_ports() -> Result<Vec<String>, String> {

@@ -95,6 +95,13 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     };
     let device_index = Arc::new(Mutex::new(device_index));
 
+    apply_native_gpio_overrides(&run_cfg);
+
+    if run_cfg.native_gpio {
+        println!("[gateway] Native GPIO mode enabled, ESP32 serial discovery disabled.");
+        return run_native_gpio_mode(shared, device_index);
+    }
+
     println!("[gateway] Managed mode started. target is cached in state profile.");
     println!("[gateway] Recursively scanning serial ports and baud rates...");
 
@@ -156,6 +163,99 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
         }
 
         thread::sleep(run_cfg.scan_interval);
+    }
+}
+
+fn run_native_gpio_mode(
+    shared: SharedContext,
+    device_index: Arc<Mutex<DeviceIndexStore>>,
+) -> Result<(), String> {
+    let (device_id, _created) =
+        get_or_create_device_id("native-gpio", &shared.state_dir, &device_index)?;
+
+    let mut source = NativeSensorDataSource::new()?;
+    let sensors = source.sensor_ids();
+    let mut feature_mapping = BTreeMap::new();
+    for sensor in &sensors {
+        feature_mapping.insert(sensor.clone(), sensor.clone());
+    }
+
+    let device = DiscoveredDevice {
+        port: "native-gpio".to_string(),
+        baud: 0,
+        sensors,
+        feature_mapping,
+        device_id,
+    };
+
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Failed to bind local UDP socket: {e}"))?;
+    socket
+        .set_read_timeout(Some(shared.run_cfg.ack_timeout))
+        .map_err(|e| format!("Failed to set ACK timeout: {e}"))?;
+
+    register_device(&socket, &device, &shared)?;
+
+    loop {
+        let event = source.next_event()?;
+
+        let target = {
+            let guard = shared
+                .profile
+                .lock()
+                .map_err(|_| "Profile lock poisoned".to_string())?;
+            guard.cloud_target.clone()
+        };
+
+        let payload = build_sensor_packet(&event.sensor_id, &event.fields, &device.device_id);
+        socket
+            .send_to(payload.as_bytes(), &target)
+            .map_err(|e| format!("Failed to send payload to {target}: {e}"))?;
+
+        let mut ack_buf = [0_u8; 1024];
+        let (ack_size, ack_peer) = match socket.recv_from(&mut ack_buf) {
+            Ok(v) => v,
+            Err(err)
+                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
+            {
+                eprintln!(
+                    "[gateway] ACK timeout from {target}, keeping native session alive for {}",
+                    device.device_id
+                );
+                continue;
+            }
+            Err(err) => {
+                eprintln!("[gateway] ACK receive failed: {err}");
+                continue;
+            }
+        };
+
+        let ack = String::from_utf8_lossy(&ack_buf[..ack_size]).trim().to_string();
+        if ack == "ack:unregistered" || ack == "ack:token_invalid" {
+            println!(
+                "[gateway] {} requires re-register (ack={}), re-registering...",
+                device.device_id, ack
+            );
+            register_device(&socket, &device, &shared)?;
+            continue;
+        }
+
+        println!(
+            "[gateway] {} -> {} payload=\"{}\" ACK {} from {}",
+            event.feature, target, payload, ack, ack_peer
+        );
+    }
+}
+
+fn apply_native_gpio_overrides(run_cfg: &RunConfig) {
+    if let Some(gpio_ph7) = run_cfg.gpio_ph7 {
+        std::env::set_var("GATEWAY_NATIVE_GPIO_PH7", gpio_ph7.to_string());
+    }
+    if let Some(gpio_pc11) = run_cfg.gpio_pc11 {
+        std::env::set_var("GATEWAY_NATIVE_GPIO_PC11", gpio_pc11.to_string());
+    }
+    if let Some(gpio_interval_ms) = run_cfg.gpio_interval_ms {
+        std::env::set_var("GATEWAY_NATIVE_GPIO_INTERVAL_MS", gpio_interval_ms.to_string());
     }
 }
 
@@ -540,9 +640,13 @@ fn run_flash(cfg: FlashConfig) -> Result<(), String> {
 fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     let state_dir = ensure_state_dir(&cfg.state_dir)?;
     let feature_map = load_feature_map(&state_dir)?;
-    let _native_placeholder = NativeSensorDataSource::new();
+    let native_probe = NativeSensorDataSource::new();
 
     println!("[gateway][diag] feature mapping loaded: {:?}", feature_map.mappings);
+    match native_probe {
+        Ok(source) => println!("[gateway][diag] native gpio ready: {:?}", source.sensor_ids()),
+        Err(err) => println!("[gateway][diag] native gpio unavailable: {err}"),
+    }
 
     let ports = list_serial_ports()?;
     if ports.is_empty() {
