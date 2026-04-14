@@ -370,11 +370,15 @@ pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<Disco
                 }
 
                 if let Some(event) = parse_known_event(&trimmed) {
+                    found.managed_protocol_detected = true;
                     found.known_sensors.insert(event.sensor_id);
                     continue;
                 }
 
                 if let Some(feature) = extract_feature(&trimmed) {
+                    if !parse_generic_fields(&trimmed).is_empty() {
+                        found.managed_protocol_detected = true;
+                    }
                     found.unknown_features.insert(feature);
                 }
             }
@@ -412,6 +416,18 @@ fn parse_image_channel_line(line: &str) -> Option<SensorEvent> {
 fn parse_known_event(line: &str) -> Option<SensorEvent> {
     if let Some(event) = parse_image_channel_line(line) {
         return Some(event);
+    }
+
+    if let Some(reading) = parse_mq7_line(line) {
+        let mut fields = BTreeMap::new();
+        fields.insert("raw".to_string(), reading.raw.to_string());
+        fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
+        return Some(SensorEvent {
+            sensor_id: "mq7".to_string(),
+            feature: "mq7".to_string(),
+            fields,
+            raw_line: line.to_string(),
+        });
     }
 
     if let Some(reading) = parse_dht22_line(line) {
@@ -628,7 +644,7 @@ pub fn parse_pcf8591_line(line: &str) -> Option<Pcf8591Reading> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_adc_line, parse_dht22_line, parse_mq7_line, parse_pcf8591_line};
+    use super::{parse_adc_line, parse_dht22_line, parse_known_event, parse_mq7_line, parse_pcf8591_line};
 
     #[test]
     fn parse_valid_line() {
@@ -642,6 +658,15 @@ mod tests {
         assert!(parse_mq7_line("random noise").is_none());
         assert!(parse_mq7_line("MQ7 raw=abc voltage=0.166V").is_none());
         assert!(parse_mq7_line("MQ7 raw=200").is_none());
+    }
+
+    #[test]
+    fn parse_known_event_supports_mq7() {
+        let event = parse_known_event("MQ7 raw=206 voltage=0.166V").expect("should parse known mq7 event");
+        assert_eq!(event.sensor_id, "mq7");
+        assert_eq!(event.feature, "mq7");
+        assert_eq!(event.fields.get("raw").map(|s| s.as_str()), Some("206"));
+        assert_eq!(event.fields.get("voltage").map(|s| s.as_str()), Some("0.166"));
     }
 
     #[test]

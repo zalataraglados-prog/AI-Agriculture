@@ -22,6 +22,8 @@ Auto-flash behavior has been removed from the gateway runtime. The process now f
 
 In default `run` mode, gateway recursively scans serial ports and baud rates, auto-detects managed protocol devices, and starts forwarding sensor packets.
 
+If no usable serial device session is launched for several consecutive scan rounds, gateway will automatically try to switch to direct sensor mode (native GPIO) when available.
+
 ```bash
 cargo run -- run \
   --target 8.134.32.223:9000 \

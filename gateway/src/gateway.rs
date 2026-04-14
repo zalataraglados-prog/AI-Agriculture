@@ -112,8 +112,10 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
         ts()
     );
     let mut running: HashMap<String, JoinHandle<()>> = HashMap::new();
+    let mut empty_scan_rounds: u32 = 0;
     loop {
         reap_finished_sessions(&mut running);
+        let mut launched_this_round = false;
         let ports = list_serial_ports()?;
         if ports.is_empty() {
             println!("[{}][gateway] No serial ports found, waiting...", ts());
@@ -151,8 +153,37 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
                     }
                 });
                 running.insert(thread_port, handle);
+                launched_this_round = true;
             }
         }
+
+        if running.is_empty() && !launched_this_round {
+            empty_scan_rounds = empty_scan_rounds.saturating_add(1);
+        } else {
+            empty_scan_rounds = 0;
+        }
+
+        if empty_scan_rounds >= 3 {
+            match NativeSensorDataSource::new() {
+                Ok(_) => {
+                    println!(
+                        "[{}][gateway] No usable serial device detected for {} rounds, switching to direct sensor mode.",
+                        ts(),
+                        empty_scan_rounds
+                    );
+                    return run_native_gpio_mode(shared.clone(), device_index.clone());
+                }
+                Err(err) if empty_scan_rounds == 3 => {
+                    println!(
+                        "[{}][gateway] Serial discovery idle; direct sensor mode not ready yet: {}",
+                        ts(),
+                        err
+                    );
+                }
+                Err(_) => {}
+            }
+        }
+
         thread::sleep(run_cfg.scan_interval);
     }
 }
