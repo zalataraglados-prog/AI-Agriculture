@@ -59,6 +59,10 @@ class PredictionResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     geometry: Optional[Dict[str, Any]] = None
 
+    model_config = {
+        "protected_namespaces": ()
+    }
+
 
 # ------------------------------------------------------------------
 # Top-level response envelope
