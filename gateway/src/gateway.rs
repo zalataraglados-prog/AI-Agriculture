@@ -210,13 +210,26 @@ fn run_native_gpio_mode(
         device_id,
     };
 
+    let initial_target = {
+        let guard = shared
+            .profile
+            .lock()
+            .map_err(|_| "Profile lock poisoned".to_string())?;
+        guard.cloud_target.clone()
+    };
+    println!(
+        "[{}][gateway] Direct sensor mode active, cloud target={}",
+        ts(),
+        initial_target
+    );
+
     let socket = UdpSocket::bind("0.0.0.0:0")
         .map_err(|e| format!("Failed to bind local UDP socket: {e}"))?;
     socket
         .set_read_timeout(Some(shared.run_cfg.ack_timeout))
         .map_err(|e| format!("Failed to set ACK timeout: {e}"))?;
 
-    register_device(&socket, &device, &shared)?;
+    register_device_with_retry(&socket, &device, &shared)?;
 
     loop {
         let event = source.next_event()?;
@@ -266,6 +279,43 @@ fn run_native_gpio_mode(
             "[gateway] {} -> {} payload=\"{}\" ACK {} from {}",
             event.feature, target, payload, ack, ack_peer
         );
+    }
+}
+
+fn register_device_with_retry(
+    socket: &UdpSocket,
+    device: &DiscoveredDevice,
+    shared: &SharedContext,
+) -> Result<(), String> {
+    let mut attempt: u32 = 0;
+    loop {
+        attempt = attempt.saturating_add(1);
+        match register_device(socket, device, shared) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                let target = {
+                    let guard = shared
+                        .profile
+                        .lock()
+                        .map_err(|_| "Profile lock poisoned".to_string())?;
+                    guard.cloud_target.clone()
+                };
+
+                eprintln!(
+                    "[{}][gateway] register attempt {} failed (target={}): {}",
+                    ts(),
+                    attempt,
+                    target,
+                    err
+                );
+
+                if err.contains("register conflict") {
+                    return Err(err);
+                }
+
+                thread::sleep(Duration::from_secs(3));
+            }
+        }
     }
 }
 
