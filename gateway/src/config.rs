@@ -12,7 +12,6 @@ use crate::constants::{
 #[derive(Debug, Clone)]
 pub enum GatewayCommand {
     Run(RunConfig),
-    Flash(FlashConfig),
     Reset(ResetConfig),
     Diag(DiagConfig),
 }
@@ -33,14 +32,6 @@ pub struct RunConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct FlashConfig {
-    pub port: Option<String>,
-    pub baud: u32,
-    pub firmware_path: Option<String>,
-    pub fallback_script: Option<String>,
-}
-
-#[derive(Debug, Clone)]
 pub struct ResetConfig {
     pub state_dir: String,
 }
@@ -58,7 +49,6 @@ pub fn print_usage(binary: &str) {
   {binary} run [--config <path>] [--target <ip:port>] [--state-dir <dir>] [--scan-interval-ms <ms>]
                [--scan-window-ms <ms>] [--ack-timeout-ms <ms>] [--baud-list <csv>] [--native-gpio]
                [--gpio-ph7 <num>] [--gpio-pc11 <num>] [--gpio-interval-ms <ms>]
-  {binary} flash [--port </dev/ttyUSB0>] [--baud <n>] [--firmware <path>] [--fallback-script <path>]
   {binary} diag [--state-dir <dir>] [--scan-window-ms <ms>] [--baud-list <csv>]
   {binary} reset [--state-dir <dir>]
 
@@ -72,7 +62,7 @@ Defaults:
 
 Notes:
   1) 默认命令是 run（可省略 run）。
-    2) --native-gpio 启用板载 GPIO 直连采集（PH7/PC11），不依赖 ESP32 串口。
+        2) --native-gpio 启用板载 GPIO 直连采集（PH7/PC11），不依赖外部串口桥接。
     3) --config 支持从 TOML 读取 run 配置；命令行参数优先级更高。
     4) success 固定报文能力保留为内部诊断，不再提供外部命令入口。",
         format_baud_list(&DEFAULT_BAUD_LIST),
@@ -92,13 +82,12 @@ pub fn parse_args() -> Result<GatewayCommand, String> {
     }
 
     let explicit_subcommand = match raw[0].as_str() {
-        "run" | "flash" | "diag" | "reset" => Some(raw.remove(0)),
+        "run" | "diag" | "reset" => Some(raw.remove(0)),
         _ => None,
     };
 
     match explicit_subcommand.as_deref() {
         Some("run") => parse_run_args(raw).map(GatewayCommand::Run),
-        Some("flash") => parse_flash_args(raw).map(GatewayCommand::Flash),
         Some("diag") => parse_diag_args(raw).map(GatewayCommand::Diag),
         Some("reset") => parse_reset_args(raw).map(GatewayCommand::Reset),
         Some(other) => Err(format!("Unknown subcommand: {other}")),
@@ -198,58 +187,6 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<RunConfig, String> {
                 std::process::exit(0);
             }
             _ => return Err(format!("Unknown argument for run: {arg}")),
-        }
-    }
-
-    Ok(cfg)
-}
-
-fn parse_flash_args(raw_args: Vec<String>) -> Result<FlashConfig, String> {
-    let mut cfg = FlashConfig {
-        port: None,
-        baud: 921_600,
-        firmware_path: None,
-        fallback_script: Some("scripts/flash_esp32_rust.sh".to_string()),
-    };
-
-    let mut args = raw_args.into_iter();
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--port" => {
-                cfg.port = Some(
-                    args.next()
-                        .ok_or_else(|| "Missing value for --port".to_string())?,
-                );
-            }
-            "--baud" => {
-                let value = parse_u32_arg(
-                    args.next(),
-                    "--baud",
-                    "Invalid --baud, expected unsigned integer",
-                )?;
-                if value == 0 {
-                    return Err("--baud must be >= 1".to_string());
-                }
-                cfg.baud = value;
-            }
-            "--firmware" => {
-                cfg.firmware_path = Some(
-                    args.next()
-                        .ok_or_else(|| "Missing value for --firmware".to_string())?,
-                );
-            }
-            "--fallback-script" => {
-                cfg.fallback_script = Some(
-                    args.next()
-                        .ok_or_else(|| "Missing value for --fallback-script".to_string())?,
-                );
-            }
-            "-h" | "--help" => {
-                let binary = env::args().next().unwrap_or_else(|| "gateway".to_string());
-                print_usage(&binary);
-                std::process::exit(0);
-            }
-            _ => return Err(format!("Unknown argument for flash: {arg}")),
         }
     }
 

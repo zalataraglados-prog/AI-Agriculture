@@ -3,7 +3,6 @@
 Rust gateway for Linux/WSL/OrangePi. Current CLI uses subcommands:
 
 - `run`: managed runtime (serial discovery or native GPIO)
-- `flash`: flash ESP32 firmware helper
 - `diag`: scan and print discovery diagnostics
 - `reset`: clear persisted gateway state
 
@@ -16,6 +15,8 @@ cargo run -- run --target 127.0.0.1:9000
 If `state/gateway_profile.json` does not exist, the process will prompt for first-time setup and then persist the profile.
 
 ## Run Mode
+
+Auto-flash behavior has been removed from the gateway runtime. The process now focuses on discovery, session management, and data forwarding only.
 
 ### Managed Serial Discovery
 
@@ -31,7 +32,7 @@ cargo run -- run \
 
 ### Native GPIO Mode (Direct PH7 / PC11)
 
-When sensors are directly wired to OrangePi GPIO (no ESP32 serial bridge):
+When sensors are directly wired to OrangePi GPIO (no external serial bridge):
 
 ```bash
 cargo run -- run --native-gpio --target 127.0.0.1:9000
@@ -117,12 +118,6 @@ TARGET=8.134.32.223:9000 NATIVE_GPIO=1 GPIO_PH7=231 GPIO_PC11=75 ./scripts/run_m
 - `--gpio-interval-ms <ms>`: native GPIO polling interval override
 
 ## Other Subcommands
-
-Flash helper:
-
-```bash
-cargo run -- flash --port /dev/ttyUSB0 --baud 921600
-```
 
 Diagnostics:
 

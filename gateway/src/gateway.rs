@@ -2,14 +2,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{self, BufRead, ErrorKind, Write};
 use std::net::UdpSocket;
 use std::path::Path;
-use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use chrono::Local;
 
-use crate::config::{DiagConfig, FlashConfig, GatewayCommand, RunConfig};
+use crate::config::{DiagConfig, GatewayCommand, RunConfig};
 use crate::constants::{
     DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_PAYLOAD_SUCCESS, DEFAULT_TARGET,
     RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID,
@@ -59,7 +58,6 @@ struct SharedContext {
 pub fn run_command(command: GatewayCommand) -> Result<(), String> {
     match command {
         GatewayCommand::Run(cfg) => run_managed(cfg),
-        GatewayCommand::Flash(cfg) => run_flash(cfg),
         GatewayCommand::Reset(cfg) => {
             reset_state(&cfg.state_dir)?;
             println!("[{}][gateway] Reset complete: {}", ts(), cfg.state_dir);
@@ -99,7 +97,7 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
 
     if run_cfg.native_gpio {
         println!(
-            "[{}][gateway] Native GPIO mode enabled, ESP32 serial discovery disabled.",
+            "[{}][gateway] Native GPIO mode enabled, serial discovery disabled.",
             ts()
         );
         return run_native_gpio_mode(shared, device_index);
@@ -114,7 +112,6 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
         ts()
     );
     let mut running: HashMap<String, JoinHandle<()>> = HashMap::new();
-    let mut flash_prompted_ports: BTreeSet<String> = BTreeSet::new();
     loop {
         reap_finished_sessions(&mut running);
         let ports = list_serial_ports()?;
@@ -130,15 +127,8 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
                 continue;
             }
             if !discovery.managed_protocol_detected {
-                if !flash_prompted_ports.contains(&port) {
-                    let flashed = maybe_flash_new_device(&port, &shared.prompt_lock)?;
-                    if flashed {
-                        flash_prompted_ports.insert(port.clone());
-                    }
-                }
                 continue;
             }
-            flash_prompted_ports.remove(&port);
             if let Some(baud) = discovery.detected_baud {
                 let (device_id, _) =
                     get_or_create_device_id(&port, &shared.state_dir, &device_index)?;
@@ -459,40 +449,6 @@ fn register_device(socket: &UdpSocket, device: &DiscoveredDevice, shared: &Share
     }
 }
 
-fn run_flash(cfg: FlashConfig) -> Result<(), String> {
-    let port = cfg.port.ok_or_else(|| "flash requires --port (for example /dev/ttyUSB0)".to_string())?;
-    let rust_flash_script = cfg.fallback_script.clone().unwrap_or_else(|| "scripts/flash_esp32_rust.sh".to_string());
-    if Path::new(&rust_flash_script).exists() {
-        println!("[{}][gateway] Flash via Rust script: {rust_flash_script}", ts());
-        let status = Command::new(&rust_flash_script).args([&port, &cfg.baud.to_string()]).status()
-            .map_err(|e| format!("Failed to run rust flash script {rust_flash_script}: {e}"))?;
-        if status.success() {
-            println!("[{}][gateway] Flash success via Rust script", ts());
-            return Ok(());
-        }
-        return Err(format!("Rust flash script exited with status {status}"));
-    }
-    let firmware = if let Some(path) = cfg.firmware_path.clone() {
-        path
-    } else {
-        return Err(format!("Rust flash script not found: {}. Provide script or pass --firmware <path>.", rust_flash_script));
-    };
-    if !Path::new(&firmware).exists() {
-        return Err(format!("Firmware not found: {}. Pass valid --firmware path.", firmware));
-    }
-    println!("[{}][gateway] Flash via built-in esptool path...", ts());
-    let status = Command::new("esptool.py").args(["--port", &port, "--baud", &cfg.baud.to_string(), "write_flash", "0x0", &firmware]).status();
-    match status {
-        Ok(st) if st.success() => {
-            println!("[{}][gateway] Flash success via esptool.py", ts());
-            return Ok(());
-        }
-        Ok(st) => { eprintln!("[{}][gateway] esptool.py exited with status {st}", ts()); }
-        Err(err) => { eprintln!("[{}][gateway] esptool.py failed to launch: {err}", ts()); }
-    }
-    Err("Built-in binary flash failed".to_string())
-}
-
 fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     let state_dir = ensure_state_dir(&cfg.state_dir)?;
     let feature_map = load_feature_map(&state_dir)?;
@@ -551,28 +507,6 @@ fn prompt_unknown_feature_mapping(feature: &str, prompt_lock: &Arc<Mutex<()>>) -
         Some(feature),
         prompt_lock,
     )
-}
-
-fn maybe_flash_new_device(port: &str, prompt_lock: &Arc<Mutex<()>>) -> Result<bool, String> {
-    let _guard = prompt_lock.lock().map_err(|_| "Prompt lock poisoned".to_string())?;
-    println!("[{}][gateway] New device detected on {port}, auto flashing Rust firmware...", ts());
-    let cfg = FlashConfig {
-        port: Some(port.to_string()),
-        baud: 921_600,
-        firmware_path: None,
-        fallback_script: Some("scripts/flash_esp32_rust.sh".to_string()),
-    };
-    match run_flash(cfg) {
-        Ok(()) => {
-            println!("[{}][gateway] Flash completed on {port}", ts());
-            Ok(true)
-        }
-        Err(err) => {
-            eprintln!("[{}][gateway] Flash failed on {port}: {err}", ts());
-            println!("[{}][gateway] Continue without flashing on {port}", ts());
-            Ok(false)
-        }
-    }
 }
 
 fn prompt_line(message: &str, default: Option<&str>, prompt_lock: &Arc<Mutex<()>>) -> Result<String, String> {
