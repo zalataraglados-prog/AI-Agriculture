@@ -6,3 +6,4 @@ scikit-learn
 tqdm
 pytest
 matplotlib
+pydantic

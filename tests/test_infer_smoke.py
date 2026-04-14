@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from service.model_loader import build_model
+from service.core.rice_leaf_classifier import build_model
 from service.infer import predict_image_file
 
 

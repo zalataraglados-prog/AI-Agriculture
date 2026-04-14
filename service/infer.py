@@ -6,13 +6,15 @@ from pathlib import Path
 from PIL import Image
 
 try:
-    from service.model_loader import RiceLeafClassifier
+    from service.core.rice_leaf_classifier import RiceLeafClassifier
+    from service.adapters.image_adapter import load_image_from_path
 except ModuleNotFoundError:
     # Support running `python service/infer.py` from the project root.
     project_root = Path(__file__).resolve().parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from service.model_loader import RiceLeafClassifier
+    from service.core.rice_leaf_classifier import RiceLeafClassifier
+    from service.adapters.image_adapter import load_image_from_path
 
 
 def predict_image_file(
@@ -22,7 +24,7 @@ def predict_image_file(
     config_file: str = "models/rice_leaf_classifier/config.json",
     top_k: int = 3
 ):
-    image = Image.open(image_path).convert("RGB")
+    image = load_image_from_path(image_path)
     classifier = RiceLeafClassifier(
         checkpoint_path=checkpoint_path,
         labels_file=labels_file,
