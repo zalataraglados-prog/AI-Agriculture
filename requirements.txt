@@ -7,3 +7,7 @@ tqdm
 pytest
 matplotlib
 pydantic
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
