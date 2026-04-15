@@ -28,6 +28,20 @@ fn ts() -> String {
     Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string()
 }
 
+fn env_non_empty(name: &str) -> Option<String> {
+    match std::env::var(name) {
+        Ok(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 #[derive(Debug, Clone)]
 struct DiscoveredDevice {
     port: String,
@@ -69,19 +83,29 @@ pub fn run_command(command: GatewayCommand) -> Result<(), String> {
 
 fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     let state_dir = ensure_state_dir(&run_cfg.state_dir)?;
-    let mut profile = match load_profile(&state_dir)? {
-        Some(existing) => existing,
+    let (mut profile, profile_is_new) = match load_profile(&state_dir)? {
+        Some(existing) => (existing, false),
         None => {
             println!("[{}][gateway] First-time setup detected.", ts());
             let created = prompt_initial_profile(run_cfg.target_override.as_deref())?;
             save_profile(&state_dir, &created)?;
-            created
+            (created, true)
         }
     };
     if let Some(target) = run_cfg.target_override.as_ref() {
         profile.cloud_target = target.clone();
         save_profile(&state_dir, &profile)?;
+    } else if let Some(target) = env_non_empty("GATEWAY_CLOUD_TARGET") {
+        profile.cloud_target = target;
+        save_profile(&state_dir, &profile)?;
     }
+
+    let prompt_lock = Arc::new(Mutex::new(()));
+    if !profile_is_new {
+        prompt_trial_field_info(&mut profile, &prompt_lock)?;
+        save_profile(&state_dir, &profile)?;
+    }
+
     let feature_store = load_feature_map(&state_dir)?;
     save_feature_map(&state_dir, &feature_store)?;
     let device_index = load_device_index(&state_dir)?;
@@ -90,7 +114,7 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
         state_dir: state_dir.clone(),
         profile: Arc::new(Mutex::new(profile)),
         feature_map: Arc::new(Mutex::new(feature_store.mappings)),
-        prompt_lock: Arc::new(Mutex::new(())),
+        prompt_lock: prompt_lock.clone(),
     };
     let device_index = Arc::new(Mutex::new(device_index));
     apply_native_gpio_overrides(&run_cfg);
@@ -477,11 +501,25 @@ fn run_device_session_loop(device: DiscoveredDevice, shared: SharedContext) -> R
 
 fn register_device(socket: &UdpSocket, device: &DiscoveredDevice, shared: &SharedContext) -> Result<(), String> {
     loop {
-        let (target, location, crop_type, farm_note, maybe_token) = {
+        let (mut target, location, crop_type, farm_note, maybe_token) = {
             let profile = shared.profile.lock().map_err(|_| "Profile lock poisoned".to_string())?;
             (profile.cloud_target.clone(), profile.farm_location.clone(), profile.crop_type.clone(), profile.farm_note.clone(), profile.last_token.clone())
         };
-        let token = if let Some(value) = maybe_token.filter(|v| !v.trim().is_empty()) {
+        if let Some(env_target) = env_non_empty("GATEWAY_CLOUD_TARGET") {
+            target = env_target;
+        }
+
+        if target.trim().is_empty() {
+            let prompted_target = prompt_line("Cloud target ip:port:", Some(DEFAULT_TARGET), &shared.prompt_lock)?;
+            let mut profile = shared.profile.lock().map_err(|_| "Profile lock poisoned".to_string())?;
+            profile.cloud_target = prompted_target.clone();
+            save_profile(&shared.state_dir, &profile)?;
+            target = prompted_target;
+        }
+
+        let token = if let Some(value) = env_non_empty("GATEWAY_CLOUD_TOKEN") {
+            value
+        } else if let Some(value) = maybe_token.filter(|v| !v.trim().is_empty()) {
             value
         } else {
             let prompted = prompt_line("Cloud token (1h):", None, &shared.prompt_lock)?;
@@ -580,6 +618,24 @@ fn prompt_initial_profile(target_override: Option<&str>) -> Result<GatewayProfil
         farm_note,
         last_token: if token.is_empty() { None } else { Some(token) },
     })
+}
+
+fn prompt_trial_field_info(
+    profile: &mut GatewayProfile,
+    prompt_lock: &Arc<Mutex<()>>,
+) -> Result<(), String> {
+    profile.farm_location = prompt_line(
+        "Farm location (self-describe):",
+        Some(&profile.farm_location),
+        prompt_lock,
+    )?;
+    profile.crop_type = prompt_line("Crop type:", Some(&profile.crop_type), prompt_lock)?;
+    profile.farm_note = prompt_line(
+        "Farm note (optional):",
+        Some(&profile.farm_note),
+        prompt_lock,
+    )?;
+    Ok(())
 }
 
 fn prompt_unknown_feature_mapping(feature: &str, prompt_lock: &Arc<Mutex<()>>) -> Result<String, String> {
