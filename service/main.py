@@ -12,8 +12,8 @@ The following environment variables are recognised:
   Defaults to ``models/rice_leaf_classifier/best_model.pth`` when unset.
 * ``MODEL_LABELS_FILE``      — path to ``labels.json``.
   Defaults to ``models/rice_leaf_classifier/labels.json``.
-* ``MODEL_CONFIG_FILE``      — path to ``config.json``.
-  Defaults to ``models/rice_leaf_classifier/config.json``.
+* ``MODEL_CONFIG_FILE``      — path to ``config.yaml``.
+  Defaults to ``models/rice_leaf_classifier/config.yaml``.
 """
 
 import logging
@@ -52,7 +52,7 @@ MODEL_LABELS_FILE = os.environ.get(
 )
 MODEL_CONFIG_FILE = os.environ.get(
     "MODEL_CONFIG_FILE",
-    "models/rice_leaf_classifier/config.json",
+    "models/rice_leaf_classifier/config.yaml",
 )
 
 

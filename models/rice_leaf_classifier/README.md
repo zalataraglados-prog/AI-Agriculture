@@ -10,7 +10,7 @@
 - 输入尺寸：224
 - 主要产物：
   - labels.json
-  - config.json
+  - config.yaml
   - 训练得到的 best_model.pth / final_model.pth（默认不直接提交到 Git）
 
 注意：
