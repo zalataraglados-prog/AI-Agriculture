@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
+#[cfg(target_os = "linux")]
 use std::fs;
 #[cfg(target_os = "linux")]
 use std::fs::OpenOptions;
@@ -147,6 +148,7 @@ struct NativePin {
     pin_label: String,
     sensor_id: String,
     feature: String,
+    protocol: String,
     value_path: String,
 }
 
@@ -169,6 +171,11 @@ impl NativeSensorSource {
             let ph7_gpio = parse_gpio_env("GATEWAY_NATIVE_GPIO_PH7", 231)?;
             let pc11_gpio = parse_gpio_env("GATEWAY_NATIVE_GPIO_PC11", 75)?;
             let gpio_interval_ms = parse_u64_env("GATEWAY_NATIVE_GPIO_INTERVAL_MS", 800)?;
+            let ph7_sensor_id = parse_string_env("GATEWAY_NATIVE_GPIO_PH7_SENSOR_ID", "needle_ph7");
+            let pc11_sensor_id = parse_string_env("GATEWAY_NATIVE_GPIO_PC11_SENSOR_ID", "needle_pc11");
+            let ph7_feature = parse_string_env("GATEWAY_NATIVE_GPIO_PH7_FEATURE", &ph7_sensor_id);
+            let pc11_feature = parse_string_env("GATEWAY_NATIVE_GPIO_PC11_FEATURE", &pc11_sensor_id);
+            let native_protocol = parse_string_env("GATEWAY_NATIVE_GPIO_PROTOCOL", "gpio.digital.v1");
             if gpio_interval_ms == 0 {
                 return Err("GATEWAY_NATIVE_GPIO_INTERVAL_MS must be >= 1".to_string());
             }
@@ -177,15 +184,17 @@ impl NativeSensorSource {
                 NativePin {
                     gpio: ph7_gpio,
                     pin_label: "PH7".to_string(),
-                    sensor_id: "dht22".to_string(),
-                    feature: "dht22".to_string(),
+                    sensor_id: ph7_sensor_id,
+                    feature: ph7_feature,
+                    protocol: native_protocol.clone(),
                     value_path: format!("/sys/class/gpio/gpio{ph7_gpio}/value"),
                 },
                 NativePin {
                     gpio: pc11_gpio,
                     pin_label: "PC11".to_string(),
-                    sensor_id: "adc".to_string(),
-                    feature: "adc".to_string(),
+                    sensor_id: pc11_sensor_id,
+                    feature: pc11_feature,
+                    protocol: native_protocol,
                     value_path: format!("/sys/class/gpio/gpio{pc11_gpio}/value"),
                 },
             ];
@@ -236,32 +245,18 @@ impl NativeSensorSource {
         }
 
         let mut fields = BTreeMap::new();
-
-        if pin.feature == "dht22" {
-            // 根据 0/1 输出 DHT22 的按照协议数据的 mock
-            let temp = if value == "1" { "28.5" } else { "22.5" };
-            let hum = if value == "1" { "65.0" } else { "45.0" };
-            fields.insert("temp_c".to_string(), temp.to_string());
-            fields.insert("hum".to_string(), hum.to_string());
-        } else if pin.feature == "adc" {
-            // 根据 0/1 输出 ADC (土壤传感器等) 的按协议数据的 mock
-            let raw = if value == "1" { "650" } else { "320" };
-            let voltage = if value == "1" { "2.55" } else { "1.15" };
-            fields.insert("raw".to_string(), raw.to_string());
-            fields.insert("voltage".to_string(), voltage.to_string());
-        } else {
-            fields.insert("pin".to_string(), pin.pin_label.clone());
-            fields.insert("gpio".to_string(), pin.gpio.to_string());
-            fields.insert("value".to_string(), value.to_string());
-            fields.insert(
-                "state".to_string(),
-                if value == "1" {
-                    "active".to_string()
-                } else {
-                    "inactive".to_string()
-                },
-            );
-        }
+        fields.insert("protocol".to_string(), pin.protocol.clone());
+        fields.insert("pin".to_string(), pin.pin_label.clone());
+        fields.insert("gpio".to_string(), pin.gpio.to_string());
+        fields.insert("value".to_string(), value.to_string());
+        fields.insert(
+            "state".to_string(),
+            if value == "1" {
+                "active".to_string()
+            } else {
+                "inactive".to_string()
+            },
+        );
 
         Ok(SensorEvent {
             sensor_id: pin.sensor_id.clone(),
@@ -269,6 +264,21 @@ impl NativeSensorSource {
             fields,
             raw_line: format!("{} gpio{} value={}", pin.pin_label, pin.gpio, value),
         })
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn parse_string_env(name: &str, default: &str) -> String {
+    match env::var(name) {
+        Ok(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                default.to_string()
+            } else {
+                trimmed.to_string()
+            }
+        }
+        Err(_) => default.to_string(),
     }
 }
 
@@ -428,64 +438,80 @@ fn parse_image_channel_line(line: &str) -> Option<SensorEvent> {
     })
 }
 
+type TextParser = fn(&str) -> Option<SensorEvent>;
+
 fn parse_known_event(line: &str) -> Option<SensorEvent> {
-    if let Some(event) = parse_image_channel_line(line) {
-        return Some(event);
-    }
+    const PARSERS: [TextParser; 5] = [
+        parse_image_channel_line,
+        parse_mq7_event_line,
+        parse_dht22_event_line,
+        parse_adc_event_line,
+        parse_pcf8591_event_line,
+    ];
 
-    if let Some(reading) = parse_mq7_line(line) {
-        let mut fields = BTreeMap::new();
-        fields.insert("raw".to_string(), reading.raw.to_string());
-        fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
-        return Some(SensorEvent {
-            sensor_id: "mq7".to_string(),
-            feature: "mq7".to_string(),
-            fields,
-            raw_line: line.to_string(),
-        });
-    }
-
-    if let Some(reading) = parse_dht22_line(line) {
-        let mut fields = BTreeMap::new();
-        fields.insert("temp_c".to_string(), format!("{:.1}", reading.temp_c));
-        fields.insert("hum".to_string(), format!("{:.1}", reading.hum));
-        return Some(SensorEvent {
-            sensor_id: "dht22".to_string(),
-            feature: "dht22".to_string(),
-            fields,
-            raw_line: line.to_string(),
-        });
-    }
-
-    if let Some(reading) = parse_adc_line(line) {
-        let mut fields = BTreeMap::new();
-        fields.insert("pin".to_string(), reading.pin.to_string());
-        fields.insert("raw".to_string(), reading.raw.to_string());
-        fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
-        return Some(SensorEvent {
-            sensor_id: "adc".to_string(),
-            feature: "adc".to_string(),
-            fields,
-            raw_line: line.to_string(),
-        });
-    }
-
-    if let Some(reading) = parse_pcf8591_line(line) {
-        let mut fields = BTreeMap::new();
-        fields.insert("addr".to_string(), reading.addr);
-        fields.insert("ain0".to_string(), reading.ain0.to_string());
-        fields.insert("ain1".to_string(), reading.ain1.to_string());
-        fields.insert("ain2".to_string(), reading.ain2.to_string());
-        fields.insert("ain3".to_string(), reading.ain3.to_string());
-        return Some(SensorEvent {
-            sensor_id: "pcf8591".to_string(),
-            feature: "pcf8591".to_string(),
-            fields,
-            raw_line: line.to_string(),
-        });
+    for parser in PARSERS {
+        if let Some(event) = parser(line) {
+            return Some(event);
+        }
     }
 
     None
+}
+
+fn parse_mq7_event_line(line: &str) -> Option<SensorEvent> {
+    let reading = parse_mq7_line(line)?;
+    let mut fields = BTreeMap::new();
+    fields.insert("raw".to_string(), reading.raw.to_string());
+    fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
+    Some(SensorEvent {
+        sensor_id: "mq7".to_string(),
+        feature: "mq7".to_string(),
+        fields,
+        raw_line: line.to_string(),
+    })
+}
+
+fn parse_dht22_event_line(line: &str) -> Option<SensorEvent> {
+    let reading = parse_dht22_line(line)?;
+    let mut fields = BTreeMap::new();
+    fields.insert("temp_c".to_string(), format!("{:.1}", reading.temp_c));
+    fields.insert("hum".to_string(), format!("{:.1}", reading.hum));
+    Some(SensorEvent {
+        sensor_id: "dht22".to_string(),
+        feature: "dht22".to_string(),
+        fields,
+        raw_line: line.to_string(),
+    })
+}
+
+fn parse_adc_event_line(line: &str) -> Option<SensorEvent> {
+    let reading = parse_adc_line(line)?;
+    let mut fields = BTreeMap::new();
+    fields.insert("pin".to_string(), reading.pin.to_string());
+    fields.insert("raw".to_string(), reading.raw.to_string());
+    fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
+    Some(SensorEvent {
+        sensor_id: "adc".to_string(),
+        feature: "adc".to_string(),
+        fields,
+        raw_line: line.to_string(),
+    })
+}
+
+fn parse_pcf8591_event_line(line: &str) -> Option<SensorEvent> {
+    let reading = parse_pcf8591_line(line)?;
+    let mut fields = BTreeMap::new();
+    fields.insert("addr".to_string(), reading.addr);
+    fields.insert("ain0".to_string(), reading.ain0.to_string());
+    fields.insert("ain1".to_string(), reading.ain1.to_string());
+    fields.insert("ain2".to_string(), reading.ain2.to_string());
+    fields.insert("ain3".to_string(), reading.ain3.to_string());
+    Some(SensorEvent {
+        sensor_id: "pcf8591".to_string(),
+        feature: "pcf8591".to_string(),
+        fields,
+        raw_line: line.to_string(),
+    })
 }
 
 fn parse_generic_fields(line: &str) -> BTreeMap<String, String> {
