@@ -12,9 +12,3 @@ ack_timeout_ms = 3000
 
 # Candidate baud rates for managed serial device discovery
 baud_list = [115200, 57600, 9600, 74880]
-
-# Native GPIO mode options (OrangePi direct pins)
-native_gpio = false
-gpio_ph7 = 231
-gpio_pc11 = 75
-gpio_interval_ms = 800

@@ -13,7 +13,7 @@ use crate::constants::{
     DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_PAYLOAD_SUCCESS, DEFAULT_TARGET,
     RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID,
 };
-use crate::datasource::{DataSource, NativeSensorDataSource, SerialEsp32DataSource};
+use crate::datasource::{DataSource, SerialEsp32DataSource};
 use crate::persist::{
     ensure_state_dir, load_device_index, load_feature_map, load_profile, reset_state,
     save_device_index, save_feature_map, save_profile, DeviceIndexStore, FeatureMapStore,
@@ -117,15 +117,6 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
         prompt_lock: prompt_lock.clone(),
     };
     let device_index = Arc::new(Mutex::new(device_index));
-    apply_native_gpio_overrides(&run_cfg);
-
-    if run_cfg.native_gpio {
-        println!(
-            "[{}][gateway] Native GPIO mode enabled, serial discovery disabled.",
-            ts()
-        );
-        return run_native_gpio_mode(shared, device_index);
-    }
 
     println!(
         "[{}][gateway] Managed mode started. target is cached in state profile.",
@@ -136,10 +127,8 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
         ts()
     );
     let mut running: HashMap<String, JoinHandle<()>> = HashMap::new();
-    let mut empty_scan_rounds: u32 = 0;
     loop {
         reap_finished_sessions(&mut running);
-        let mut launched_this_round = false;
         let ports = list_serial_ports()?;
         if ports.is_empty() {
             println!("[{}][gateway] No serial ports found, waiting...", ts());
@@ -177,181 +166,10 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
                     }
                 });
                 running.insert(thread_port, handle);
-                launched_this_round = true;
-            }
-        }
-
-        if running.is_empty() && !launched_this_round {
-            empty_scan_rounds = empty_scan_rounds.saturating_add(1);
-        } else {
-            empty_scan_rounds = 0;
-        }
-
-        if empty_scan_rounds >= 3 {
-            match NativeSensorDataSource::new() {
-                Ok(_) => {
-                    println!(
-                        "[{}][gateway] No usable serial device detected for {} rounds, switching to direct sensor mode.",
-                        ts(),
-                        empty_scan_rounds
-                    );
-                    return run_native_gpio_mode(shared.clone(), device_index.clone());
-                }
-                Err(err) if empty_scan_rounds == 3 => {
-                    println!(
-                        "[{}][gateway] Serial discovery idle; direct sensor mode not ready yet: {}",
-                        ts(),
-                        err
-                    );
-                }
-                Err(_) => {}
             }
         }
 
         thread::sleep(run_cfg.scan_interval);
-    }
-}
-
-fn run_native_gpio_mode(
-    shared: SharedContext,
-    device_index: Arc<Mutex<DeviceIndexStore>>,
-) -> Result<(), String> {
-    let (device_id, _created) =
-        get_or_create_device_id("native-gpio", &shared.state_dir, &device_index)?;
-
-    let mut source = NativeSensorDataSource::new()?;
-    let sensors = source.sensor_ids();
-    let mut feature_mapping = BTreeMap::new();
-    for sensor in &sensors {
-        feature_mapping.insert(sensor.clone(), sensor.clone());
-    }
-
-    let device = DiscoveredDevice {
-        port: "native-gpio".to_string(),
-        baud: 0,
-        sensors,
-        feature_mapping,
-        device_id,
-    };
-
-    let initial_target = {
-        let guard = shared
-            .profile
-            .lock()
-            .map_err(|_| "Profile lock poisoned".to_string())?;
-        guard.cloud_target.clone()
-    };
-    println!(
-        "[{}][gateway] Direct sensor mode active, cloud target={}",
-        ts(),
-        initial_target
-    );
-
-    let socket = UdpSocket::bind("0.0.0.0:0")
-        .map_err(|e| format!("Failed to bind local UDP socket: {e}"))?;
-    socket
-        .set_read_timeout(Some(shared.run_cfg.ack_timeout))
-        .map_err(|e| format!("Failed to set ACK timeout: {e}"))?;
-
-    register_device_with_retry(&socket, &device, &shared)?;
-
-    loop {
-        let event = source.next_event()?;
-
-        let target = {
-            let guard = shared
-                .profile
-                .lock()
-                .map_err(|_| "Profile lock poisoned".to_string())?;
-            guard.cloud_target.clone()
-        };
-
-        let payload = build_sensor_packet(&event.sensor_id, &event.fields, &device.device_id);
-        socket
-            .send_to(payload.as_bytes(), &target)
-            .map_err(|e| format!("Failed to send payload to {target}: {e}"))?;
-
-        let mut ack_buf = [0_u8; 1024];
-        let (ack_size, ack_peer) = match socket.recv_from(&mut ack_buf) {
-            Ok(v) => v,
-            Err(err)
-                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
-            {
-                eprintln!(
-                    "[gateway] ACK timeout from {target}, keeping native session alive for {}",
-                    device.device_id
-                );
-                continue;
-            }
-            Err(err) => {
-                eprintln!("[gateway] ACK receive failed: {err}");
-                continue;
-            }
-        };
-
-        let ack = String::from_utf8_lossy(&ack_buf[..ack_size]).trim().to_string();
-        if ack == "ack:unregistered" || ack == "ack:token_invalid" {
-            println!(
-                "[gateway] {} requires re-register (ack={}), re-registering...",
-                device.device_id, ack
-            );
-            register_device(&socket, &device, &shared)?;
-            continue;
-        }
-
-        println!(
-            "[gateway] {} -> {} payload=\"{}\" ACK {} from {}",
-            event.feature, target, payload, ack, ack_peer
-        );
-    }
-}
-
-fn register_device_with_retry(
-    socket: &UdpSocket,
-    device: &DiscoveredDevice,
-    shared: &SharedContext,
-) -> Result<(), String> {
-    let mut attempt: u32 = 0;
-    loop {
-        attempt = attempt.saturating_add(1);
-        match register_device(socket, device, shared) {
-            Ok(()) => return Ok(()),
-            Err(err) => {
-                let target = {
-                    let guard = shared
-                        .profile
-                        .lock()
-                        .map_err(|_| "Profile lock poisoned".to_string())?;
-                    guard.cloud_target.clone()
-                };
-
-                eprintln!(
-                    "[{}][gateway] register attempt {} failed (target={}): {}",
-                    ts(),
-                    attempt,
-                    target,
-                    err
-                );
-
-                if err.contains("register conflict") {
-                    return Err(err);
-                }
-
-                thread::sleep(Duration::from_secs(3));
-            }
-        }
-    }
-}
-
-fn apply_native_gpio_overrides(run_cfg: &RunConfig) {
-    if let Some(gpio_ph7) = run_cfg.gpio_ph7 {
-        std::env::set_var("GATEWAY_NATIVE_GPIO_PH7", gpio_ph7.to_string());
-    }
-    if let Some(gpio_pc11) = run_cfg.gpio_pc11 {
-        std::env::set_var("GATEWAY_NATIVE_GPIO_PC11", gpio_pc11.to_string());
-    }
-    if let Some(gpio_interval_ms) = run_cfg.gpio_interval_ms {
-        std::env::set_var("GATEWAY_NATIVE_GPIO_INTERVAL_MS", gpio_interval_ms.to_string());
     }
 }
 
@@ -571,17 +389,12 @@ fn register_device(socket: &UdpSocket, device: &DiscoveredDevice, shared: &Share
 fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     let state_dir = ensure_state_dir(&cfg.state_dir)?;
     let feature_map = load_feature_map(&state_dir)?;
-    let native_probe = NativeSensorDataSource::new();
 
     println!(
         "[{}][gateway][diag] feature mapping loaded: {:?}",
         ts(),
         feature_map.mappings
     );
-    match native_probe {
-        Ok(source) => println!("[{}][gateway][diag] native gpio ready: {:?}", ts(), source.sensor_ids()),
-        Err(err) => println!("[{}][gateway][diag] native gpio unavailable: {err}", ts()),
-    }
     let ports = list_serial_ports()?;
     if ports.is_empty() {
         println!("[{}][gateway][diag] no serial ports detected", ts());

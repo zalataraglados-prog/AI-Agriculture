@@ -25,10 +25,6 @@ pub struct RunConfig {
     pub scan_window: Duration,
     pub ack_timeout: Duration,
     pub baud_list: Vec<u32>,
-    pub native_gpio: bool,
-    pub gpio_ph7: Option<u32>,
-    pub gpio_pc11: Option<u32>,
-    pub gpio_interval_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -47,8 +43,7 @@ pub fn print_usage(binary: &str) {
     eprintln!(
         "Usage:
   {binary} run [--config <path>] [--target <ip:port>] [--state-dir <dir>] [--scan-interval-ms <ms>]
-               [--scan-window-ms <ms>] [--ack-timeout-ms <ms>] [--baud-list <csv>] [--native-gpio]
-               [--gpio-ph7 <num>] [--gpio-pc11 <num>] [--gpio-interval-ms <ms>]
+               [--scan-window-ms <ms>] [--ack-timeout-ms <ms>] [--baud-list <csv>]
   {binary} diag [--state-dir <dir>] [--scan-window-ms <ms>] [--baud-list <csv>]
   {binary} reset [--state-dir <dir>]
 
@@ -62,9 +57,8 @@ Defaults:
 
 Notes:
   1) 默认命令是 run（可省略 run）。
-        2) --native-gpio 启用板载 GPIO 直连采集（PH7/PC11），不依赖外部串口桥接。
-    3) --config 支持从 TOML 读取 run 配置；命令行参数优先级更高。
-    4) success 固定报文能力保留为内部诊断，不再提供外部命令入口。",
+    2) --config 支持从 TOML 读取 run 配置；命令行参数优先级更高。
+    3) success 固定报文能力保留为内部诊断，不再提供外部命令入口。",
         format_baud_list(&DEFAULT_BAUD_LIST),
     );
 }
@@ -146,40 +140,6 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<RunConfig, String> {
                     .next()
                     .ok_or_else(|| "Missing value for --baud-list".to_string())?;
                 cfg.baud_list = parse_baud_csv(&value)?;
-            }
-            "--native-gpio" => {
-                cfg.native_gpio = true;
-            }
-            "--gpio-ph7" => {
-                let value = parse_u32_arg(
-                    args.next(),
-                    "--gpio-ph7",
-                    "Invalid --gpio-ph7, expected unsigned integer",
-                )?;
-                if value == 0 {
-                    return Err("--gpio-ph7 must be >= 1".to_string());
-                }
-                cfg.gpio_ph7 = Some(value);
-            }
-            "--gpio-pc11" => {
-                let value = parse_u32_arg(
-                    args.next(),
-                    "--gpio-pc11",
-                    "Invalid --gpio-pc11, expected unsigned integer",
-                )?;
-                if value == 0 {
-                    return Err("--gpio-pc11 must be >= 1".to_string());
-                }
-                cfg.gpio_pc11 = Some(value);
-            }
-            "--gpio-interval-ms" => {
-                let value = parse_u64_arg(
-                    args.next(),
-                    "--gpio-interval-ms",
-                    "Invalid --gpio-interval-ms, expected unsigned integer",
-                )?;
-                ensure_non_zero(value, "--gpio-interval-ms")?;
-                cfg.gpio_interval_ms = Some(value);
             }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "gateway".to_string());
@@ -273,10 +233,6 @@ struct RunToml {
     scan_window_ms: Option<u64>,
     ack_timeout_ms: Option<u64>,
     baud_list: Option<Vec<u32>>,
-    native_gpio: Option<bool>,
-    gpio_ph7: Option<u32>,
-    gpio_pc11: Option<u32>,
-    gpio_interval_ms: Option<u64>,
 }
 
 fn preprocess_run_args(raw_args: Vec<String>, cfg: &mut RunConfig) -> Result<Vec<String>, String> {
@@ -333,25 +289,6 @@ fn apply_run_config_toml(path: &str, cfg: &mut RunConfig) -> Result<(), String> 
         validate_baud_list(&baud_list)?;
         cfg.baud_list = baud_list;
     }
-    if let Some(native_gpio) = run.native_gpio {
-        cfg.native_gpio = native_gpio;
-    }
-    if let Some(gpio_ph7) = run.gpio_ph7 {
-        if gpio_ph7 == 0 {
-            return Err("run.gpio_ph7 must be >= 1".to_string());
-        }
-        cfg.gpio_ph7 = Some(gpio_ph7);
-    }
-    if let Some(gpio_pc11) = run.gpio_pc11 {
-        if gpio_pc11 == 0 {
-            return Err("run.gpio_pc11 must be >= 1".to_string());
-        }
-        cfg.gpio_pc11 = Some(gpio_pc11);
-    }
-    if let Some(gpio_interval_ms) = run.gpio_interval_ms {
-        ensure_non_zero(gpio_interval_ms, "run.gpio_interval_ms")?;
-        cfg.gpio_interval_ms = Some(gpio_interval_ms);
-    }
 
     Ok(())
 }
@@ -365,10 +302,6 @@ fn default_run_config() -> RunConfig {
         scan_window: Duration::from_millis(DEFAULT_SCAN_WINDOW_MS),
         ack_timeout: Duration::from_millis(DEFAULT_ACK_TIMEOUT_MS),
         baud_list: DEFAULT_BAUD_LIST.to_vec(),
-        native_gpio: false,
-        gpio_ph7: None,
-        gpio_pc11: None,
-        gpio_interval_ms: None,
     }
 }
 
@@ -414,10 +347,6 @@ fn parse_u64_arg(raw: Option<String>, name: &str, invalid_msg: &str) -> Result<u
     value.parse::<u64>().map_err(|_| invalid_msg.to_string())
 }
 
-fn parse_u32_arg(raw: Option<String>, name: &str, invalid_msg: &str) -> Result<u32, String> {
-    let value = raw.ok_or_else(|| format!("Missing value for {name}"))?;
-    value.parse::<u32>().map_err(|_| invalid_msg.to_string())
-}
 
 fn ensure_non_zero(value: u64, flag: &str) -> Result<(), String> {
     if value == 0 {

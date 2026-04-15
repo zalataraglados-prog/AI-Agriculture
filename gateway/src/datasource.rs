@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use crate::serial::{NativeSensorSource, SensorEvent, SerialEsp32Source};
+use crate::serial::{SensorEvent, SerialEsp32Source};
 
 pub trait DataSource: Send {
     fn name(&self) -> String;
@@ -43,32 +43,6 @@ impl DataSource for SerialEsp32DataSource {
                 None => continue,
             }
         }
-    }
-}
-
-pub struct NativeSensorDataSource {
-    source: NativeSensorSource,
-}
-
-impl NativeSensorDataSource {
-    pub fn new() -> Result<Self, String> {
-        Ok(Self {
-            source: NativeSensorSource::new()?,
-        })
-    }
-
-    pub fn sensor_ids(&self) -> Vec<String> {
-        self.source.sensor_ids()
-    }
-}
-
-impl DataSource for NativeSensorDataSource {
-    fn name(&self) -> String {
-        "native-sensor-placeholder".to_string()
-    }
-
-    fn next_event(&mut self) -> Result<SensorEvent, String> {
-        self.source.next_event()
     }
 }
 
