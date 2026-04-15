@@ -28,9 +28,9 @@ fn cloud_receiver_ack_success_packet() {
         "config/sensors.toml".to_string(),
         "--bind".to_string(),
         bind_addr.clone(),
-        "--once".to_string(),
+        //"--once".to_string(),
         "--timeout-ms".to_string(),
-        "3000".to_string(),
+        "0".to_string(),
     ];
 
     let child = Command::new(env!("CARGO_BIN_EXE_cloud"))
