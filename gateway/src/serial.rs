@@ -177,15 +177,15 @@ impl NativeSensorSource {
                 NativePin {
                     gpio: ph7_gpio,
                     pin_label: "PH7".to_string(),
-                    sensor_id: "needle_ph7".to_string(),
-                    feature: "needle_ph7".to_string(),
+                    sensor_id: "dht22".to_string(),
+                    feature: "dht22".to_string(),
                     value_path: format!("/sys/class/gpio/gpio{ph7_gpio}/value"),
                 },
                 NativePin {
                     gpio: pc11_gpio,
                     pin_label: "PC11".to_string(),
-                    sensor_id: "needle_pc11".to_string(),
-                    feature: "needle_pc11".to_string(),
+                    sensor_id: "adc".to_string(),
+                    feature: "adc".to_string(),
                     value_path: format!("/sys/class/gpio/gpio{pc11_gpio}/value"),
                 },
             ];
@@ -225,7 +225,7 @@ impl NativeSensorSource {
         let pin = &self.pins[self.next_index];
         self.next_index = (self.next_index + 1) % self.pins.len();
 
-        let value_raw = fs::read_to_string(&pin.value_path)
+        let value_raw = std::fs::read_to_string(&pin.value_path)
             .map_err(|e| format!("Failed to read {}: {e}", pin.value_path))?;
         let value = value_raw.trim();
         if value != "0" && value != "1" {
@@ -236,17 +236,32 @@ impl NativeSensorSource {
         }
 
         let mut fields = BTreeMap::new();
-        fields.insert("pin".to_string(), pin.pin_label.clone());
-        fields.insert("gpio".to_string(), pin.gpio.to_string());
-        fields.insert("value".to_string(), value.to_string());
-        fields.insert(
-            "state".to_string(),
-            if value == "1" {
-                "active".to_string()
-            } else {
-                "inactive".to_string()
-            },
-        );
+
+        if pin.feature == "dht22" {
+            // 根据 0/1 输出 DHT22 的按照协议数据的 mock
+            let temp = if value == "1" { "28.5" } else { "22.5" };
+            let hum = if value == "1" { "65.0" } else { "45.0" };
+            fields.insert("temp_c".to_string(), temp.to_string());
+            fields.insert("hum".to_string(), hum.to_string());
+        } else if pin.feature == "adc" {
+            // 根据 0/1 输出 ADC (土壤传感器等) 的按协议数据的 mock
+            let raw = if value == "1" { "650" } else { "320" };
+            let voltage = if value == "1" { "2.55" } else { "1.15" };
+            fields.insert("raw".to_string(), raw.to_string());
+            fields.insert("voltage".to_string(), voltage.to_string());
+        } else {
+            fields.insert("pin".to_string(), pin.pin_label.clone());
+            fields.insert("gpio".to_string(), pin.gpio.to_string());
+            fields.insert("value".to_string(), value.to_string());
+            fields.insert(
+                "state".to_string(),
+                if value == "1" {
+                    "active".to_string()
+                } else {
+                    "inactive".to_string()
+                },
+            );
+        }
 
         Ok(SensorEvent {
             sensor_id: pin.sensor_id.clone(),
