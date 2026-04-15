@@ -63,7 +63,7 @@ impl DbManager {
                  ON CONFLICT (device_id, time) DO NOTHING"
             )?;
             for r in &self.sensor_buffer {
-                tx.execute(&stmt, &[&r.time.naive_utc(), &r.device_id, &r.value, &r.status, &r.region_code])?;
+                tx.execute(&stmt, &[&r.time, &r.device_id, &r.value, &r.status, &r.region_code])?;
             }
             println!("[INFO] 成功批量写入 {} 条传感器数据", self.sensor_buffer.len());
         }
@@ -75,7 +75,7 @@ impl DbManager {
                  ON CONFLICT (file_path, capture_time) DO NOTHING"
             )?;
             for r in &self.image_buffer {
-                tx.execute(&stmt, &[&r.file_path, &r.capture_time.naive_utc(), &r.object_stamp, &r.region_code, &r.device_id])?;
+                tx.execute(&stmt, &[&r.file_path, &r.capture_time, &r.object_stamp, &r.region_code, &r.device_id])?;
             }
             println!("[INFO] 成功批量写入 {} 条图片索引", self.image_buffer.len());
         }
@@ -105,9 +105,9 @@ impl DbManager {
             };
 
             let rows = if let Some(dev_id) = &req.device_id {
-                self.client.query(query, &[&current_start.naive_utc(), &current_end.naive_utc(), dev_id])?
+                self.client.query(query, &[&current_start, &current_end, dev_id])?
             } else {
-                self.client.query(query, &[&current_start.naive_utc(), &current_end.naive_utc()])?
+                self.client.query(query, &[&current_start, &current_end])?
             };
 
             let data: Vec<ProcessedSensorData> = rows.iter().map(|row| {
@@ -115,7 +115,7 @@ impl DbManager {
                 let device_id: Option<String> = row.get("device_id");
 
                 ProcessedSensorData {
-                    time: row.get::<_, chrono::NaiveDateTime>("time").and_local_timezone(Utc).unwrap(),
+                    time: row.get::<_, chrono::DateTime<Utc>>("time"),
                     device_id: device_id.unwrap_or_else(|| "UNKNOWN_DEV".to_string()),
                     value: row.get("value"),
                     status: row.get("status"),
@@ -154,9 +154,9 @@ impl DbManager {
             };
 
             let rows = if let Some(dev_id) = &req.device_id {
-                self.client.query(query, &[&current_start.naive_utc(), &current_end.naive_utc(), dev_id])?
+                self.client.query(query, &[&current_start, &current_end, dev_id])?
             } else {
-                self.client.query(query, &[&current_start.naive_utc(), &current_end.naive_utc()])?
+                self.client.query(query, &[&current_start, &current_end])?
             };
 
             let data: Vec<ImageIndexRecord> = rows.iter().map(|row| {
@@ -165,7 +165,7 @@ impl DbManager {
 
                 ImageIndexRecord {
                     file_path: row.get("file_path"),
-                    capture_time: row.get::<_, chrono::NaiveDateTime>("capture_time").and_local_timezone(Utc).unwrap(),
+                    capture_time: row.get::<_, chrono::DateTime<Utc>>("capture_time"),
                     object_stamp: row.get("object_stamp"),
                     region_code: row.get("region_code"),
                     device_id: device_id.unwrap_or_else(|| "UNKNOWN_IMG".to_string()),
