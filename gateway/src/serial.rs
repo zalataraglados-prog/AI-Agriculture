@@ -158,7 +158,7 @@ pub struct NativeSensorSource {
     last_round_at: Option<Instant>,
     round_interval: Duration,
 }
-
+//Mark *1
 impl NativeSensorSource {
     pub fn new() -> Result<Self, String> {
         #[cfg(not(target_os = "linux"))]
@@ -183,7 +183,7 @@ impl NativeSensorSource {
             let pins = vec![
                 NativePin {
                     gpio: ph7_gpio,
-                    pin_label: "PH7".to_string(),
+                    pin_label: "dht22".to_string(),
                     sensor_id: ph7_sensor_id,
                     feature: ph7_feature,
                     protocol: native_protocol.clone(),
@@ -191,7 +191,7 @@ impl NativeSensorSource {
                 },
                 NativePin {
                     gpio: pc11_gpio,
-                    pin_label: "PC11".to_string(),
+                    pin_label: "soil wety".to_string(),
                     sensor_id: pc11_sensor_id,
                     feature: pc11_feature,
                     protocol: native_protocol,
