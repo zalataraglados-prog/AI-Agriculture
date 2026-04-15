@@ -1,17 +1,21 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 #[cfg(target_os = "linux")]
-use std::fs;
-#[cfg(target_os = "linux")]
-use std::fs::OpenOptions;
+use std::fmt;
 use std::io::{BufRead, BufReader, ErrorKind};
-#[cfg(target_os = "linux")]
-use std::io::Write;
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(target_os = "linux")]
+use dht_sensor::dht22::blocking as dht22_blocking;
+#[cfg(target_os = "linux")]
+use embedded_hal::digital::{ErrorKind as HalErrorKind, ErrorType, InputPin, OutputPin};
+#[cfg(target_os = "linux")]
+use linux_embedded_hal::Delay;
 use serialport::SerialPort;
-use crate::constants::{RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID};
+#[cfg(target_os = "linux")]
+use sysfs_gpio::{Direction, Pin as SysfsPin};
+use crate::protocol::{parse_known_event as parse_protocol_event, ParsedSensorEvent};
 
 #[derive(Debug)]
 pub struct Mq7Reading {
@@ -142,14 +146,89 @@ impl SerialEsp32Source {
     }
 }
 
-#[derive(Debug, Clone)]
 struct NativePin {
     gpio: u32,
     pin_label: String,
     sensor_id: String,
     feature: String,
     protocol: String,
-    value_path: String,
+    handle: NativeHandle,
+}
+
+enum NativeHandle {
+    #[cfg(target_os = "linux")]
+    Digital(SysfsPin),
+    #[cfg(target_os = "linux")]
+    Dht22(DhtSysfsPin),
+    #[cfg(not(target_os = "linux"))]
+    Unsupported,
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Clone)]
+struct DhtSysfsPin {
+    pin: SysfsPin,
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug, Clone)]
+struct DhtPinError(String);
+
+#[cfg(target_os = "linux")]
+impl fmt::Display for DhtPinError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl embedded_hal::digital::Error for DhtPinError {
+    fn kind(&self) -> HalErrorKind {
+        HalErrorKind::Other
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl ErrorType for DhtSysfsPin {
+    type Error = DhtPinError;
+}
+
+#[cfg(target_os = "linux")]
+impl OutputPin for DhtSysfsPin {
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        self.pin
+            .set_direction(Direction::Out)
+            .map_err(|e| DhtPinError(format!("set_direction out failed: {e}")))?;
+        self.pin
+            .set_value(0)
+            .map_err(|e| DhtPinError(format!("set_value low failed: {e}")))
+    }
+
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        self.pin
+            .set_direction(Direction::Out)
+            .map_err(|e| DhtPinError(format!("set_direction out failed: {e}")))?;
+        self.pin
+            .set_value(1)
+            .map_err(|e| DhtPinError(format!("set_value high failed: {e}")))
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl InputPin for DhtSysfsPin {
+    fn is_high(&mut self) -> Result<bool, Self::Error> {
+        self.pin
+            .set_direction(Direction::In)
+            .map_err(|e| DhtPinError(format!("set_direction in failed: {e}")))?;
+        self.pin
+            .get_value()
+            .map(|v| v == 1)
+            .map_err(|e| DhtPinError(format!("get_value failed: {e}")))
+    }
+
+    fn is_low(&mut self) -> Result<bool, Self::Error> {
+        self.is_high().map(|v| !v)
+    }
 }
 
 pub struct NativeSensorSource {
@@ -175,33 +254,17 @@ impl NativeSensorSource {
             let pc11_sensor_id = parse_string_env("GATEWAY_NATIVE_GPIO_PC11_SENSOR_ID", "needle_pc11");
             let ph7_feature = parse_string_env("GATEWAY_NATIVE_GPIO_PH7_FEATURE", &ph7_sensor_id);
             let pc11_feature = parse_string_env("GATEWAY_NATIVE_GPIO_PC11_FEATURE", &pc11_sensor_id);
-            let native_protocol = parse_string_env("GATEWAY_NATIVE_GPIO_PROTOCOL", "gpio.digital.v1");
+            let default_protocol = parse_string_env("GATEWAY_NATIVE_GPIO_PROTOCOL", "gpio.digital.v1");
+            let ph7_protocol = parse_string_env("GATEWAY_NATIVE_GPIO_PH7_PROTOCOL", &default_protocol);
+            let pc11_protocol = parse_string_env("GATEWAY_NATIVE_GPIO_PC11_PROTOCOL", &default_protocol);
             if gpio_interval_ms == 0 {
                 return Err("GATEWAY_NATIVE_GPIO_INTERVAL_MS must be >= 1".to_string());
             }
 
             let pins = vec![
-                NativePin {
-                    gpio: ph7_gpio,
-                    pin_label: "dht22".to_string(),
-                    sensor_id: ph7_sensor_id,
-                    feature: ph7_feature,
-                    protocol: native_protocol.clone(),
-                    value_path: format!("/sys/class/gpio/gpio{ph7_gpio}/value"),
-                },
-                NativePin {
-                    gpio: pc11_gpio,
-                    pin_label: "soil wety".to_string(),
-                    sensor_id: pc11_sensor_id,
-                    feature: pc11_feature,
-                    protocol: native_protocol,
-                    value_path: format!("/sys/class/gpio/gpio{pc11_gpio}/value"),
-                },
+                build_native_pin(ph7_gpio, "PH7", ph7_sensor_id, ph7_feature, ph7_protocol)?,
+                build_native_pin(pc11_gpio, "PC11", pc11_sensor_id, pc11_feature, pc11_protocol)?,
             ];
-
-            for pin in &pins {
-                ensure_gpio_input(pin.gpio)?;
-            }
 
             Ok(Self {
                 pins,
@@ -231,39 +294,143 @@ impl NativeSensorSource {
             self.last_round_at = Some(Instant::now());
         }
 
-        let pin = &self.pins[self.next_index];
-        self.next_index = (self.next_index + 1) % self.pins.len();
+        let idx = self.next_index;
+        let total = self.pins.len();
+        self.next_index = (self.next_index + 1) % total;
+        let pin = &mut self.pins[idx];
 
-        let value_raw = std::fs::read_to_string(&pin.value_path)
-            .map_err(|e| format!("Failed to read {}: {e}", pin.value_path))?;
-        let value = value_raw.trim();
-        if value != "0" && value != "1" {
-            return Err(format!(
-                "Unexpected GPIO value on {} (gpio{}): {}",
-                pin.pin_label, pin.gpio, value
-            ));
+        let raw_line = match read_native_sensor(pin) {
+            Ok(line) => line,
+            Err(err) => format!(
+                "NATIVE_ERR sensor={} feature={} detail={}",
+                pin.sensor_id,
+                pin.feature,
+                err.replace(' ', "_")
+            ),
+        };
+
+        if let Some(parsed) = parse_protocol_event(&raw_line) {
+            return Ok(from_parsed_event(parsed, raw_line));
         }
 
-        let mut fields = BTreeMap::new();
+        let mut fields = parse_generic_fields(&raw_line);
+        if fields.is_empty() {
+            fields.insert("raw_text".to_string(), raw_line.replace(',', " "));
+        }
         fields.insert("protocol".to_string(), pin.protocol.clone());
-        fields.insert("pin".to_string(), pin.pin_label.clone());
-        fields.insert("gpio".to_string(), pin.gpio.to_string());
-        fields.insert("value".to_string(), value.to_string());
-        fields.insert(
-            "state".to_string(),
-            if value == "1" {
-                "active".to_string()
-            } else {
-                "inactive".to_string()
-            },
-        );
+        fields.entry("pin".to_string()).or_insert_with(|| pin.pin_label.clone());
+        fields.entry("gpio".to_string()).or_insert_with(|| pin.gpio.to_string());
 
         Ok(SensorEvent {
             sensor_id: pin.sensor_id.clone(),
             feature: pin.feature.clone(),
             fields,
-            raw_line: format!("{} gpio{} value={}", pin.pin_label, pin.gpio, value),
+            raw_line,
         })
+    }
+}
+
+fn build_native_pin(
+    gpio: u32,
+    pin_label: &str,
+    sensor_id: String,
+    feature: String,
+    protocol: String,
+) -> Result<NativePin, String> {
+    #[cfg(target_os = "linux")]
+    {
+    let pin = SysfsPin::new(gpio as u64);
+    pin.export()
+        .map_err(|e| format!("Failed to export gpio{gpio}: {e}"))?;
+    pin.set_direction(Direction::In)
+        .map_err(|e| format!("Failed to set gpio{gpio} direction to input: {e}"))?;
+
+    let handle = if protocol.eq_ignore_ascii_case("dht22") {
+        NativeHandle::Dht22(DhtSysfsPin { pin })
+    } else {
+        NativeHandle::Digital(pin)
+    };
+
+    Ok(NativePin {
+        gpio,
+        pin_label: pin_label.to_string(),
+        sensor_id,
+        feature,
+        protocol,
+        handle,
+    })
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (gpio, pin_label);
+        Ok(NativePin {
+            gpio,
+            pin_label: pin_label.to_string(),
+            sensor_id,
+            feature,
+            protocol,
+            handle: NativeHandle::Unsupported,
+        })
+    }
+}
+
+fn read_native_sensor(pin: &mut NativePin) -> Result<String, String> {
+    #[cfg(target_os = "linux")]
+    {
+    match (&pin.protocol.to_ascii_lowercase()[..], &mut pin.handle) {
+        ("dht22", NativeHandle::Dht22(dht_pin)) => {
+            let mut delay = Delay;
+            let reading = dht22_blocking::read(&mut delay, dht_pin)
+                .map_err(|e| format!("DHT22 read failed on gpio{}: {:?}", pin.gpio, e))?;
+            Ok(format!(
+                "DHT22 temp_c={:.1} hum={:.1}",
+                reading.temperature,
+                reading.relative_humidity
+            ))
+        }
+        (_, NativeHandle::Digital(gpio_pin)) => {
+            let value = gpio_pin
+                .get_value()
+                .map_err(|e| format!("GPIO read failed on gpio{}: {e}", pin.gpio))?;
+            if value != 0 && value != 1 {
+                return Err(format!(
+                    "Unexpected GPIO value on {} (gpio{}): {}",
+                    pin.pin_label, pin.gpio, value
+                ));
+            }
+            Ok(format!(
+                "GPIO protocol=gpio.digital.v1 pin={} gpio={} value={} state={}",
+                pin.pin_label,
+                pin.gpio,
+                value,
+                if value == 1 { "active" } else { "inactive" }
+            ))
+        }
+        ("dht22", NativeHandle::Digital(_)) => Err(format!(
+            "Protocol dht22 configured but pin handle is not dht-capable on gpio{}",
+            pin.gpio
+        )),
+        (_, NativeHandle::Dht22(_)) => Err(format!(
+            "Protocol mismatch on gpio{}: dht handle with protocol {}",
+            pin.gpio, pin.protocol
+        )),
+    }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = pin;
+        Err("Native direct sensor source is only supported on Linux".to_string())
+    }
+}
+
+fn from_parsed_event(parsed: ParsedSensorEvent, raw_line: String) -> SensorEvent {
+    SensorEvent {
+        sensor_id: parsed.sensor_id,
+        feature: parsed.feature,
+        fields: parsed.fields,
+        raw_line,
     }
 }
 
@@ -302,29 +469,6 @@ fn parse_u64_env(name: &str, default: u64) -> Result<u64, String> {
             .map_err(|_| format!("Invalid {}='{}'", name, raw)),
         Err(_) => Ok(default),
     }
-}
-
-#[cfg(target_os = "linux")]
-fn ensure_gpio_input(gpio: u32) -> Result<(), String> {
-    let gpio_dir = format!("/sys/class/gpio/gpio{gpio}");
-    if fs::metadata(&gpio_dir).is_err() {
-        let mut export = OpenOptions::new()
-            .write(true)
-            .open("/sys/class/gpio/export")
-            .map_err(|e| format!("Failed to open /sys/class/gpio/export: {e}"))?;
-        export
-            .write_all(gpio.to_string().as_bytes())
-            .map_err(|e| format!("Failed to export gpio{gpio}: {e}"))?;
-    }
-
-    let mut direction = OpenOptions::new()
-        .write(true)
-        .open(format!("{gpio_dir}/direction"))
-        .map_err(|e| format!("Failed to open gpio{gpio} direction: {e}"))?;
-    direction
-        .write_all(b"in")
-        .map_err(|e| format!("Failed to set gpio{gpio} direction to input: {e}"))?;
-    Ok(())
 }
 
 pub fn list_serial_ports() -> Result<Vec<String>, String> {
@@ -394,7 +538,7 @@ pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<Disco
                     continue;
                 }
 
-                if let Some(event) = parse_known_event(&trimmed) {
+                if let Some(event) = parse_protocol_event(&trimmed) {
                     found.managed_protocol_detected = true;
                     found.known_sensors.insert(event.sensor_id);
                     continue;
@@ -419,99 +563,8 @@ pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<Disco
     Ok(found)
 }
 
-fn parse_image_channel_line(line: &str) -> Option<SensorEvent> {
-    let feature = extract_feature(line)?;
-    if feature != "image" && feature != "img" && feature != "frame" {
-        return None;
-    }
-
-    let mut fields = parse_generic_fields(line);
-    if fields.is_empty() {
-        fields.insert("raw_text".to_string(), line.replace(',', " "));
-    }
-
-    Some(SensorEvent {
-        sensor_id: RESERVED_IMAGE_SENSOR_ID.to_string(),
-        feature: RESERVED_IMAGE_FEATURE.to_string(),
-        fields,
-        raw_line: line.to_string(),
-    })
-}
-
-type TextParser = fn(&str) -> Option<SensorEvent>;
-
 fn parse_known_event(line: &str) -> Option<SensorEvent> {
-    const PARSERS: [TextParser; 5] = [
-        parse_image_channel_line,
-        parse_mq7_event_line,
-        parse_dht22_event_line,
-        parse_adc_event_line,
-        parse_pcf8591_event_line,
-    ];
-
-    for parser in PARSERS {
-        if let Some(event) = parser(line) {
-            return Some(event);
-        }
-    }
-
-    None
-}
-
-fn parse_mq7_event_line(line: &str) -> Option<SensorEvent> {
-    let reading = parse_mq7_line(line)?;
-    let mut fields = BTreeMap::new();
-    fields.insert("raw".to_string(), reading.raw.to_string());
-    fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
-    Some(SensorEvent {
-        sensor_id: "mq7".to_string(),
-        feature: "mq7".to_string(),
-        fields,
-        raw_line: line.to_string(),
-    })
-}
-
-fn parse_dht22_event_line(line: &str) -> Option<SensorEvent> {
-    let reading = parse_dht22_line(line)?;
-    let mut fields = BTreeMap::new();
-    fields.insert("temp_c".to_string(), format!("{:.1}", reading.temp_c));
-    fields.insert("hum".to_string(), format!("{:.1}", reading.hum));
-    Some(SensorEvent {
-        sensor_id: "dht22".to_string(),
-        feature: "dht22".to_string(),
-        fields,
-        raw_line: line.to_string(),
-    })
-}
-
-fn parse_adc_event_line(line: &str) -> Option<SensorEvent> {
-    let reading = parse_adc_line(line)?;
-    let mut fields = BTreeMap::new();
-    fields.insert("pin".to_string(), reading.pin.to_string());
-    fields.insert("raw".to_string(), reading.raw.to_string());
-    fields.insert("voltage".to_string(), format!("{:.3}", reading.voltage));
-    Some(SensorEvent {
-        sensor_id: "adc".to_string(),
-        feature: "adc".to_string(),
-        fields,
-        raw_line: line.to_string(),
-    })
-}
-
-fn parse_pcf8591_event_line(line: &str) -> Option<SensorEvent> {
-    let reading = parse_pcf8591_line(line)?;
-    let mut fields = BTreeMap::new();
-    fields.insert("addr".to_string(), reading.addr);
-    fields.insert("ain0".to_string(), reading.ain0.to_string());
-    fields.insert("ain1".to_string(), reading.ain1.to_string());
-    fields.insert("ain2".to_string(), reading.ain2.to_string());
-    fields.insert("ain3".to_string(), reading.ain3.to_string());
-    Some(SensorEvent {
-        sensor_id: "pcf8591".to_string(),
-        feature: "pcf8591".to_string(),
-        fields,
-        raw_line: line.to_string(),
-    })
+    parse_protocol_event(line).map(|parsed| from_parsed_event(parsed, line.to_string()))
 }
 
 fn parse_generic_fields(line: &str) -> BTreeMap<String, String> {
