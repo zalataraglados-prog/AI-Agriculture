@@ -1,5 +1,6 @@
 import json
 import sys
+import yaml
 from pathlib import Path
 
 from PIL import Image
@@ -25,12 +26,13 @@ def test_predict_image_file_returns_expected_keys(tmp_path):
     }
 
     labels_file = tmp_path / "labels.json"
-    config_file = tmp_path / "config.json"
+    config_file = tmp_path / "config.yaml"
     checkpoint_file = tmp_path / "model.pth"
     image_file = tmp_path / "test.jpg"
 
     labels_file.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8")
-    config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+    with config_file.open("w", encoding="utf-8") as f:
+        yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
 
     model = build_model(num_classes=len(labels))
     torch.save(model.state_dict(), checkpoint_file)

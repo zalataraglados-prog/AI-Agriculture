@@ -21,7 +21,7 @@ def predict_image_file(
     image_path: str,
     checkpoint_path: str,
     labels_file: str = "models/rice_leaf_classifier/labels.json",
-    config_file: str = "models/rice_leaf_classifier/config.json",
+    config_file: str = "models/rice_leaf_classifier/config.yaml",
     top_k: int = 3
 ):
     image = load_image_from_path(image_path)
@@ -47,7 +47,7 @@ def main():
     )
     parser.add_argument(
         "--config-file",
-        default="models/rice_leaf_classifier/config.json"
+        default="models/rice_leaf_classifier/config.yaml"
     )
     parser.add_argument(
         "--top-k",

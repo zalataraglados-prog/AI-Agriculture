@@ -2,6 +2,8 @@ import argparse
 import json
 import random
 import time
+import warnings
+import yaml
 from pathlib import Path
 from typing import List, Dict
 
@@ -30,6 +32,19 @@ def set_seed(seed: int = 42):
 def load_json(path: str):
     with Path(path).open("r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_config(path: str):
+    p = Path(path)
+    if p.suffix == ".json":
+        warnings.warn(f"Using .json config is deprecated. Please migrate to .yaml: {p}", DeprecationWarning)
+        with p.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    if p.suffix in (".yaml", ".yml"):
+        if p.with_suffix(".json").exists():
+            warnings.warn(f"Found legacy config file {p.with_suffix('.json')}. Please remove it to avoid confusion.", DeprecationWarning)
+    with p.open("r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
 class RiceLeafClassificationDataset(Dataset):
@@ -169,7 +184,7 @@ def main():
     )
     parser.add_argument(
         "--config-file",
-        default="models/rice_leaf_classifier/config.json"
+        default="models/rice_leaf_classifier/config.yaml"
     )
     parser.add_argument(
         "--save-dir",
@@ -178,7 +193,7 @@ def main():
 
     args = parser.parse_args()
 
-    config = load_json(args.config_file)
+    config = load_config(args.config_file)
     class_names = load_json(args.labels_file)
     train_samples = load_json(args.train_samples)
     val_samples = load_json(args.val_samples)

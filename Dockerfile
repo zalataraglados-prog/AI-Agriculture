@@ -49,7 +49,7 @@ COPY models/ ./models/
 # Default environment — overridable via docker-compose or -e flags
 ENV MODEL_CHECKPOINT_PATH=/app/models/rice_leaf_classifier/best_model.pth \
     MODEL_LABELS_FILE=/app/models/rice_leaf_classifier/labels.json \
-    MODEL_CONFIG_FILE=/app/models/rice_leaf_classifier/config.json
+    MODEL_CONFIG_FILE=/app/models/rice_leaf_classifier/config.yaml
 
 EXPOSE 8000
 

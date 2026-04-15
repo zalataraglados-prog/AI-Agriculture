@@ -1,5 +1,6 @@
 import json
 import logging
+import yaml
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -21,6 +22,20 @@ def load_json(path: str) -> Any:
         return json.load(f)
 
 
+def load_config(path: str) -> Dict[str, Any]:
+    """Helper to load config files, with YAML migration support."""
+    p = Path(path)
+    if p.suffix == ".json":
+        logger.warning("DeprecationWarning: Using .json config is deprecated. Please migrate to .yaml: %s", p)
+        with p.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    if p.suffix in (".yaml", ".yml"):
+        if p.with_suffix(".json").exists():
+            logger.warning("DeprecationWarning: Found legacy config file %s. Please remove it.", p.with_suffix(".json"))
+    with p.open("r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
 def build_model(num_classes: int) -> nn.Module:
     """Constructs the ResNet18 model architecture with a custom classification head."""
     model = torchvision.models.resnet18(weights=None)
@@ -40,11 +55,11 @@ class RiceLeafClassifier(BasePredictor):
         self,
         checkpoint_path: str,
         labels_file: str = "models/rice_leaf_classifier/labels.json",
-        config_file: str = "models/rice_leaf_classifier/config.json",
+        config_file: str = "models/rice_leaf_classifier/config.yaml",
         device: str = None
     ):
         self.class_names: List[str] = load_json(labels_file)
-        self.config: Dict = load_json(config_file)
+        self.config: Dict = load_config(config_file)
         self.device = torch.device(
             device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
         )
