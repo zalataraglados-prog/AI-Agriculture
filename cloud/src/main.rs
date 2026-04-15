@@ -37,8 +37,8 @@ fn main() {
                 }
             };
 
-            // 启动 HTTP 后台和前端仪表盘服务 (端口 8080)
-            http_server::start_http_server("0.0.0.0:8080");
+            // 启动 HTTP 后台和前端仪表盘服务 (端口 8088)
+            http_server::start_http_server("0.0.0.0:8088");
 
             if let Err(err) = run(&cfg) {
                 eprintln!("[cloud] ERROR: {err}");
