@@ -8,8 +8,9 @@ large model files.
 import io
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
+import httpx
 import pytest
 from PIL import Image
 
@@ -72,22 +73,31 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.fixture()
+def anyio_backend():
+    """Run async API tests on asyncio only."""
+    return "asyncio"
+
+
 # ------------------------------------------------------------------
 # Fixtures
 # ------------------------------------------------------------------
 
 @pytest.fixture()
-def client():
-    """Create a TestClient with the model mocked out."""
+async def client():
+    """Create an HTTPX ASGI client with the model injected."""
     mock_classifier = _make_mock_classifier()
 
-    # Patch RiceLeafClassifier so lifespan() doesn't try to load a real checkpoint
-    with patch("service.main.RiceLeafClassifier", return_value=mock_classifier):
-        from service.main import app
-        from fastapi.testclient import TestClient
+    from service.api.v1.predict import set_classifier
+    from service.main import app
 
-        with TestClient(app) as c:
-            yield c
+    set_classifier(mock_classifier)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+    ) as c:
+        yield c
 
 
 # ------------------------------------------------------------------
@@ -95,12 +105,14 @@ def client():
 # ------------------------------------------------------------------
 
 class TestHealthEndpoint:
-    def test_health_returns_200(self, client):
-        response = client.get("/api/v1/health")
+    @pytest.mark.anyio
+    async def test_health_returns_200(self, client):
+        response = await client.get("/api/v1/health")
         assert response.status_code == 200
 
-    def test_health_returns_ok_status(self, client):
-        data = client.get("/api/v1/health").json()
+    @pytest.mark.anyio
+    async def test_health_returns_ok_status(self, client):
+        data = (await client.get("/api/v1/health")).json()
         assert data["status"] == "ok"
         assert data["service"] == "smart-farm-ai-engine"
         assert "model" in data
@@ -111,9 +123,10 @@ class TestHealthEndpoint:
 # ------------------------------------------------------------------
 
 class TestPredictEndpoint:
-    def test_predict_returns_valid_schema(self, client):
+    @pytest.mark.anyio
+    async def test_predict_returns_valid_schema(self, client):
         image_bytes = _create_test_image_bytes()
-        response = client.post(
+        response = await client.post(
             "/api/v1/predict",
             files={"file": ("test.jpg", image_bytes, "image/jpeg")},
         )
@@ -132,9 +145,10 @@ class TestPredictEndpoint:
         assert "metadata" in result
         assert "geometry" in result
 
-    def test_predict_topk_structure(self, client):
+    @pytest.mark.anyio
+    async def test_predict_topk_structure(self, client):
         image_bytes = _create_test_image_bytes()
-        response = client.post(
+        response = await client.post(
             "/api/v1/predict",
             files={"file": ("test.jpg", image_bytes, "image/jpeg")},
         )
@@ -151,8 +165,9 @@ class TestPredictEndpoint:
 # ------------------------------------------------------------------
 
 class TestPredictErrors:
-    def test_predict_invalid_file_returns_error(self, client):
-        response = client.post(
+    @pytest.mark.anyio
+    async def test_predict_invalid_file_returns_error(self, client):
+        response = await client.post(
             "/api/v1/predict",
             files={"file": ("bad.txt", b"not an image", "text/plain")},
         )
@@ -161,6 +176,7 @@ class TestPredictErrors:
         assert data["status"] == "error"
         assert "message" in data
 
-    def test_predict_no_file_returns_422(self, client):
-        response = client.post("/api/v1/predict")
+    @pytest.mark.anyio
+    async def test_predict_no_file_returns_422(self, client):
+        response = await client.post("/api/v1/predict")
         assert response.status_code == 422
