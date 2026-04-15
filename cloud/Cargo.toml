@@ -5,8 +5,10 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+toml = "1.1.2+spec-1.1.0"
 serde_json = "1.0"
-rand = "0.8"
+rand = "0.10.1"
 tiny_http = "0.12"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+dht-sensor = "0.3.0"
+embedded-hal = "1.0.0"
