@@ -12,3 +12,4 @@ tiny_http = "0.12"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 dht-sensor = "0.3.0"
 embedded-hal = "1.0.0"
+sysfs_gpio = "0.6.2"
