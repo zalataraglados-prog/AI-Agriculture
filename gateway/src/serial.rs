@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 #[cfg(target_os = "linux")]
+use std::fs;
+#[cfg(target_os = "linux")]
 use std::fmt;
 use std::io::{BufRead, BufReader, ErrorKind};
 use std::thread;
@@ -389,6 +391,10 @@ fn read_native_sensor(pin: &mut NativePin) -> Result<String, String> {
                 reading.relative_humidity
             ))
         }
+        ("dht22", NativeHandle::Digital(_)) => Err(format!(
+            "Protocol dht22 configured but pin handle is not dht-capable on gpio{}",
+            pin.gpio
+        )),
         (_, NativeHandle::Digital(gpio_pin)) => {
             let value = gpio_pin
                 .get_value()
@@ -407,10 +413,6 @@ fn read_native_sensor(pin: &mut NativePin) -> Result<String, String> {
                 if value == 1 { "active" } else { "inactive" }
             ))
         }
-        ("dht22", NativeHandle::Digital(_)) => Err(format!(
-            "Protocol dht22 configured but pin handle is not dht-capable on gpio{}",
-            pin.gpio
-        )),
         (_, NativeHandle::Dht22(_)) => Err(format!(
             "Protocol mismatch on gpio{}: dht handle with protocol {}",
             pin.gpio, pin.protocol
