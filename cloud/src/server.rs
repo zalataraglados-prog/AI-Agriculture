@@ -14,9 +14,9 @@ use crate::token::validate_current_hour_token;
 pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
     let socket =
         UdpSocket::bind(&cfg.bind).map_err(|e| format!("Bind failed on {}: {e}", cfg.bind))?;
-    socket
-        .set_read_timeout(cfg.timeout)
-        .map_err(|e| format!("Failed to set read timeout: {e}"))?;
+    //socket
+     //   .set_read_timeout(cfg.timeout)
+     //   .map_err(|e| format!("Failed to set read timeout: {e}"))?;
 
     let mut registry = DeviceRegistry::load(&cfg.registry_path)?;
 
@@ -124,7 +124,7 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
 
     Ok(())
 }
-
+//Mark 01
 fn handle_register(json_text: &str, cfg: &RuntimeConfig, registry: &mut DeviceRegistry) -> String {
     let request = match serde_json::from_str::<RegisterRequest>(json_text) {
         Ok(v) => v,
