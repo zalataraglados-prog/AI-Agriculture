@@ -1,0 +1,35 @@
+# VCS & IDE
+.git/
+.github/
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.pytest_tmp/
+
+# Data & model weights (mounted via volume, not baked in)
+local_data/
+outputs/
+*.pth
+*.pt
+*.onnx
+
+# Tests (not needed in production image)
+tests/
+
+# Dev files
+requirements-dev.txt
+pytest.ini
+*.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker (avoid recursive context)
+docker-compose.yml

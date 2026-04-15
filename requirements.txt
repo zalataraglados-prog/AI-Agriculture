@@ -1,0 +1,14 @@
+# ---------------------------------------------------------------
+# Runtime dependencies — included in the production Docker image
+# ---------------------------------------------------------------
+# NOTE: torch and torchvision are NOT listed here.  They are
+# installed separately in the Dockerfile via the CPU-only index
+# (--index-url https://download.pytorch.org/whl/cpu) to avoid
+# pulling the ~2 GB CUDA variant.
+# ---------------------------------------------------------------
+numpy
+pillow
+pydantic
+fastapi
+uvicorn[standard]
+python-multipart
