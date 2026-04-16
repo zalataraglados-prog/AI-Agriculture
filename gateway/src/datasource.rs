@@ -1,6 +1,3 @@
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
-
 use crate::serial::{SensorEvent, SerialEsp32Source};
 
 pub trait DataSource: Send {
@@ -10,18 +7,12 @@ pub trait DataSource: Send {
 
 pub struct SerialEsp32DataSource {
     source: SerialEsp32Source,
-    feature_mapping: Arc<Mutex<BTreeMap<String, String>>>,
 }
 
 impl SerialEsp32DataSource {
-    pub fn open(
-        port: &str,
-        baud: u32,
-        feature_mapping: Arc<Mutex<BTreeMap<String, String>>>,
-    ) -> Result<Self, String> {
+    pub fn open(port: &str, baud: u32) -> Result<Self, String> {
         Ok(Self {
             source: SerialEsp32Source::open(port, baud)?,
-            feature_mapping,
         })
     }
 }
@@ -32,17 +23,7 @@ impl DataSource for SerialEsp32DataSource {
     }
 
     fn next_event(&mut self) -> Result<SensorEvent, String> {
-        loop {
-            let mapping = self
-                .feature_mapping
-                .lock()
-                .map_err(|_| "Feature mapping lock poisoned".to_string())?
-                .clone();
-            match self.source.next_event(&mapping)? {
-                Some(event) => return Ok(event),
-                None => continue,
-            }
-        }
+        self.source.next_event()
     }
 }
 

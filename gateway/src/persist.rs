@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::constants::{DEVICE_INDEX_FILE, FEATURE_MAP_FILE, PROFILE_FILE};
+use crate::constants::{DEVICE_INDEX_FILE, PROFILE_FILE};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayProfile {
@@ -13,11 +13,6 @@ pub struct GatewayProfile {
     pub crop_type: String,
     pub farm_note: String,
     pub last_token: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FeatureMapStore {
-    pub mappings: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,26 +39,6 @@ pub fn save_profile(state_dir: &Path, profile: &GatewayProfile) -> Result<(), St
     write_json(&path, profile)
 }
 
-pub fn load_feature_map(state_dir: &Path) -> Result<FeatureMapStore, String> {
-    let path = state_dir.join(FEATURE_MAP_FILE);
-    match read_json::<FeatureMapStore>(&path)? {
-        Some(mut store) => {
-            inject_default_feature_mappings(&mut store.mappings);
-            Ok(store)
-        }
-        None => {
-            let mut mappings = BTreeMap::new();
-            inject_default_feature_mappings(&mut mappings);
-            Ok(FeatureMapStore { mappings })
-        }
-    }
-}
-
-pub fn save_feature_map(state_dir: &Path, store: &FeatureMapStore) -> Result<(), String> {
-    let path = state_dir.join(FEATURE_MAP_FILE);
-    write_json(&path, store)
-}
-
 pub fn load_device_index(state_dir: &Path) -> Result<DeviceIndexStore, String> {
     let path = state_dir.join(DEVICE_INDEX_FILE);
     match read_json::<DeviceIndexStore>(&path)? {
@@ -85,7 +60,7 @@ pub fn reset_state(state_dir: &str) -> Result<(), String> {
         return Ok(());
     }
 
-    for file in [PROFILE_FILE, FEATURE_MAP_FILE, DEVICE_INDEX_FILE] {
+    for file in [PROFILE_FILE, DEVICE_INDEX_FILE] {
         let path = state_path.join(file);
         if path.exists() {
             fs::remove_file(&path)
@@ -94,19 +69,6 @@ pub fn reset_state(state_dir: &str) -> Result<(), String> {
     }
 
     Ok(())
-}
-
-fn inject_default_feature_mappings(mappings: &mut BTreeMap<String, String>) {
-    for (feature, sensor) in [
-        ("mq7", "mq7"),
-        ("dht22", "dht22"),
-        ("adc", "adc"),
-        ("pcf8591", "pcf8591"),
-    ] {
-        mappings
-            .entry(feature.to_string())
-            .or_insert_with(|| sensor.to_string());
-    }
 }
 
 fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<Option<T>, String> {

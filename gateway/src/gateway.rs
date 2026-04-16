@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use std::io::{self, BufRead, ErrorKind, Write};
 use std::net::UdpSocket;
 use std::path::Path;
@@ -15,9 +15,8 @@ use crate::constants::{
 };
 use crate::datasource::{DataSource, SerialEsp32DataSource};
 use crate::persist::{
-    ensure_state_dir, load_device_index, load_feature_map, load_profile, reset_state,
-    save_device_index, save_feature_map, save_profile, DeviceIndexStore, FeatureMapStore,
-    GatewayProfile,
+    ensure_state_dir, load_device_index, load_profile, reset_state, save_device_index,
+    save_profile, DeviceIndexStore, GatewayProfile,
 };
 use crate::protocol::{
     build_image_channel_packet, build_register_packet, build_sensor_packet, RegisterPayload,
@@ -65,7 +64,6 @@ struct SharedContext {
     run_cfg: RunConfig,
     state_dir: std::path::PathBuf,
     profile: Arc<Mutex<GatewayProfile>>,
-    feature_map: Arc<Mutex<BTreeMap<String, String>>>,
     prompt_lock: Arc<Mutex<()>>,
 }
 
@@ -106,14 +104,11 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
         save_profile(&state_dir, &profile)?;
     }
 
-    let feature_store = load_feature_map(&state_dir)?;
-    save_feature_map(&state_dir, &feature_store)?;
     let device_index = load_device_index(&state_dir)?;
     let shared = SharedContext {
         run_cfg: run_cfg.clone(),
         state_dir: state_dir.clone(),
         profile: Arc::new(Mutex::new(profile)),
-        feature_map: Arc::new(Mutex::new(feature_store.mappings)),
         prompt_lock: prompt_lock.clone(),
     };
     let device_index = Arc::new(Mutex::new(device_index));
@@ -211,31 +206,18 @@ fn discover_device_for_port(port: &str, shared: &SharedContext) -> Result<PortDi
         outcome.managed_protocol_detected = true;
         println!("[{}][gateway] Managed protocol detected on {port}@{baud}", ts());
         outcome.detected_baud = Some(baud);
-        if result.known_sensors.is_empty() && result.unknown_features.is_empty() {
+        if result.known_sensors.is_empty() {
             return Ok(outcome);
         }
-        let mut feature_mapping_guard = shared
-            .feature_map
-            .lock()
-            .map_err(|_| "Feature mapping lock poisoned".to_string())?;
-        for feature in &result.unknown_features {
-            if !feature_mapping_guard.contains_key(feature) {
-                let mapped = prompt_unknown_feature_mapping(feature, &shared.prompt_lock)?;
-                feature_mapping_guard.insert(feature.clone(), mapped);
-            }
+
+        let sensors: Vec<String> = result.known_sensors.iter().cloned().collect();
+        let mut feature_mapping = BTreeMap::new();
+        for sensor in &sensors {
+            feature_mapping.insert(sensor.clone(), sensor.clone());
         }
-        let mut sensors: BTreeSet<String> = result.known_sensors.iter().cloned().collect();
-        for feature in &result.unknown_features {
-            if let Some(sensor) = feature_mapping_guard.get(feature) {
-                sensors.insert(sensor.clone());
-            }
-        }
-        let feature_mapping_snapshot = feature_mapping_guard.clone();
-        drop(feature_mapping_guard);
-        save_feature_map(&shared.state_dir, &FeatureMapStore { mappings: feature_mapping_snapshot.clone() })?;
-        outcome.detected_baud = Some(baud);
-        outcome.sensors = sensors.into_iter().collect();
-        outcome.feature_mapping = feature_mapping_snapshot;
+
+        outcome.sensors = sensors;
+        outcome.feature_mapping = feature_mapping;
         return Ok(outcome);
     }
     if outcome.port_opened {
@@ -258,7 +240,7 @@ fn get_or_create_device_id(port: &str, state_dir: &Path, device_index: &Arc<Mute
 
 fn run_device_session_loop(device: DiscoveredDevice, shared: SharedContext) -> Result<(), String> {
     loop {
-        let mut source = match SerialEsp32DataSource::open(&device.port, device.baud, shared.feature_map.clone()) {
+        let mut source = match SerialEsp32DataSource::open(&device.port, device.baud) {
             Ok(s) => s,
             Err(err) => {
                 eprintln!("[{}][gateway] Failed to open {}@{}: {err}. retrying...", ts(), device.port, device.baud);
@@ -387,14 +369,7 @@ fn register_device(socket: &UdpSocket, device: &DiscoveredDevice, shared: &Share
 }
 
 fn run_diag(cfg: DiagConfig) -> Result<(), String> {
-    let state_dir = ensure_state_dir(&cfg.state_dir)?;
-    let feature_map = load_feature_map(&state_dir)?;
-
-    println!(
-        "[{}][gateway][diag] feature mapping loaded: {:?}",
-        ts(),
-        feature_map.mappings
-    );
+    ensure_state_dir(&cfg.state_dir)?;
     let ports = list_serial_ports()?;
     if ports.is_empty() {
         println!("[{}][gateway][diag] no serial ports detected", ts());
@@ -449,14 +424,6 @@ fn prompt_trial_field_info(
         prompt_lock,
     )?;
     Ok(())
-}
-
-fn prompt_unknown_feature_mapping(feature: &str, prompt_lock: &Arc<Mutex<()>>) -> Result<String, String> {
-    prompt_line(
-        &format!("Unknown feature '{feature}' detected. Enter sensor id to map (e.g. mq7/dht22/adc/pcf8591):"),
-        Some(feature),
-        prompt_lock,
-    )
 }
 
 fn prompt_line(message: &str, default: Option<&str>, prompt_lock: &Arc<Mutex<()>>) -> Result<String, String> {

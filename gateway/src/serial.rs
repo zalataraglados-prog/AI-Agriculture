@@ -2,39 +2,20 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 #[cfg(target_os = "linux")]
 use std::fs;
-use std::io::{BufRead, BufReader, ErrorKind};
+use std::io::{ErrorKind, Write};
+use std::thread;
 use std::time::{Duration, Instant};
 
-use serialport::SerialPort;
-use crate::protocol::{parse_known_event as parse_protocol_event, ParsedSensorEvent};
+use serialport::{DataBits, Parity, SerialPort, StopBits};
 
-#[derive(Debug)]
-pub struct Mq7Reading {
-    pub raw: u16,
-    pub voltage: f32,
-}
-
-#[derive(Debug)]
-pub struct Dht22Reading {
-    pub temp_c: f32,
-    pub hum: f32,
-}
-
-#[derive(Debug)]
-pub struct AdcReading {
-    pub pin: u8,
-    pub raw: u16,
-    pub voltage: f32,
-}
-
-#[derive(Debug)]
-pub struct Pcf8591Reading {
-    pub addr: String,
-    pub ain0: u8,
-    pub ain1: u8,
-    pub ain2: u8,
-    pub ain3: u8,
-}
+const MODBUS_SLAVE_ID: u8 = 0x02;
+const MODBUS_FUNC_READ_HOLDING: u8 = 0x03;
+const MODBUS_START_ADDR: u16 = 0x0000;
+const MODBUS_REG_COUNT: u16 = 0x0003;
+const MODBUS_RESPONSE_LEN: usize = 11;
+const MODBUS_SENSOR_ID: &str = "soil_modbus_02";
+const MODBUS_FEATURE: &str = "soil_modbus";
+const DEFAULT_MODBUS_PORT: &str = "/dev/ttyUSB0";
 
 #[derive(Debug, Clone)]
 pub struct SensorEvent {
@@ -54,22 +35,29 @@ pub struct DiscoveryResult {
 }
 
 pub struct SerialEsp32Source {
-    reader: BufReader<Box<dyn SerialPort>>,
+    serial: Box<dyn SerialPort>,
     port: String,
     baud: u32,
+    last_poll_at: Option<Instant>,
+    poll_interval: Duration,
 }
 
 impl SerialEsp32Source {
     pub fn open(port: &str, baud: u32) -> Result<Self, String> {
         let serial = serialport::new(port, baud)
-            .timeout(Duration::from_millis(1200))
+            .data_bits(DataBits::Eight)
+            .parity(Parity::None)
+            .stop_bits(StopBits::One)
+            .timeout(Duration::from_millis(200))
             .open()
             .map_err(|e| format!("Failed to open serial port {port} at {baud} baud: {e}"))?;
 
         Ok(Self {
-            reader: BufReader::new(serial),
+            serial,
             port: port.to_string(),
             baud,
+            last_poll_at: None,
+            poll_interval: Duration::from_secs(1),
         })
     }
 
@@ -79,417 +67,269 @@ impl SerialEsp32Source {
 
     pub fn next_event(
         &mut self,
-        feature_mapping: &BTreeMap<String, String>,
-    ) -> Result<Option<SensorEvent>, String> {
-        loop {
-            let maybe_line = self.read_line()?;
-            let line = match maybe_line {
-                Some(v) => v,
-                None => continue,
-            };
-
-            if let Some(event) = parse_known_event(&line) {
-                return Ok(Some(event));
+    ) -> Result<SensorEvent, String> {
+        if let Some(last) = self.last_poll_at {
+            let elapsed = last.elapsed();
+            if elapsed < self.poll_interval {
+                thread::sleep(self.poll_interval - elapsed);
             }
-
-            let Some(feature) = extract_feature(&line) else {
-                continue;
-            };
-
-            let sensor_id = match feature_mapping.get(&feature) {
-                Some(value) => value.clone(),
-                None => return Ok(None),
-            };
-
-            let mut fields = parse_generic_fields(&line);
-            if fields.is_empty() {
-                fields.insert("raw_text".to_string(), line.replace(',', " "));
-            }
-
-            return Ok(Some(SensorEvent {
-                sensor_id,
-                feature,
-                fields,
-                raw_line: line,
-            }));
         }
-    }
+        self.last_poll_at = Some(Instant::now());
 
-    fn read_line(&mut self) -> Result<Option<String>, String> {
-        let mut line = String::new();
-        match self.reader.read_line(&mut line) {
-            Ok(0) => Ok(None),
-            Ok(_) => {
-                let trimmed = line.trim().to_string();
-                if trimmed.is_empty() {
-                    Ok(None)
-                } else {
-                    Ok(Some(trimmed))
-                }
-            }
-            Err(err)
-                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
-            {
-                Ok(None)
-            }
-            Err(err) => Err(format!("Failed to read serial line: {err}")),
-        }
+        let request = build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
+        self.serial
+            .write_all(&request)
+            .map_err(|e| format!("Failed to write Modbus request on {}: {e}", self.port))?;
+        self.serial
+            .flush()
+            .map_err(|e| format!("Failed to flush Modbus request on {}: {e}", self.port))?;
+
+        // Industrial RS485 sensor typically needs a short processing delay before replying.
+        thread::sleep(Duration::from_millis(80));
+
+        let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
+        read_exact_with_deadline(&mut *self.serial, &mut frame, Duration::from_millis(900))?;
+        let (vwc_raw, temp_raw, ec_raw) = parse_modbus_response_frame(&frame)?;
+
+        let mut fields = BTreeMap::new();
+        fields.insert("vwc".to_string(), format!("{:.1}", (vwc_raw as f32) / 10.0));
+        fields.insert("temp_c".to_string(), format!("{:.1}", (temp_raw as f32) / 10.0));
+        fields.insert("ec".to_string(), ec_raw.to_string());
+        fields.insert("protocol".to_string(), "modbus.rtu.v1".to_string());
+        fields.insert("slave_id".to_string(), MODBUS_SLAVE_ID.to_string());
+
+        let raw_line = frame
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        Ok(SensorEvent {
+            sensor_id: MODBUS_SENSOR_ID.to_string(),
+            feature: MODBUS_FEATURE.to_string(),
+            fields,
+            raw_line,
+        })
     }
 }
 
-fn from_parsed_event(parsed: ParsedSensorEvent, raw_line: String) -> SensorEvent {
-    SensorEvent {
-        sensor_id: parsed.sensor_id,
-        feature: parsed.feature,
-        fields: parsed.fields,
-        raw_line,
+fn read_exact_with_deadline(
+    serial: &mut dyn SerialPort,
+    buf: &mut [u8],
+    timeout: Duration,
+) -> Result<(), String> {
+    let deadline = Instant::now() + timeout;
+    let mut offset = 0_usize;
+
+    while offset < buf.len() {
+        if Instant::now() >= deadline {
+            return Err(format!(
+                "Modbus response timeout: expected {} bytes, got {} bytes",
+                buf.len(),
+                offset
+            ));
+        }
+
+        match serial.read(&mut buf[offset..]) {
+            Ok(0) => continue,
+            Ok(size) => {
+                offset += size;
+            }
+            Err(err) if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock => {
+                continue;
+            }
+            Err(err) => return Err(format!("Failed to read Modbus response: {err}")),
+        }
     }
+
+    Ok(())
 }
 
 pub fn list_serial_ports() -> Result<Vec<String>, String> {
-    let mut ports = serialport::available_ports()
-        .map_err(|e| format!("Failed to enumerate serial ports: {e}"))?;
-    let mut names: Vec<String> = ports.drain(..).map(|p| p.port_name).collect();
+    if let Ok(port) = env::var("GATEWAY_MODBUS_PORT") {
+        let trimmed = port.trim();
+        if !trimmed.is_empty() {
+            return Ok(vec![trimmed.to_string()]);
+        }
+    }
 
     #[cfg(target_os = "linux")]
     {
+        let default_port = DEFAULT_MODBUS_PORT.to_string();
         if let Ok(entries) = fs::read_dir("/dev") {
             for entry in entries.flatten() {
                 let Some(name) = entry.file_name().to_str().map(|v| v.to_string()) else {
                     continue;
                 };
-                if name.starts_with("ttyS")
-                    || name.starts_with("ttyUSB")
-                    || name.starts_with("ttyACM")
-                {
-                    names.push(format!("/dev/{name}"));
+                if format!("/dev/{name}") == default_port {
+                    return Ok(vec![default_port]);
                 }
             }
         }
+        return Ok(vec![default_port]);
     }
 
-    names.sort();
-    names.dedup();
-
-    if let Ok(extra) = env::var("GATEWAY_EXTRA_PORTS") {
-        for part in extra.split(',') {
-            let port = part.trim();
-            if port.is_empty() {
-                continue;
-            }
-            names.push(port.to_string());
-        }
-        names.sort();
-        names.dedup();
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(vec![DEFAULT_MODBUS_PORT.to_string()])
     }
-
-    Ok(names)
 }
 
 pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<DiscoveryResult, String> {
-    let serial = serialport::new(port, baud)
-        .timeout(Duration::from_millis(600))
+    let mut serial = serialport::new(port, baud)
+        .data_bits(DataBits::Eight)
+        .parity(Parity::None)
+        .stop_bits(StopBits::One)
+        .timeout(Duration::from_millis(200))
         .open()
         .map_err(|e| format!("Failed to open serial port {port} at {baud} baud: {e}"))?;
 
-    let mut reader = BufReader::new(serial);
     let deadline = Instant::now() + window;
     let mut found = DiscoveryResult::default();
 
     while Instant::now() < deadline {
-        let mut line = String::new();
-        match reader.read_line(&mut line) {
-            Ok(0) => continue,
-            Ok(_) => {
-                let trimmed = line.trim().to_string();
-                if trimmed.is_empty() {
-                    continue;
-                }
-                if found.sample_lines.len() < 5 {
-                    found.sample_lines.push(trimmed.clone());
-                }
-                if is_managed_protocol_line(&trimmed) {
-                    found.managed_protocol_detected = true;
-                    continue;
-                }
+        let request = build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
+        if let Err(err) = serial.write_all(&request) {
+            return Err(format!("Failed to write Modbus probe on {port}@{baud}: {err}"));
+        }
+        if let Err(err) = serial.flush() {
+            return Err(format!("Failed to flush Modbus probe on {port}@{baud}: {err}"));
+        }
 
-                if let Some(event) = parse_protocol_event(&trimmed) {
-                    found.managed_protocol_detected = true;
-                    found.known_sensors.insert(event.sensor_id);
-                    continue;
-                }
+        thread::sleep(Duration::from_millis(80));
 
-                if let Some(feature) = extract_feature(&trimmed) {
-                    if !parse_generic_fields(&trimmed).is_empty() {
-                        found.managed_protocol_detected = true;
+        let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
+        match read_exact_with_deadline(&mut *serial, &mut frame, Duration::from_millis(650)) {
+            Ok(()) => {
+                if let Ok((vwc_raw, temp_raw, ec_raw)) = parse_modbus_response_frame(&frame) {
+                    found.managed_protocol_detected = true;
+                    found.known_sensors.insert(MODBUS_SENSOR_ID.to_string());
+                    if found.sample_lines.is_empty() {
+                        found.sample_lines.push(format!(
+                            "MODBUS slave=2 vwc={:.1} temp_c={:.1} ec={}",
+                            (vwc_raw as f32) / 10.0,
+                            (temp_raw as f32) / 10.0,
+                            ec_raw
+                        ));
                     }
-                    found.unknown_features.insert(feature);
+                    break;
                 }
             }
-            Err(err)
-                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
-            {
+            Err(_) => {
                 continue;
             }
-            Err(err) => return Err(format!("Failed to read from {port}@{baud}: {err}")),
         }
     }
 
     Ok(found)
 }
 
-fn parse_known_event(line: &str) -> Option<SensorEvent> {
-    parse_protocol_event(line).map(|parsed| from_parsed_event(parsed, line.to_string()))
+fn build_modbus_read_holding_request(slave_id: u8, start_addr: u16, count: u16) -> [u8; 8] {
+    let mut frame = [0_u8; 8];
+    frame[0] = slave_id;
+    frame[1] = MODBUS_FUNC_READ_HOLDING;
+    frame[2] = (start_addr >> 8) as u8;
+    frame[3] = (start_addr & 0xFF) as u8;
+    frame[4] = (count >> 8) as u8;
+    frame[5] = (count & 0xFF) as u8;
+
+    let crc = modbus_crc16(&frame[..6]);
+    frame[6] = (crc & 0xFF) as u8;
+    frame[7] = (crc >> 8) as u8;
+    frame
 }
 
-fn parse_generic_fields(line: &str) -> BTreeMap<String, String> {
-    let mut fields = BTreeMap::new();
-
-    for token in line.replace(',', " ").split_whitespace() {
-        let Some((key, value)) = token.split_once('=') else {
-            continue;
-        };
-
-        let key = key.trim().to_ascii_lowercase();
-        if key.is_empty() {
-            continue;
-        }
-
-        let normalized = normalize_value(value);
-        if normalized.is_empty() {
-            continue;
-        }
-        fields.insert(key, normalized);
+fn parse_modbus_response_frame(frame: &[u8]) -> Result<(u16, u16, u16), String> {
+    if frame.len() != MODBUS_RESPONSE_LEN {
+        return Err(format!(
+            "Invalid Modbus response length: expected {}, got {}",
+            MODBUS_RESPONSE_LEN,
+            frame.len()
+        ));
     }
 
-    fields
+    if frame[0] != MODBUS_SLAVE_ID {
+        return Err(format!(
+            "Unexpected slave id in response: expected {}, got {}",
+            MODBUS_SLAVE_ID,
+            frame[0]
+        ));
+    }
+
+    if frame[1] != MODBUS_FUNC_READ_HOLDING {
+        return Err(format!(
+            "Unexpected function code in response: expected {}, got {}",
+            MODBUS_FUNC_READ_HOLDING,
+            frame[1]
+        ));
+    }
+
+    if frame[2] != 0x06 {
+        return Err(format!(
+            "Unexpected byte count in response: expected 6, got {}",
+            frame[2]
+        ));
+    }
+
+    let crc_expected = modbus_crc16(&frame[..9]);
+    let crc_actual = u16::from_le_bytes([frame[9], frame[10]]);
+    if crc_expected != crc_actual {
+        return Err(format!(
+            "CRC mismatch in Modbus response: expected {:04X}, got {:04X}",
+            crc_expected,
+            crc_actual
+        ));
+    }
+
+    let vwc_raw = u16::from_be_bytes([frame[3], frame[4]]);
+    let temp_raw = u16::from_be_bytes([frame[5], frame[6]]);
+    let ec_raw = u16::from_be_bytes([frame[7], frame[8]]);
+    Ok((vwc_raw, temp_raw, ec_raw))
 }
 
-fn normalize_value(value: &str) -> String {
-    let trimmed = value
-        .trim()
-        .trim_matches(|c: char| c == ',' || c == ';' || c == '"');
-    let trimmed = trimmed.strip_suffix('V').unwrap_or(trimmed);
-    let trimmed = trimmed.strip_suffix('%').unwrap_or(trimmed);
-    trimmed.to_string()
-}
-
-fn extract_feature(line: &str) -> Option<String> {
-    let first = line.split_whitespace().next()?;
-    let mut buf = String::new();
-    for ch in first.chars() {
-        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
-            buf.push(ch.to_ascii_lowercase());
-        } else if !buf.is_empty() {
-            break;
+fn modbus_crc16(data: &[u8]) -> u16 {
+    let mut crc = 0xFFFF_u16;
+    for byte in data {
+        crc ^= *byte as u16;
+        for _ in 0..8 {
+            if (crc & 0x0001) != 0 {
+                crc = (crc >> 1) ^ 0xA001;
+            } else {
+                crc >>= 1;
+            }
         }
     }
-
-    if buf.is_empty() {
-        None
-    } else {
-        Some(buf)
-    }
-}
-
-fn is_managed_protocol_line(line: &str) -> bool {
-    let upper = line.to_ascii_uppercase();
-    upper.starts_with("AIAG ")
-        || upper.starts_with("AIAG:")
-        || upper.contains("AIAG HELLO")
-        || upper.contains("AIAG CAPS")
-        || upper.contains("AIAG RUN")
-}
-
-pub fn parse_mq7_line(line: &str) -> Option<Mq7Reading> {
-    let mut raw: Option<u16> = None;
-    let mut voltage: Option<f32> = None;
-
-    for token in line.split_whitespace() {
-        if let Some(value) = token.strip_prefix("raw=") {
-            raw = value.parse::<u16>().ok();
-            continue;
-        }
-        if let Some(value) = token.strip_prefix("voltage=") {
-            let stripped = value.strip_suffix('V').unwrap_or(value);
-            voltage = stripped.parse::<f32>().ok();
-        }
-    }
-
-    match (raw, voltage) {
-        (Some(raw), Some(voltage)) => Some(Mq7Reading { raw, voltage }),
-        _ => None,
-    }
-}
-
-pub fn parse_dht22_line(line: &str) -> Option<Dht22Reading> {
-    let mut temp_c: Option<f32> = None;
-    let mut hum: Option<f32> = None;
-
-    for token in line.split_whitespace() {
-        if let Some(value) = token.strip_prefix("temp_c=") {
-            temp_c = value.parse::<f32>().ok();
-            continue;
-        }
-        if let Some(value) = token.strip_prefix("hum=") {
-            let stripped = value.strip_suffix('%').unwrap_or(value);
-            hum = stripped.parse::<f32>().ok();
-        }
-    }
-
-    match (temp_c, hum) {
-        (Some(temp_c), Some(hum)) => Some(Dht22Reading { temp_c, hum }),
-        _ => None,
-    }
-}
-
-pub fn parse_adc_line(line: &str) -> Option<AdcReading> {
-    let mut pin: Option<u8> = None;
-    let mut raw: Option<u16> = None;
-    let mut voltage: Option<f32> = None;
-
-    for token in line.split_whitespace() {
-        if let Some(value) = token.strip_prefix("pin=") {
-            pin = value.parse::<u8>().ok();
-            continue;
-        }
-        if let Some(value) = token.strip_prefix("raw=") {
-            raw = value.parse::<u16>().ok();
-            continue;
-        }
-        if let Some(value) = token.strip_prefix("voltage=") {
-            let stripped = value.strip_suffix('V').unwrap_or(value);
-            voltage = stripped.parse::<f32>().ok();
-        }
-    }
-
-    match (pin, raw, voltage) {
-        (Some(pin), Some(raw), Some(voltage)) => Some(AdcReading { pin, raw, voltage }),
-        _ => None,
-    }
-}
-
-pub fn parse_pcf8591_line(line: &str) -> Option<Pcf8591Reading> {
-    let mut addr = "0x48".to_string();
-    let mut ain0: Option<u8> = None;
-    let mut ain1: Option<u8> = None;
-    let mut ain2: Option<u8> = None;
-    let mut ain3: Option<u8> = None;
-
-    for token in line.split_whitespace() {
-        let lower = token.to_ascii_lowercase();
-        if let Some(value) = lower.strip_prefix("addr=") {
-            addr = value.to_string();
-            continue;
-        }
-        if let Some(value) = lower.strip_prefix("ain0=") {
-            ain0 = value.parse::<u8>().ok();
-            continue;
-        }
-        if let Some(value) = lower.strip_prefix("ain1=") {
-            ain1 = value.parse::<u8>().ok();
-            continue;
-        }
-        if let Some(value) = lower.strip_prefix("ain2=") {
-            ain2 = value.parse::<u8>().ok();
-            continue;
-        }
-        if let Some(value) = lower.strip_prefix("ain3=") {
-            ain3 = value.parse::<u8>().ok();
-        }
-    }
-
-    match (ain0, ain1, ain2, ain3) {
-        (Some(ain0), Some(ain1), Some(ain2), Some(ain3)) => Some(Pcf8591Reading {
-            addr,
-            ain0,
-            ain1,
-            ain2,
-            ain3,
-        }),
-        _ => None,
-    }
+    crc
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_adc_line, parse_dht22_line, parse_known_event, parse_mq7_line, parse_pcf8591_line};
+    use super::{
+        build_modbus_read_holding_request, modbus_crc16, parse_modbus_response_frame,
+        MODBUS_RESPONSE_LEN,
+    };
 
     #[test]
-    fn parse_valid_line() {
-        let reading = parse_mq7_line("MQ7 raw=206 voltage=0.166V").expect("should parse");
-        assert_eq!(reading.raw, 206);
-        assert!((reading.voltage - 0.166_f32).abs() < 1e-6);
+    fn build_request_matches_known_bytes() {
+        let frame = build_modbus_read_holding_request(0x02, 0x0000, 0x0003);
+        assert_eq!(frame, [0x02, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xF8]);
     }
 
     #[test]
-    fn parse_invalid_line_returns_none() {
-        assert!(parse_mq7_line("random noise").is_none());
-        assert!(parse_mq7_line("MQ7 raw=abc voltage=0.166V").is_none());
-        assert!(parse_mq7_line("MQ7 raw=200").is_none());
+    fn parse_response_maps_registers() {
+        let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
+        frame[..9].copy_from_slice(&[0x02, 0x03, 0x06, 0x01, 0x0D, 0x00, 0xF8, 0x01, 0xB0]);
+        let crc = modbus_crc16(&frame[..9]);
+        frame[9] = (crc & 0xFF) as u8;
+        frame[10] = (crc >> 8) as u8;
+
+        let parsed = parse_modbus_response_frame(&frame).expect("should parse");
+        assert_eq!(parsed, (269, 248, 432));
     }
 
     #[test]
-    fn parse_known_event_supports_mq7() {
-        let event = parse_known_event("MQ7 raw=206 voltage=0.166V").expect("should parse known mq7 event");
-        assert_eq!(event.sensor_id, "mq7");
-        assert_eq!(event.feature, "mq7");
-        assert_eq!(event.fields.get("raw").map(|s| s.as_str()), Some("206"));
-        assert_eq!(event.fields.get("voltage").map(|s| s.as_str()), Some("0.166"));
-    }
-
-    #[test]
-    fn parse_valid_dht22_line() {
-        let reading = parse_dht22_line("DHT22 temp_c=31.5 hum=67.0").expect("should parse");
-        assert!((reading.temp_c - 31.5_f32).abs() < 1e-6);
-        assert!((reading.hum - 67.0_f32).abs() < 1e-6);
-    }
-
-    #[test]
-    fn parse_invalid_dht22_line_returns_none() {
-        assert!(parse_dht22_line("hello world").is_none());
-        assert!(parse_dht22_line("DHT22 temp_c=abc hum=55.1").is_none());
-        assert!(parse_dht22_line("DHT22 temp_c=25.2").is_none());
-    }
-
-    #[test]
-    fn parse_valid_adc_line() {
-        let reading = parse_adc_line("ADC pin=34 raw=523 voltage=0.421V").expect("should parse");
-        assert_eq!(reading.pin, 34);
-        assert_eq!(reading.raw, 523);
-        assert!((reading.voltage - 0.421_f32).abs() < 1e-6);
-    }
-
-    #[test]
-    fn parse_invalid_adc_line_returns_none() {
-        assert!(parse_adc_line("ADC raw=500 voltage=0.400V").is_none());
-        assert!(parse_adc_line("ADC pin=34 raw=abc voltage=0.400V").is_none());
-        assert!(parse_adc_line("ADC pin=34 raw=500").is_none());
-    }
-
-    #[test]
-    fn parse_valid_pcf8591_line() {
-        let reading = parse_pcf8591_line("PCF8591 addr=0x48 AIN0=172 AIN1=255 AIN2=90 AIN3=129")
-            .expect("should parse");
-        assert_eq!(reading.addr, "0x48");
-        assert_eq!(reading.ain0, 172);
-        assert_eq!(reading.ain1, 255);
-        assert_eq!(reading.ain2, 90);
-        assert_eq!(reading.ain3, 129);
-    }
-
-    #[test]
-    fn parse_pcf8591_line_without_addr_uses_default() {
-        let reading = parse_pcf8591_line("AIN0=172 AIN1=255 AIN2=90 AIN3=129").expect("should parse");
-        assert_eq!(reading.addr, "0x48");
-    }
-
-    #[test]
-    fn parse_invalid_pcf8591_line_returns_none() {
-        assert!(parse_pcf8591_line("PCF8591 addr=0x48 AIN0=172 AIN1=255").is_none());
-        assert!(
-            parse_pcf8591_line("PCF8591 addr=0x48 AIN0=abc AIN1=255 AIN2=90 AIN3=129").is_none()
-        );
+    fn parse_response_rejects_bad_crc() {
+        let frame = [0x02, 0x03, 0x06, 0x01, 0x0D, 0x00, 0xF8, 0x01, 0xB0, 0x00, 0x00];
+        assert!(parse_modbus_response_frame(&frame).is_err());
     }
 }
-

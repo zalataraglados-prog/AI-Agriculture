@@ -11,4 +11,4 @@ scan_window_ms = 1800
 ack_timeout_ms = 3000
 
 # Candidate baud rates for managed serial device discovery
-baud_list = [115200, 57600, 9600, 74880]
+baud_list = [9600]

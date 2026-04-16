@@ -1,6 +1,10 @@
 # gateway
 
-Rust gateway for Linux/WSL/OrangePi. Current CLI uses subcommands:
+Rust gateway for Linux/WSL/OrangePi. Current version is focused on one industrial sensor path:
+
+- Modbus-RTU (RS485), fixed query profile
+- slave id `2`, baud `9600`, parity `None (8N1)`
+- read holding registers `1..3` (request start addr `0`, count `3`)
 
 - `run`: managed runtime (serial discovery)
 - `diag`: scan and print discovery diagnostics
@@ -18,17 +22,25 @@ If `state/gateway_profile.json` does not exist, the process will prompt for firs
 
 Auto-flash behavior has been removed from the gateway runtime. The process now focuses on discovery, session management, and data forwarding only.
 
-### Managed Serial Discovery
+### Managed Modbus Discovery
 
-In default `run` mode, gateway recursively scans serial ports and baud rates, auto-detects managed protocol devices, and starts forwarding sensor packets.
+In default `run` mode, gateway probes serial ports and uses Modbus request-response polling.
+Once a valid response is found, it forwards one normalized event per second.
 
 ```bash
 cargo run -- run \
   --target 8.134.32.223:9000 \
-  --baud-list 115200,57600,9600,74880 \
+  --baud-list 9600 \
   --scan-interval-ms 5000 \
   --scan-window-ms 1800
 ```
+
+Default payload fields:
+
+- `sensor_id=soil_modbus_02`
+- `vwc` = register[1] / 10
+- `temp_c` = register[2] / 10
+- `ec` = register[3]
 
 ## TOML Config
 
@@ -52,14 +64,32 @@ ack_timeout_ms = 3000
 baud_list = [115200, 57600, 9600, 74880]
 ```
 
+Recommended Modbus-only config:
+
+```toml
+[run]
+target = "127.0.0.1:9000"
+state_dir = "state"
+scan_interval_ms = 5000
+scan_window_ms = 1800
+ack_timeout_ms = 3000
+baud_list = [9600]
+```
+
 ## Script Launch
 
 `scripts/run_mq7_gateway.sh` now maps to current CLI and runs in serial-discovery mode.
 
-Managed serial discovery mode:
+Managed Modbus mode:
 
 ```bash
-TARGET=8.134.32.223:9000 BAUD_LIST=115200,57600,9600 ./scripts/run_mq7_gateway.sh
+TARGET=8.134.32.223:9000 MODBUS_PORT=/dev/ttyUSB0 BAUD_LIST=9600 ./scripts/run_mq7_gateway.sh
+```
+
+Physical/protocol precheck (recommended):
+
+```bash
+mbpoll -m rtu -a 2 -b 9600 -P none -r 1 -c 3 -1 /dev/ttyUSB0
 ```
 
 ## CLI Flags (run)
@@ -70,7 +100,7 @@ TARGET=8.134.32.223:9000 BAUD_LIST=115200,57600,9600 ./scripts/run_mq7_gateway.s
 - `--scan-interval-ms <ms>`: interval between recursive serial scans
 - `--scan-window-ms <ms>`: serial discovery read window per probe
 - `--ack-timeout-ms <ms>`: UDP ACK timeout
-- `--baud-list <csv>`: baud candidates for auto-discovery
+- `--baud-list <csv>`: baud candidates for Modbus probe (default `9600`)
 
 ## Other Subcommands
 
