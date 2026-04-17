@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">农业监测系统 - 登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#16a34a',
+                        secondary: '#0ea5e9',
+                        dark: '#1e293b',
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: url("https://picsum.photos/id/155/1920/1080") !important;
+            background-size: cover !important;
+            background-position: center !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-900/50 min-h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-md bg-white/95 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md">
+    <!-- 顶部 -->
+    <div class="bg-primary p-5 text-white text-center relative">
+        <div class="absolute right-4 top-3 flex gap-2">
+            <button onclick="setLang('zh')" id="btnZh" class="px-2 py-1 rounded bg-white/20 text-white font-medium">中文</button>
+            <button onclick="setLang('en')" id="btnEn" class="px-2 py-1 rounded bg-white/10 text-white">English</button>
+        </div>
+        <h1 id="sysName" class="text-xl font-bold">农业监测管理系统</h1>
+        <p id="sysEn" class="text-xs opacity-80">Agricultural Monitoring System</p>
+    </div>
+
+    <!-- 表单 -->
+    <div class="p-6">
+        <div id="formLogin">
+            <div class="mb-4">
+                <label id="labUser" class="text-sm text-gray-700 block mb-1">账号</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa fa-user"></i></span>
+                    <input id="inpUser" type="text" placeholder="请输入账号" class="w-full pl-10 pr-3 py-2 border rounded-lg">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label id="labPwd" class="text-sm text-gray-700 block mb-1">密码</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa fa-lock"></i></span>
+                    <input id="inpPwd" type="password" placeholder="请输入密码" class="w-full pl-10 pr-3 py-2 border rounded-lg">
+                </div>
+            </div>
+
+            <div class="mb-5">
+                <label id="labCaptcha" class="text-sm text-gray-700 block mb-1">验证码</label>
+                <div class="flex gap-2">
+                    <input id="inpCaptcha" type="text" placeholder="请输入验证码" maxlength="4" class="flex-1 pl-3 py-2 border rounded-lg">
+                    <div id="codeBox" class="w-28 h-10 bg-gray-100 rounded flex items-center justify-center font-mono cursor-pointer">8A5F</div>
+                </div>
+            </div>
+
+            <button onclick="nextStep()" class="w-full bg-primary text-white py-2 rounded-lg font-medium">
+                <span id="btnNext">下一步</span>
+            </button>
+        </div>
+
+        <!-- 二次验证 -->
+        <div id="formSms" class="hidden">
+            <div class="mb-5">
+                <label id="labSms" class="text-sm text-gray-700 block mb-1">二次验证码</label>
+                <div class="flex gap-2">
+                    <input id="inpSms" type="text" placeholder="6位验证码" maxlength="6" class="flex-1 pl-3 py-2 border rounded-lg">
+                    <button id="btnSend" onclick="sendSms()" class="px-3 bg-secondary text-white rounded-lg">
+                        <span id="sendTxt">获取验证码</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="backStep()" class="flex-1 py-2 border rounded-lg">
+                    <span id="btnBack">返回</span>
+                </button>
+                <button onclick="login()" class="flex-1 py-2 bg-primary text-white rounded-lg font-medium">
+                    <span id="btnLogin">登录</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="pb-5 text-center text-xs text-gray-500">
+        <p id="copyright">© 2026 农业监测系统 版权所有</p>
+    </div>
+</div>
+
+<script>
+const lang = {
+    zh: {
+        pageTitle: "农业监测系统 - 登录",
+        sysName: "农业监测管理系统",
+        sysEn: "Agricultural Monitoring System",
+        user: "账号",
+        pwd: "密码",
+        captcha: "验证码",
+        sms: "二次验证码",
+        next: "下一步",
+        back: "返回",
+        login: "登录",
+        send: "获取验证码",
+        sending: "秒后重发",
+        placeholderUser: "请输入账号",
+        placeholderPwd: "请输入密码",
+        placeholderCaptcha: "请输入验证码",
+        placeholderSms: "6位验证码",
+        copyright: "© 2026 农业监测系统 版权所有",
+        errEmpty: "请填写完整信息",
+        errSms: "请输入6位验证码",
+        ok: "登录成功，正在进入系统"
+    },
+    en: {
+        pageTitle: "Agri System - Login",
+        sysName: "Agri Monitoring System",
+        sysEn: "Smart Agriculture Platform",
+        user: "Username",
+        pwd: "Password",
+        captcha: "Captcha",
+        sms: "Security Code",
+        next: "Next",
+        back: "Back",
+        login: "Login",
+        send: "Send Code",
+        sending: "s to resend",
+        placeholderUser: "Enter username",
+        placeholderPwd: "Enter password",
+        placeholderCaptcha: "Enter captcha",
+        placeholderSms: "6-digit code",
+        copyright: "© 2026 All Rights Reserved",
+        errEmpty: "Please fill in all fields",
+        errSms: "Enter 6-digit code",
+        ok: "Login success"
+    }
+};
+
+let currentLang = "zh";
+function setLang(l) {
+    currentLang = l;
+    const t = lang[l];
+    document.title = t.pageTitle;
+    document.getElementById("sysName").innerText = t.sysName;
+    document.getElementById("sysEn").innerText = t.sysEn;
+    document.getElementById("labUser").innerText = t.user;
+    document.getElementById("labPwd").innerText = t.pwd;
+    document.getElementById("labCaptcha").innerText = t.captcha;
+    document.getElementById("labSms").innerText = t.sms;
+    document.getElementById("btnNext").innerText = t.next;
+    document.getElementById("btnBack").innerText = t.back;
+    document.getElementById("btnLogin").innerText = t.login;
+    document.getElementById("sendTxt").innerText = t.send;
+    document.getElementById("copyright").innerText = t.copyright;
+    document.getElementById("inpUser").placeholder = t.placeholderUser;
+    document.getElementById("inpPwd").placeholder = t.placeholderPwd;
+    document.getElementById("inpCaptcha").placeholder = t.placeholderCaptcha;
+    document.getElementById("inpSms").placeholder = t.placeholderSms;
+
+    document.getElementById("btnZh").className = l === "zh" ? "px-2 py-1 rounded bg-white/20 text-white font-medium" : "px-2 py-1 rounded bg-white/10 text-white";
+    document.getElementById("btnEn").className = l === "en" ? "px-2 py-1 rounded bg-white/20 text-white font-medium" : "px-2 py-1 rounded bg-white/10 text-white";
+}
+
+function nextStep() {
+    const t = lang[currentLang];
+    let u = document.getElementById("inpUser").value.trim();
+    let p = document.getElementById("inpPwd").value.trim();
+    let c = document.getElementById("inpCaptcha").value.trim();
+    if (!u || !p || !c) return alert(t.errEmpty);
+    document.getElementById("formLogin").classList.add("hidden");
+    document.getElementById("formSms").classList.remove("hidden");
+}
+
+function backStep() {
+    document.getElementById("formSms").classList.add("hidden");
+    document.getElementById("formLogin").classList.remove("hidden");
+}
+
+function sendSms() {
+    const t = lang[currentLang];
+    let btn = document.getElementById("btnSend");
+    let txt = document.getElementById("sendTxt");
+    btn.disabled = true;
+    let s = 60;
+    let timer = setInterval(() => {
+        s--;
+        txt.innerText = s + t.sending;
+        if (s <= 0) {
+            clearInterval(timer);
+            btn.disabled = false;
+            txt.innerText = t.send;
+        }
+    }, 1000);
+}
+
+function login() {
+    const t = lang[currentLang];
+    let sms = document.getElementById("inpSms").value.trim();
+    if (sms.length !== 6) return alert(t.errSms);
+    alert(t.ok);
+    location.href = "index.html";
+}
+
+document.getElementById("codeBox").onclick = function () {
+    const chars = "0123456789ABCDEFGHJKLMNPQRSTWXYZ";
+    let str = "";
+    for (let i = 0; i < 4; i++) str += chars[Math.floor(Math.random() * chars.length)];
+    this.innerText = str;
+};
+
+setLang("zh");
+</script>
+</body>
+</html>

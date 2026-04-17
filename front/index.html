@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">农业监测管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#16a34A',
+                        secondary: '#0ea5e9',
+                        dark: '#1e2329',
+                    },
+                    fontFamily: {
+                        sans: ['Inter','system-ui','sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .glass { @apply bg-white/90 backdrop-blur-md; }
+            .card-hover { @apply hover:shadow-lg hover:shadow-primary/10 transition-all duration-300; }
+            .nav-active { @apply bg-primary text-white; }
+        }
+    </style>
+</head>
+<body class="bg-[#f7f8fa] min-h-screen">
+
+<!-- 顶部 -->
+<header class="glass fixed top-0 left-0 right-0 z-50 shadow-sm">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-primary font-bold text-xl">
+            <i class="fa fa-leaf"></i>
+            <span id="t_system">农业监测管理系统</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="setLang('zh')" class="px-2 py-1 text-sm border rounded">中文</button>
+            <button onclick="setLang('en')" class="px-2 py-1 text-sm border rounded">English</button>
+            <div class="hidden md:flex items-center gap-2 text-sm text-gray-600">
+                <i class="fa fa-user-circle-o text-lg"></i>
+                <span id="t_admin">管理员</span>
+            </div>
+            <button onclick="logout()" class="px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded-lg">
+                <i class="fa fa-sign-out mr-1"></i><span id="t_logout">退出登录</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- 侧边栏 -->
+<aside class="fixed top-[61px] left-0 bottom-0 w-64 glass shadow-md hidden md:block">
+    <nav class="p-3 space-y-1">
+        <p id="t_main_menu" class="text-xs text-gray-500 px-3 py-2">主菜单</p>
+        <a href="javascript:;" class="nav-active flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm">
+            <i class="fa fa-dashboard w-5 text-center"></i><span id="t_overview">数据概览</span>
+        </a>
+        <a href="land.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
+            <i class="fa fa-map-marker w-5 text-center"></i><span id="t_field">地块监测</span>
+        </a>
+        <a href="data.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
+            <i class="fa fa-tint w-5 text-center"></i><span id="t_moisture">墒情监测</span>
+        </a>
+        <a href="weather.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
+            <i class="fa fa-sun-o w-5 text-center"></i><span id="t_weather">气象数据</span>
+        </a>
+        <a href="javascript:;" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
+            <i class="fa fa-file-text-o w-5 text-center"></i><span id="t_report">报表统计</span>
+        </a>
+        <a href="setting.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
+            <i class="fa fa-cog w-5 text-center"></i><span id="t_setting">系统设置</span>
+        </a>
+    </nav>
+</aside>
+
+<main class="pt-[71px] md:pl-64 p-4">
+    <div class="container mx-auto max-w-7xl">
+        <div class="mb-5">
+            <h1 id="t_overview_title" class="text-2xl font-bold">数据概览</h1>
+            <p id="t_overview_desc" class="text-gray-500 text-sm">实时监测农田环境、土壤、气象与作物生长状态</p>
+        </div>
+
+        <!-- 数据卡片 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="glass rounded-xl p-4 card-hover">
+                <p id="t_total_fields" class="text-gray-500 text-sm">监测地块总数</p>
+                <p class="text-3xl font-bold mt-1">68</p>
+                <span id="t_month_up" class="text-xs text-green-600"><i class="fa fa-arrow-up"></i> 较上月 +3</span>
+            </div>
+            <div class="glass rounded-xl p-4 card-hover">
+                <p id="t_avg_humidity" class="text-gray-500 text-sm">土壤平均湿度</p>
+                <p class="text-3xl font-bold mt-1">65%</p>
+                <span id="t_normal_range" class="text-xs text-blue-600">正常范围</span>
+            </div>
+            <div class="glass rounded-xl p-4 card-hover">
+                <p id="t_today_temp" class="text-gray-500 text-sm">今日温度</p>
+                <p class="text-3xl font-bold mt-1">30℃</p>
+                <span id="t_suitable" class="text-xs text-orange-600">适宜</span>
+            </div>
+            <div class="glass rounded-xl p-4 card-hover">
+                <p id="t_device_online" class="text-gray-500 text-sm">设备在线率</p>
+                <p class="text-3xl font-bold mt-1">98%</p>
+                <span id="t_stable" class="text-xs text-green-600">运行稳定</span>
+            </div>
+        </div>
+
+        <!-- 图表 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+            <div class="glass rounded-xl p-4 card-hover">
+                <p id="t_humidity_7d" class="font-medium mb-3">近7天土壤湿度变化</p>
+                <div class="h-64"><canvas id="humidityChart"></canvas></div>
+            </div>
+            <div class="glass rounded-xl p-4 card-hover">
+                <p id="t_field_type" class="font-medium mb-3">地块类型分布</p>
+                <div class="h-64"><canvas id="typeChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- 表格 -->
+        <div class="glass rounded-xl p-4 card-hover">
+            <div class="flex justify-between items-center mb-3">
+                <p id="t_real_time_monitor" class="font-medium">地块实时监测</p>
+                <button id="t_view_all" class="text-sm text-primary">查看全部</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b">
+                            <th id="t_field_id" class="text-left py-2 px-2 text-gray-600">地块编号</th>
+                            <th id="t_location" class="text-left py-2 px-2 text-gray-600">位置</th>
+                            <th id="t_soil_hum" class="text-left py-2 px-2 text-gray-600">土壤湿度</th>
+                            <th id="t_temp" class="text-left py-2 px-2 text-gray-600">温度</th>
+                            <th id="t_status" class="text-left py-2 px-2 text-gray-600">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="py-3 px-2">D001</td><td class="py-3 px-2"><span id="l1">东区一号田</span></td><td class="py-3 px-2">62%</td><td class="py-3 px-2">29℃</td><td class="py-3 px-2"><span id="s1" class="text-green-600 text-xs px-2 py-1 bg-green-50 rounded-full">正常</span></td></tr>
+                        <tr class="border-b"><td class="py-3 px-2">D002</td><td class="py-3 px-2"><span id="l2">西区试验田</span></td><td class="py-3 px-2">58%</td><td class="py-3 px-2">30℃</td><td class="py-3 px-2"><span id="s2" class="text-green-600 text-xs px-2 py-1 bg-green-50 rounded-full">正常</span></td></tr>
+                        <tr class="border-b"><td class="py-3 px-2">D003</td><td class="py-3 px-2"><span id="l3">北区高产田</span></td><td class="py-3 px-2">71%</td><td class="py-3 px-2">28℃</td><td class="py-3 px-2"><span id="s3" class="text-yellow-600 text-xs px-2 py-1 bg-yellow-50 rounded-full">偏高</span></td></tr>
+                        <tr><td class="py-3 px-2">D004</td><td class="py-3 px-2"><span id="l4">南区灌溉区</span></td><td class="py-3 px-2">66%</td><td class="py-3 px-2">29℃</td><td class="py-3 px-2"><span id="s4" class="text-green-600 text-xs px-2 py-1 bg-green-50 rounded-full">正常</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+const lang = {
+    zh:{pageTitle:"农业监测管理系统",system:"农业监测管理系统",admin:"管理员",logout:"退出登录",main_menu:"主菜单",overview:"数据概览",field:"地块监测",moisture:"墒情监测",weather:"气象数据",report:"报表统计",setting:"系统设置",overview_title:"数据概览",overview_desc:"实时监测农田环境、土壤、气象与作物生长状态",total_fields:"监测地块总数",month_up:"较上月 +3",avg_humidity:"土壤平均湿度",normal_range:"正常范围",today_temp:"今日温度",suitable:"适宜",device_online:"设备在线率",stable:"运行稳定",humidity_7d:"近7天土壤湿度变化",field_type:"地块类型分布",real_time_monitor:"地块实时监测",view_all:"查看全部",field_id:"地块编号",location:"位置",soil_hum:"土壤湿度",temp:"温度",status:"状态",normal:"正常",high:"偏高",loc1:"东区一号田",loc2:"西区试验田",loc3:"北区高产田",loc4:"南区灌溉区",day_labels:["1日","2日","3日","4日","5日","6日","7日"],humidity_label:"土壤湿度（%）",types:["水稻田","小麦田","蔬菜大棚","果园"],confirm_logout:"确定退出登录？"},
+    en:{pageTitle:"Agri Monitoring System",system:"Agri Monitoring System",admin:"Admin",logout:"Logout",main_menu:"Main Menu",overview:"Overview",field:"Field Monitor",moisture:"Soil Moisture",weather:"Weather Data",report:"Reports",setting:"Settings",overview_title:"Overview",overview_desc:"Real-time monitoring of environment, soil, weather and crops",total_fields:"Total Fields",month_up:"Last month +3",avg_humidity:"Avg Soil Humidity",normal_range:"Normal",today_temp:"Today Temp",suitable:"Suitable",device_online:"Device Online Rate",stable:"Stable",humidity_7d:"7-Day Soil Humidity",field_type:"Field Type Distribution",real_time_monitor:"Real-time Monitor",view_all:"View All",field_id:"Field ID",location:"Location",soil_hum:"Soil Humidity",temp:"Temperature",status:"Status",normal:"Normal",high:"High",loc1:"East Field 1",loc2:"West Test Field",loc3:"North High-Yield",loc4:"South Irrigation",day_labels:["Day1","Day2","Day3","Day4","Day5","Day6","Day7"],humidity_label:"Soil Humidity (%)",types:["Paddy","Wheat","Greenhouse","Orchard"],confirm_logout:"Are you sure to logout?"}
+};
+
+let hChart,tChart;
+function setLang(k){const d=lang[k];document.title=d.pageTitle;for(const p in d){const e=document.getElementById(`t_${p}`)||document.getElementById(p);if(e)e.innerText=d[p];}
+document.getElementById('l1').innerText=d.loc1;document.getElementById('l2').innerText=d.loc2;document.getElementById('l3').innerText=d.loc3;document.getElementById('l4').innerText=d.loc4;document.getElementById('s1').innerText=d.normal;document.getElementById('s2').innerText=d.normal;document.getElementById('s3').innerText=d.high;document.getElementById('s4').innerText=d.normal;hChart.data.labels=d.day_labels;hChart.data.datasets[0].label=d.humidity_label;hChart.update();tChart.data.labels=d.types;tChart.update();}
+function logout(){if(confirm(lang[document.documentElement.lang].confirm_logout))location.href='login.html';}
+window.onload=()=>{
+hChart=new Chart(document.getElementById('humidityChart').getContext('2d'),{type:'line',data:{labels:["1日","2日","3日","4日","5日","6日","7日"],datasets:[{label:"土壤湿度（%）",data:[58,61,63,65,64,66,65],borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.1)',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false}});
+tChart=new Chart(document.getElementById('typeChart').getContext('2d'),{type:'doughnut',data:{labels:["水稻田","小麦田","蔬菜大棚","果园"],datasets:[{data:[35,25,20,20],backgroundColor:['#16a34a','#0ea5e9','#f59e0b','#ef4444']}]},options:{responsive:true,maintainAspectRatio:false}});
+setLang('zh');
+};
+</script>
+</body>
+</html>
