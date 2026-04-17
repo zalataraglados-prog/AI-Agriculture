@@ -1,353 +1,239 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="pageTitle">农业监测管理系统</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#16a34A',
-                        secondary: '#0ea5e9',
-                        dark: '#1e293b',
-                        light: '#f8fafc',
-                    },
-                    fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
-                }
-            }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>农业监测管理系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#16a34a', secondary: '#0ea5e9', dark: '#1e293b' },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
         }
-    </script>
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .glass { background: rgba(255,255,255,0.88); backdrop-filter: blur(8px); }
-            .card-hover { @apply hover:shadow-lg hover:shadow-primary/10 transition-all; }
-            .nav-active { @apply bg-primary text-white; }
-        }
-    </style>
+      }
+    };
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); }
+      .card-hover { @apply hover:shadow-lg hover:shadow-primary/10 transition-all duration-300; }
+      .nav-active { @apply bg-primary text-white; }
+    }
+  </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-
-<!-- 顶部 -->
-<header class="glass fixed top-0 left-0 right-0 z-50 shadow-sm">
+  <header class="glass fixed top-0 left-0 right-0 z-50 shadow-sm">
     <div class="container mx-auto px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-2 text-primary font-bold text-xl">
-            <i class="fa fa-leaf"></i>
-            <span id="t_system">农业监测管理系统</span>
-        </div>
-        <div class="flex items-center gap-3">
-            <button onclick="setLang('zh')" class="px-2 py-1 text-sm border rounded">中文</button>
-            <button onclick="setLang('en')" class="px-2 py-1 text-sm border rounded">English</button>
-            <div class="hidden md:flex items-center gap-2 text-sm text-gray-600">
-                <i class="fa fa-user-circle-o text-lg"></i>
-                <span id="t_admin">管理员</span>
-            </div>
-            <button onclick="logout()" class="px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded-lg">
-                <i class="fa fa-sign-out mr-1"></i><span id="t_logout">退出登录</span>
-            </button>
-        </div>
+      <div class="flex items-center gap-2 text-primary font-bold text-xl"><i class="fa fa-leaf"></i><span>农业监测管理系统</span></div>
+      <div class="flex items-center gap-3 text-sm text-gray-700">
+        <span id="ctxDevice" class="hidden sm:inline">设备: auto</span>
+        <button onclick="location.href='login.html'" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg">退出</button>
+      </div>
     </div>
-</header>
+  </header>
 
-<!-- 侧边栏 -->
-<aside class="fixed top-[61px] left-0 bottom-0 w-64 glass shadow-md hidden md:block">
+  <aside class="fixed top-[61px] left-0 bottom-0 w-64 glass shadow-md hidden md:block">
     <nav class="p-3 space-y-1">
-        <p id="t_main_menu" class="text-xs text-gray-500 px-3 py-2">主菜单</p>
-        <a href="javascript:;" class="nav-active flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm">
-            <i class="fa fa-dashboard w-5 text-center"></i><span id="t_overview">数据概览</span>
-        </a>
-        <a href="land.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
-            <i class="fa fa-map-marker w-5 text-center"></i><span id="t_field">地块监测</span>
-        </a>
-        <a href="data.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
-            <i class="fa fa-tint w-5 text-center"></i><span id="t_moisture">墒情监测</span>
-        </a>
-        <a href="weather.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
-            <i class="fa fa-sun-o w-5 text-center"></i><span id="t_weather">气象数据</span>
-        </a>
-        <a href="javascript:;" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
-            <i class="fa fa-file-text-o w-5 text-center"></i><span id="t_report">报表统计</span>
-        </a>
-        <a href="setting.html" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10">
-            <i class="fa fa-cog w-5 text-center"></i><span id="t_setting">系统设置</span>
-        </a>
+      <p class="text-xs text-gray-500 px-3 py-2">主菜单</p>
+      <a href="javascript:;" class="nav-active flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm"><i class="fa fa-dashboard w-5 text-center"></i><span>数据概览</span></a>
+      <a href="javascript:;" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10"><i class="fa fa-map-marker w-5 text-center"></i><span>地块监测</span></a>
+      <a href="javascript:;" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10"><i class="fa fa-tint w-5 text-center"></i><span>墒情监测</span></a>
+      <a href="javascript:;" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10"><i class="fa fa-sun-o w-5 text-center"></i><span>气象数据</span></a>
+      <a href="javascript:;" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10"><i class="fa fa-file-text-o w-5 text-center"></i><span>报表统计</span></a>
+      <a href="javascript:;" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-primary/10"><i class="fa fa-cog w-5 text-center"></i><span>系统设置</span></a>
     </nav>
-</aside>
+  </aside>
 
-<!-- 内容 -->
-<main class="pt-[71px] md:pl-64 p-4">
+  <main class="pt-[71px] md:pl-64 p-4">
     <div class="container mx-auto max-w-7xl">
-        <div class="mb-5">
-            <h1 id="t_overview_title" class="text-[clamp(1.25rem,3vw,1.75rem)] font-bold">数据概览</h1>
-            <p id="t_overview_desc" class="text-gray-500 text-sm">实时监测农田环境、土壤、气象与作物生长状态</p>
-        </div>
+      <div class="mb-5">
+        <h1 class="text-[clamp(1.25rem,3vw,1.75rem)] font-bold">数据概览</h1>
+        <p class="text-gray-500 text-sm">数据库主链路数据（遥测 + 图传）</p>
+      </div>
 
-        <!-- 卡片 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div class="glass rounded-xl p-4 card-hover">
-                <p id="t_total_fields" class="text-gray-500 text-sm">监测地块总数</p>
-                <p id="val_total_fields" class="text-2xl font-bold mt-1">-</p>
-                <span id="t_month_up" class="text-xs text-green-600">--</span>
-            </div>
-            <div class="glass rounded-xl p-4 card-hover">
-                <p id="t_avg_humidity" class="text-gray-500 text-sm">土壤平均湿度</p>
-                <p id="val_avg_humidity" class="text-2xl font-bold mt-1">-</p>
-                <span id="t_normal_range" class="text-xs text-blue-600">--</span>
-            </div>
-            <div class="glass rounded-xl p-4 card-hover">
-                <p id="t_today_temp" class="text-gray-500 text-sm">今日温度</p>
-                <p id="val_today_temp" class="text-2xl font-bold mt-1">-</p>
-                <span id="t_suitable" class="text-xs text-orange-600">--</span>
-            </div>
-            <div class="glass rounded-xl p-4 card-hover">
-                <p id="t_device_online" class="text-gray-500 text-sm">设备在线率</p>
-                <p id="val_device_online" class="text-2xl font-bold mt-1">-</p>
-                <span id="t_stable" class="text-xs text-green-600">--</span>
-            </div>
-        </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="glass rounded-xl p-4 card-hover"><p class="text-gray-500 text-sm">设备数</p><p id="valDeviceCount" class="text-2xl font-bold mt-1">-</p></div>
+        <div class="glass rounded-xl p-4 card-hover"><p class="text-gray-500 text-sm">平均土壤湿度</p><p id="valAvgVwc" class="text-2xl font-bold mt-1">-</p></div>
+        <div class="glass rounded-xl p-4 card-hover"><p class="text-gray-500 text-sm">平均温度</p><p id="valAvgTemp" class="text-2xl font-bold mt-1">-</p></div>
+        <div class="glass rounded-xl p-4 card-hover"><p class="text-gray-500 text-sm">图传推理成功率</p><p id="valInferRate" class="text-2xl font-bold mt-1">-</p></div>
+      </div>
 
-        <!-- 图表 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-            <div class="glass rounded-xl p-4 card-hover">
-                <p id="t_humidity_7d" class="font-medium mb-3">近7天土壤湿度变化</p>
-                <div class="h-64"><canvas id="humidityChart"></canvas></div>
-            </div>
-            <div class="glass rounded-xl p-4 card-hover">
-                <p id="t_field_type" class="font-medium mb-3">地块类型分布</p>
-                <div class="h-64"><canvas id="typeChart"></canvas></div>
-            </div>
-        </div>
-
-        <!-- 表格 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
         <div class="glass rounded-xl p-4 card-hover">
-            <div class="flex justify-between items-center mb-3">
-                <p id="t_real_time_monitor" class="font-medium">地块实时监测</p>
-                <button id="t_view_all" class="text-sm text-primary">查看全部</button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b">
-                            <th id="t_field_id" class="text-left py-2 px-2 text-gray-600">地块编号</th>
-                            <th id="t_location" class="text-left py-2 px-2 text-gray-600">位置</th>
-                            <th id="t_soil_hum" class="text-left py-2 px-2 text-gray-600">土壤湿度</th>
-                            <th id="t_temp" class="text-left py-2 px-2 text-gray-600">温度</th>
-                            <th id="t_status" class="text-left py-2 px-2 text-gray-600">状态</th>
-                        </tr>
-                    </thead>
-                    <tbody id="field_table_body">
-                        <tr>
-                            <td colspan="5" class="py-4 text-center text-gray-500">正在加载数据...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+          <p class="font-medium mb-3">湿度趋势（最近7条）</p>
+          <div class="h-64"><canvas id="humidityChart"></canvas></div>
         </div>
+        <div class="glass rounded-xl p-4 card-hover">
+          <p class="font-medium mb-3">图传作物类型分布（最近20条）</p>
+          <div class="h-64"><canvas id="typeChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="glass rounded-xl p-4 card-hover">
+          <p class="font-medium mb-3">遥测实时表</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="border-b"><th class="text-left py-2 px-2">时间</th><th class="text-left py-2 px-2">设备</th><th class="text-left py-2 px-2">湿度</th><th class="text-left py-2 px-2">温度</th><th class="text-left py-2 px-2">状态</th></tr></thead>
+              <tbody id="telemetryBody"><tr><td colspan="5" class="py-4 text-center text-gray-500">加载中...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-4 card-hover">
+          <p class="font-medium mb-3">图传推理结果（最近10条）</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="border-b"><th class="text-left py-2 px-2">时间</th><th class="text-left py-2 px-2">设备</th><th class="text-left py-2 px-2">状态</th><th class="text-left py-2 px-2">类别</th><th class="text-left py-2 px-2">置信度</th></tr></thead>
+              <tbody id="imageBody"><tr><td colspan="5" class="py-4 text-center text-gray-500">加载中...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
-</main>
+  </main>
 
-<script>
-const lang = {
-    zh: {
-        pageTitle: "农业监测管理系统",
-        system: "农业监测管理系统",
-        admin: "管理员",
-        logout: "退出登录",
-        main_menu: "主菜单",
-        overview: "数据概览",
-        field: "地块监测",
-        moisture: "墒情监测",
-        weather: "气象数据",
-        report: "报表统计",
-        setting: "系统设置",
-        overview_title: "数据概览",
-        overview_desc: "实时监测农田环境、土壤、气象与作物生长状态",
-        total_fields: "监测地块总数",
-        month_up: "较上月 +3",
-        avg_humidity: "土壤平均湿度",
-        normal_range: "正常范围",
-        today_temp: "今日温度",
-        suitable: "适宜",
-        device_online: "设备在线率",
-        stable: "运行稳定",
-        humidity_7d: "近7天土壤湿度变化",
-        field_type: "地块类型分布",
-        real_time_monitor: "地块实时监测",
-        view_all: "查看全部",
-        field_id: "地块编号",
-        location: "位置",
-        soil_hum: "土壤湿度",
-        temp: "温度",
-        status: "状态",
-        normal: "正常",
-        high: "偏高",
-        loc1: "东区一号田", loc2: "西区试验田", loc3: "北区高产田", loc4: "南区灌溉区",
-        day_labels: ["1日","2日","3日","4日","5日","6日","7日"],
-        humidity_label: "土壤湿度（%）",
-        types: ["水稻田","小麦田","蔬菜大棚","果园"],
-        confirm_logout: "确定退出登录？"
-    },
-    en: {
-        pageTitle: "Agri Monitoring System",
-        system: "Agri Monitoring System",
-        admin: "Admin",
-        logout: "Logout",
-        main_menu: "Main Menu",
-        overview: "Overview",
-        field: "Field Monitor",
-        moisture: "Soil Moisture",
-        weather: "Weather Data",
-        report: "Reports",
-        setting: "Settings",
-        overview_title: "Overview",
-        overview_desc: "Real-time monitoring of environment, soil, weather and crops",
-        total_fields: "Total Fields",
-        month_up: "Last month +3",
-        avg_humidity: "Avg Soil Humidity",
-        normal_range: "Normal",
-        today_temp: "Today Temp",
-        suitable: "Suitable",
-        device_online: "Device Online Rate",
-        stable: "Stable",
-        humidity_7d: "7-Day Soil Humidity",
-        field_type: "Field Type Distribution",
-        real_time_monitor: "Real-time Monitor",
-        view_all: "View All",
-        field_id: "Field ID",
-        location: "Location",
-        soil_hum: "Soil Humidity",
-        temp: "Temperature",
-        status: "Status",
-        normal: "Normal",
-        high: "High",
-        loc1: "East Field 1", loc2: "West Test Field", loc3: "North High-Yield", loc4: "South Irrigation",
-        day_labels: ["Day1","Day2","Day3","Day4","Day5","Day6","Day7"],
-        humidity_label: "Soil Humidity (%)",
-        types: ["Paddy","Wheat","Greenhouse","Orchard"],
-        confirm_logout: "Are you sure to logout?"
-    }
-};
+  <script>
+    const params = new URLSearchParams(location.search);
+    const deviceId = (params.get('device_id') || localStorage.getItem('device_id') || '').trim();
+    if (deviceId) localStorage.setItem('device_id', deviceId);
+    document.getElementById('ctxDevice').textContent = `设备: ${deviceId || 'all'}`;
 
-let hChart, tChart;
+    let humidityChart;
+    let typeChart;
 
-function setLang(l) {
-    document.documentElement.lang = l;
-    const data = lang[l];
-    document.title = data.pageTitle;
-
-    const keys = Object.keys(data);
-    keys.forEach(k => {
-        const el = document.getElementById('t_' + k) || document.getElementById(k);
-        if (el) el.innerText = data[k];
-    });
-
-    // 清理掉原有的 DOM 获取，由 API 动态装载这部分数据
-
-    hChart.data.labels = data.day_labels;
-    hChart.data.datasets[0].label = data.humidity_label;
-    hChart.update();
-
-    tChart.data.labels = data.types;
-    tChart.update();
-}
-
-function logout() {
-    const l = document.documentElement.lang;
-    if (confirm(lang[l].confirm_logout)) {
-        location.href = 'login.html';
-    }
-}
-
-// 新增API及数据加载方法
-const api = {
-    getDashboard: async () => {
-        // TODO: 真实环境中请替换为 actual API call，如 fetch('/api/dashboard')
-        // const res = await fetch('/api/dashboard');
-        // return await res.json();
-        return null; // 这里暂不返回数据
-    },
-    getCharts: async () => {
-        // TODO: fetch('/api/charts')
-        return null;
-    },
-    getFields: async () => {
-        // TODO: fetch('/api/fields')
-        return null;
-    }
-};
-
-async function loadData() {
-    const dashboard = await api.getDashboard();
-    if(dashboard) {
-        document.getElementById('val_total_fields').innerText = dashboard.totalFields;
-        document.getElementById('val_avg_humidity').innerText = dashboard.avgHumidity;
-        document.getElementById('val_today_temp').innerText = dashboard.todayTemp;
-        document.getElementById('val_device_online').innerText = dashboard.deviceOnline;
+    function tsLabel(ts) {
+      if (!ts) return '-';
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return ts;
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     }
 
-    const charts = await api.getCharts();
-    if(charts) {
-        hChart.data.datasets[0].data = charts.humidityData;
-        hChart.update();
-        tChart.data.datasets[0].data = charts.typesData;
-        tChart.update();
+    async function fetchJson(url) {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
     }
 
-    const fields = await api.getFields();
-    const tbody = document.getElementById('field_table_body');
-    if(fields && fields.length > 0) {
-        tbody.innerHTML = fields.map(f => `
-            <tr class="border-b">
-                <td class="py-3 px-2">${f.id}</td>
-                <td class="py-3 px-2"><span>${f.location}</span></td>
-                <td class="py-3 px-2">${f.humidity}</td>
-                <td class="py-3 px-2">${f.temperature}</td>
-                <td class="py-3 px-2"><span class="text-${f.color}-600 text-xs px-2 py-1 bg-${f.color}-50 rounded-full">${f.status}</span></td>
-            </tr>
-        `).join('');
-    } else {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-gray-500">暂无数据</td></tr>`;
+    function apiUrl(base, queryObj) {
+      const u = new URL(base, location.origin);
+      Object.entries(queryObj).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && `${v}`.trim() !== '') u.searchParams.set(k, v);
+      });
+      return u.toString();
     }
-}
 
-// 图表加载与初始化
-window.onload = function() {
-    // 湿度图
-    hChart = new Chart(document.getElementById('humidityChart').getContext('2d'), {
+    function statusBadge(vwc) {
+      const value = Number(vwc);
+      if (!Number.isFinite(value)) return { txt: '未知', cls: 'text-gray-600 bg-gray-50' };
+      if (value >= 70) return { txt: '偏高', cls: 'text-yellow-700 bg-yellow-50' };
+      if (value <= 20) return { txt: '偏低', cls: 'text-red-700 bg-red-50' };
+      return { txt: '正常', cls: 'text-green-700 bg-green-50' };
+    }
+
+    function asNumber(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    async function loadData() {
+      const telemetryUrl = apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 100 });
+      const imagesUrl = apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: 20 });
+      const [telemetry, imageUploads] = await Promise.all([
+        fetchJson(telemetryUrl).catch(() => []),
+        fetchJson(imagesUrl).catch(() => [])
+      ]);
+
+      const devices = new Set();
+      const vwcList = [];
+      const tempList = [];
+      telemetry.forEach(r => {
+        if (r.device_id) devices.add(r.device_id);
+        const vwc = asNumber(r?.fields?.vwc);
+        const temp = asNumber(r?.fields?.temp_c);
+        if (vwc !== null) vwcList.push(vwc);
+        if (temp !== null) tempList.push(temp);
+      });
+
+      const avg = list => list.length ? (list.reduce((a, b) => a + b, 0) / list.length) : null;
+      const avgVwc = avg(vwcList);
+      const avgTemp = avg(tempList);
+      const inferred = imageUploads.filter(x => x.upload_status === 'inferred').length;
+      const inferRate = imageUploads.length ? `${Math.round((inferred / imageUploads.length) * 100)}%` : '-';
+
+      document.getElementById('valDeviceCount').textContent = devices.size || '-';
+      document.getElementById('valAvgVwc').textContent = avgVwc === null ? '-' : `${avgVwc.toFixed(1)}%`;
+      document.getElementById('valAvgTemp').textContent = avgTemp === null ? '-' : `${avgTemp.toFixed(1)}℃`;
+      document.getElementById('valInferRate').textContent = inferRate;
+
+      const trend = telemetry.slice(0, 7).reverse();
+      humidityChart.data.labels = trend.map(x => tsLabel(x.ts));
+      humidityChart.data.datasets[0].data = trend.map(x => asNumber(x?.fields?.vwc)).map(x => x ?? null);
+      humidityChart.update();
+
+      const cropMap = {};
+      imageUploads.forEach(item => {
+        const k = item.crop_type && item.crop_type.trim() ? item.crop_type.trim() : 'unknown';
+        cropMap[k] = (cropMap[k] || 0) + 1;
+      });
+      const typeLabels = Object.keys(cropMap);
+      typeChart.data.labels = typeLabels.length ? typeLabels : ['unknown'];
+      typeChart.data.datasets[0].data = typeLabels.length ? typeLabels.map(k => cropMap[k]) : [1];
+      typeChart.update();
+
+      const telemetryBody = document.getElementById('telemetryBody');
+      if (!telemetry.length) {
+        telemetryBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">暂无数据</td></tr>';
+      } else {
+        telemetryBody.innerHTML = telemetry.slice(0, 10).map(r => {
+          const vwc = asNumber(r?.fields?.vwc);
+          const temp = asNumber(r?.fields?.temp_c);
+          const badge = statusBadge(vwc);
+          return `<tr class="border-b">
+            <td class="py-3 px-2">${tsLabel(r.ts)}</td>
+            <td class="py-3 px-2">${r.device_id || '-'}</td>
+            <td class="py-3 px-2">${vwc === null ? '-' : `${vwc.toFixed(1)}%`}</td>
+            <td class="py-3 px-2">${temp === null ? '-' : `${temp.toFixed(1)}℃`}</td>
+            <td class="py-3 px-2"><span class="text-xs px-2 py-1 rounded-full ${badge.cls}">${badge.txt}</span></td>
+          </tr>`;
+        }).join('');
+      }
+
+      const imageBody = document.getElementById('imageBody');
+      if (!imageUploads.length) {
+        imageBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">暂无数据</td></tr>';
+      } else {
+        imageBody.innerHTML = imageUploads.slice(0, 10).map(r => {
+          const statusClass = r.upload_status === 'inferred' ? 'text-green-700 bg-green-50' : (r.upload_status === 'failed' ? 'text-red-700 bg-red-50' : 'text-blue-700 bg-blue-50');
+          const confidence = (typeof r.confidence === 'number') ? `${(r.confidence * 100).toFixed(1)}%` : '-';
+          return `<tr class="border-b">
+            <td class="py-3 px-2">${tsLabel(r.captured_at)}</td>
+            <td class="py-3 px-2">${r.device_id || '-'}</td>
+            <td class="py-3 px-2"><span class="text-xs px-2 py-1 rounded-full ${statusClass}">${r.upload_status || '-'}</span></td>
+            <td class="py-3 px-2">${r.predicted_class || '-'}</td>
+            <td class="py-3 px-2">${confidence}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    window.onload = () => {
+      humidityChart = new Chart(document.getElementById('humidityChart').getContext('2d'), {
         type: 'line',
-        data: {
-            labels: [], 
-            datasets: [{
-                label: "土壤湿度（%）",
-                data: [],
-                borderColor: '#16a34a',
-                backgroundColor: 'rgba(22,163,74,0.1)',
-                tension: 0.3, fill: true
-            }]
-        },
+        data: { labels: [], datasets: [{ label: '土壤湿度(%)', data: [], borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', tension: 0.3, fill: true }] },
         options: { responsive: true, maintainAspectRatio: false }
-    });
-
-    // 饼图
-    tChart = new Chart(document.getElementById('typeChart').getContext('2d'), {
+      });
+      typeChart = new Chart(document.getElementById('typeChart').getContext('2d'), {
         type: 'doughnut',
-        data: {
-            labels: [],
-            datasets: [{
-                data: [],
-                backgroundColor: ['#16a34a','#0ea5e9','#f59e0b','#ef4444']
-            }]
-        },
+        data: { labels: ['unknown'], datasets: [{ data: [1], backgroundColor: ['#16a34a','#0ea5e9','#f59e0b','#ef4444','#6366f1','#ef4444'] }] },
         options: { responsive: true, maintainAspectRatio: false }
-    });
-
-    setLang('zh');
-    loadData();
-};
-</script>
+      });
+      loadData();
+      setInterval(loadData, 15000);
+    };
+  </script>
 </body>
 </html>

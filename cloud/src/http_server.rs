@@ -8,13 +8,16 @@ use chrono::{DateTime, Utc};
 use tiny_http::{Header, Method, Response, Server};
 
 use crate::ai_client::{infer_image_from_file, AiInferenceOutput};
-use crate::db::{DbManager, ImageInferenceDbRecord, ImageUploadDbRecord, ImageUploadQueryFilter};
+use crate::db::{
+    DbManager, ImageInferenceDbRecord, ImageUploadDbRecord, ImageUploadQueryFilter,
+    SensorTelemetryQueryFilter, SensorTelemetryQueryRow,
+};
 use crate::image_upload::{
     append_image_error_backup, append_image_index_backup, build_upload_ok_response,
     parse_captured_at_utc, parse_multipart_file, parse_tag, save_image_file,
     ImageUploadErrorResponse, ImageUploadOkResponse,
 };
-use crate::telemetry::load_records;
+use crate::telemetry::{load_records, TelemetryRecord};
 use crate::time_util::now_rfc3339;
 
 pub fn start_http_server(
@@ -125,6 +128,9 @@ fn handle_api(
         (Method::Get, "/api/v1/image/uploads") => {
             handle_image_upload_query(request, query, db);
         }
+        (Method::Get, "/api/v1/telemetry") | (Method::Get, "/api/telemetry") => {
+            handle_telemetry_query(request, query, telemetry_store_path, db);
+        }
         (Method::Post, "/api/send-code") => {
             respond_json(
                 r#"{"success": true, "message": "验证码发送成功", "data": null}"#,
@@ -164,32 +170,73 @@ fn handle_api(
             ]"#;
             respond_json(fields_json, request);
         }
-        (Method::Get, "/api/telemetry") => {
-            let params = parse_query(query);
-            let device_filter = params.get("device_id").map(|v| v.as_str()).unwrap_or("");
-            let sensor_filter = params.get("sensor_id").map(|v| v.as_str()).unwrap_or("");
-            let limit = params
-                .get("limit")
-                .and_then(|v| v.parse::<usize>().ok())
-                .unwrap_or(100)
-                .clamp(1, 1000);
-
-            let mut records = load_records(telemetry_store_path).unwrap_or_default();
-            records.retain(|record| {
-                let device_ok = device_filter.is_empty() || record.device_id == device_filter;
-                let sensor_ok = sensor_filter.is_empty() || record.sensor_id == sensor_filter;
-                device_ok && sensor_ok
-            });
-
-            if records.len() > limit {
-                records = records.split_off(records.len() - limit);
-            }
-
-            let body = serde_json::to_string(&records).unwrap_or_else(|_| "[]".to_string());
-            respond_json(&body, request);
-        }
         _ => {
             let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
+        }
+    }
+}
+
+fn handle_telemetry_query(
+    request: tiny_http::Request,
+    query: &str,
+    telemetry_store_path: &str,
+    db: Arc<Mutex<DbManager>>,
+) {
+    let params = parse_query(query);
+    let start_time = match parse_optional_rfc3339(params.get("start_time").map(|v| v.as_str())) {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: err,
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 200, &payload);
+            return;
+        }
+    };
+    let end_time = match parse_optional_rfc3339(params.get("end_time").map(|v| v.as_str())) {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: err,
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 200, &payload);
+            return;
+        }
+    };
+    let filter = SensorTelemetryQueryFilter {
+        start_time,
+        end_time,
+        device_id: non_empty(params.get("device_id").cloned()),
+        sensor_id: non_empty(params.get("sensor_id").cloned()),
+        limit: params
+            .get("limit")
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(100)
+            .clamp(1, 1000),
+    };
+
+    let db_result = db
+        .lock()
+        .map_err(|_| "db lock poisoned".to_string())
+        .and_then(|mut guard| guard.query_sensor_telemetry(&filter));
+    match db_result {
+        Ok(rows) => {
+            let body = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_string());
+            respond_json_with_status(request, 200, &body);
+        }
+        Err(err) => {
+            eprintln!(
+                "{} [cloud-http] WARN: telemetry db query failed, fallback to JSONL: {}",
+                now_rfc3339(),
+                err
+            );
+            let fallback_rows = filter_telemetry_records_jsonl(telemetry_store_path, &filter);
+            let body = serde_json::to_string(&fallback_rows).unwrap_or_else(|_| "[]".to_string());
+            respond_json_with_status(request, 200, &body);
         }
     }
 }
@@ -462,6 +509,61 @@ fn non_empty(raw: Option<String>) -> Option<String> {
             Some(trimmed.to_string())
         }
     })
+}
+
+fn filter_telemetry_records_jsonl(
+    telemetry_store_path: &str,
+    filter: &SensorTelemetryQueryFilter,
+) -> Vec<SensorTelemetryQueryRow> {
+    let mut records = load_records(telemetry_store_path).unwrap_or_default();
+    records.retain(|record| match telemetry_record_matches_filter(record, filter) {
+        Ok(v) => v,
+        Err(_) => false,
+    });
+    records.sort_by(|a, b| b.ts.cmp(&a.ts));
+    records
+        .into_iter()
+        .take(filter.limit)
+        .map(|record| SensorTelemetryQueryRow {
+            ts: record.ts,
+            device_id: record.device_id,
+            sensor_id: record.sensor_id,
+            fields: record.fields,
+        })
+        .collect()
+}
+
+fn telemetry_record_matches_filter(
+    record: &TelemetryRecord,
+    filter: &SensorTelemetryQueryFilter,
+) -> Result<bool, String> {
+    if let Some(device_id) = filter.device_id.as_deref() {
+        if record.device_id != device_id {
+            return Ok(false);
+        }
+    }
+    if let Some(sensor_id) = filter.sensor_id.as_deref() {
+        if record.sensor_id != sensor_id {
+            return Ok(false);
+        }
+    }
+    if filter.start_time.is_none() && filter.end_time.is_none() {
+        return Ok(true);
+    }
+    let parsed = DateTime::parse_from_rfc3339(record.ts.as_str())
+        .map_err(|e| format!("invalid telemetry ts format in JSONL: {e}"))?
+        .with_timezone(&Utc);
+    if let Some(start) = filter.start_time {
+        if parsed < start {
+            return Ok(false);
+        }
+    }
+    if let Some(end) = filter.end_time {
+        if parsed >= end {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn to_inference_record(upload_id: &str, ai: AiInferenceOutput) -> ImageInferenceDbRecord {

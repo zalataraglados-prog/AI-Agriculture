@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use postgres::{Client, NoTls};
 use serde::Serialize;
@@ -73,6 +75,23 @@ pub(crate) struct ImageUploadQueryRow {
     pub(crate) predicted_class: Option<String>,
     pub(crate) confidence: Option<f64>,
     pub(crate) model_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct SensorTelemetryQueryFilter {
+    pub(crate) start_time: Option<DateTime<Utc>>,
+    pub(crate) end_time: Option<DateTime<Utc>>,
+    pub(crate) device_id: Option<String>,
+    pub(crate) sensor_id: Option<String>,
+    pub(crate) limit: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct SensorTelemetryQueryRow {
+    pub(crate) ts: String,
+    pub(crate) device_id: String,
+    pub(crate) sensor_id: String,
+    pub(crate) fields: HashMap<String, Value>,
 }
 
 impl DbManager {
@@ -325,6 +344,61 @@ impl DbManager {
                 predicted_class: row.get("predicted_class"),
                 confidence: row.get("confidence"),
                 model_version: row.get("model_version"),
+            });
+        }
+
+        Ok(out)
+    }
+
+    pub(crate) fn query_sensor_telemetry(
+        &mut self,
+        filter: &SensorTelemetryQueryFilter,
+    ) -> Result<Vec<SensorTelemetryQueryRow>, String> {
+        let limit = filter.limit.max(1).min(1000) as i64;
+        let stmt = self
+            .client
+            .prepare(
+                "SELECT
+                    ts,
+                    device_id,
+                    sensor_id,
+                    fields_json
+                FROM sensor_telemetry
+                WHERE
+                    ($1::timestamptz IS NULL OR ts >= $1) AND
+                    ($2::timestamptz IS NULL OR ts < $2) AND
+                    ($3::text IS NULL OR device_id = $3) AND
+                    ($4::text IS NULL OR sensor_id = $4)
+                ORDER BY ts DESC
+                LIMIT $5",
+            )
+            .map_err(|e| format!("failed to prepare telemetry query: {e}"))?;
+
+        let rows = self
+            .client
+            .query(
+                &stmt,
+                &[
+                    &filter.start_time,
+                    &filter.end_time,
+                    &filter.device_id,
+                    &filter.sensor_id,
+                    &limit,
+                ],
+            )
+            .map_err(|e| format!("failed to query telemetry: {e}"))?;
+
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            let ts: DateTime<Utc> = row.get("ts");
+            let fields_json: Value = row.get("fields_json");
+            let fields = serde_json::from_value::<HashMap<String, Value>>(fields_json)
+                .unwrap_or_default();
+            out.push(SensorTelemetryQueryRow {
+                ts: ts.to_rfc3339(),
+                device_id: row.get("device_id"),
+                sensor_id: row.get("sensor_id"),
+                fields,
             });
         }
 
