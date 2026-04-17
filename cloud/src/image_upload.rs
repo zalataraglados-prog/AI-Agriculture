@@ -3,7 +3,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 
-use chrono::Local;
+use chrono::{DateTime, Local, Utc};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Serialize;
@@ -53,6 +53,15 @@ struct ImageIndexRecord {
     sha256: String,
     image_type: String,
     tag: ImageUploadTag,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PersistedImage {
+    pub(crate) upload_id: String,
+    pub(crate) saved_path: String,
+    pub(crate) file_size: usize,
+    pub(crate) sha256: String,
+    pub(crate) image_type: String,
 }
 
 pub(crate) fn parse_tag(query: &HashMap<String, String>) -> Result<ImageUploadTag, String> {
@@ -139,12 +148,11 @@ pub(crate) fn parse_multipart_file(
     Err("multipart file field is missing (expected file/image/photo)".to_string())
 }
 
-pub(crate) fn persist_image(
+pub(crate) fn save_image_file(
     image_store_path: &str,
-    image_index_path: &str,
     tag: &ImageUploadTag,
     file: &ParsedFilePart,
-) -> Result<ImageUploadOkResponse, String> {
+) -> Result<PersistedImage, String> {
     let image_type = detect_image_type(&file.body)?;
     let ext = match image_type.as_str() {
         "jpeg" => "jpg",
@@ -172,30 +180,82 @@ pub(crate) fn persist_image(
     let mut sha = Sha256::new();
     sha.update(&file.body);
     let sha256 = format!("{:x}", sha.finalize());
-    let record = ImageIndexRecord {
-        ts: now_rfc3339(),
-        upload_id: upload_id.clone(),
-        saved_path: saved_path.clone(),
+    Ok(PersistedImage {
+        upload_id,
+        saved_path,
         file_size: file.body.len(),
         sha256,
         image_type,
+    })
+}
+
+pub(crate) fn append_image_index_backup(
+    image_index_path: &str,
+    tag: &ImageUploadTag,
+    persisted: &PersistedImage,
+) -> Result<(), String> {
+    let record = ImageIndexRecord {
+        ts: now_rfc3339(),
+        upload_id: persisted.upload_id.clone(),
+        saved_path: persisted.saved_path.clone(),
+        file_size: persisted.file_size,
+        sha256: persisted.sha256.clone(),
+        image_type: persisted.image_type.clone(),
         tag: tag.clone(),
     };
-    append_index_record(image_index_path, &record)?;
+    append_index_record(image_index_path, &record)
+}
 
-    Ok(ImageUploadOkResponse {
+pub(crate) fn append_image_error_backup(
+    error_store_path: &str,
+    tag: &ImageUploadTag,
+    message: &str,
+    persisted: Option<&PersistedImage>,
+) -> Result<(), String> {
+    let mut payload = serde_json::Map::new();
+    payload.insert("ts".to_string(), serde_json::Value::String(now_rfc3339()));
+    payload.insert(
+        "message".to_string(),
+        serde_json::Value::String(message.to_string()),
+    );
+    payload.insert(
+        "tag".to_string(),
+        serde_json::to_value(tag).map_err(|e| format!("failed to serialize error tag: {e}"))?,
+    );
+    if let Some(value) = persisted {
+        payload.insert(
+            "upload_id".to_string(),
+            serde_json::Value::String(value.upload_id.clone()),
+        );
+        payload.insert(
+            "saved_path".to_string(),
+            serde_json::Value::String(value.saved_path.clone()),
+        );
+    }
+    append_json_line(error_store_path, &serde_json::Value::Object(payload))
+}
+
+pub(crate) fn parse_captured_at_utc(ts: &str) -> Result<DateTime<Utc>, String> {
+    let parsed = DateTime::parse_from_rfc3339(ts)
+        .map_err(|e| format!("invalid ts format, expected RFC3339: {e}"))?;
+    Ok(parsed.with_timezone(&Utc))
+}
+
+pub(crate) fn build_upload_ok_response(
+    tag: &ImageUploadTag,
+    persisted: &PersistedImage,
+    filename: Option<&str>,
+) -> ImageUploadOkResponse {
+    ImageUploadOkResponse {
         status: "success".to_string(),
         message: format!(
             "image upload accepted{}",
-            file.filename
-                .as_deref()
-                .map(|v| format!(" ({v})"))
-                .unwrap_or_default()
+            filename.map(|v| format!(" ({v})")).unwrap_or_default()
         ),
-        upload_id,
-        saved_path,
+        upload_id: persisted.upload_id.clone(),
+        saved_path: persisted.saved_path.clone(),
         tag: tag.clone(),
-    })
+    }
 }
 
 pub(crate) fn parse_boundary(content_type: &str) -> Option<String> {
@@ -239,6 +299,12 @@ fn sanitize_path_component(raw: &str) -> String {
 }
 
 fn append_index_record(path: &str, record: &ImageIndexRecord) -> Result<(), String> {
+    let value = serde_json::to_value(record)
+        .map_err(|e| format!("failed to serialize image index record: {e}"))?;
+    append_json_line(path, &value)
+}
+
+fn append_json_line(path: &str, value: &serde_json::Value) -> Result<(), String> {
     if let Some(parent) = Path::new(path).parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent).map_err(|e| {
@@ -250,17 +316,17 @@ fn append_index_record(path: &str, record: &ImageIndexRecord) -> Result<(), Stri
         }
     }
 
-    let line = serde_json::to_string(record)
-        .map_err(|e| format!("failed to serialize image index record: {e}"))?;
+    let line =
+        serde_json::to_string(value).map_err(|e| format!("failed to serialize json line: {e}"))?;
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
-        .map_err(|e| format!("failed to open image index {path}: {e}"))?;
+        .map_err(|e| format!("failed to open jsonl file {path}: {e}"))?;
     file.write_all(line.as_bytes())
-        .map_err(|e| format!("failed to append image index record: {e}"))?;
+        .map_err(|e| format!("failed to append json line: {e}"))?;
     file.write_all(b"\n")
-        .map_err(|e| format!("failed to finalize image index record: {e}"))?;
+        .map_err(|e| format!("failed to finalize json line: {e}"))?;
     Ok(())
 }
 

@@ -92,12 +92,25 @@ pub(crate) fn build_runtime_config(
     let telemetry_store_path = file_cfg.receiver.telemetry_store_path.clone();
     let image_store_path = file_cfg.receiver.image_store_path.clone();
     let image_index_path = file_cfg.receiver.image_index_path.clone();
+    let image_db_error_store_path = file_cfg.receiver.image_db_error_store_path.clone();
+    let database_url = cli
+        .database_url_override
+        .clone()
+        .or_else(|| std::env::var("DATABASE_URL").ok())
+        .or(file_cfg.receiver.database_url.clone())
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| {
+            "Config error: missing database_url (set receiver.database_url or DATABASE_URL)"
+                .to_string()
+        })?;
 
     ensure_parent_dir(&token_store_path)?;
     ensure_parent_dir(&registry_path)?;
     ensure_parent_dir(&telemetry_store_path)?;
     ensure_parent_dir(&image_store_path)?;
     ensure_parent_dir(&image_index_path)?;
+    ensure_parent_dir(&image_db_error_store_path)?;
 
     Ok(RuntimeConfig {
         bind,
@@ -111,6 +124,8 @@ pub(crate) fn build_runtime_config(
         telemetry_store_path,
         image_store_path,
         image_index_path,
+        image_db_error_store_path,
+        database_url,
         exact_rules,
         sensor_rules,
     })

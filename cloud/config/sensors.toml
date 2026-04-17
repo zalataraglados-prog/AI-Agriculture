@@ -8,6 +8,8 @@ token_store_path = "state/token_store.json"
 registry_path = "state/registry.json"
 image_store_path = "state/image_uploads"
 image_index_path = "state/image_index.jsonl"
+image_db_error_store_path = "state/image_upload_errors.jsonl"
+database_url = "postgres://postgres@127.0.0.1/ai_agriculture"
 
 [[exact_payloads]]
 payload = "success"

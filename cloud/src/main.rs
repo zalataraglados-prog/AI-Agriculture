@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod constants;
+mod db;
 mod http_server;
 mod image_upload;
 mod model;
@@ -12,9 +13,11 @@ mod time_util;
 mod token;
 
 use std::env;
+use std::sync::{Arc, Mutex};
 
 use cli::{parse_args, print_usage};
 use config::{load_runtime_config, resolve_token_store_path_for_token_command};
+use db::DbManager;
 use model::CliCommand;
 use server::run;
 use time_util::now_rfc3339;
@@ -41,15 +44,25 @@ fn main() {
                 }
             };
 
+            let db = match DbManager::connect_and_migrate(&cfg.database_url) {
+                Ok(v) => Arc::new(Mutex::new(v)),
+                Err(err) => {
+                    eprintln!("{} [cloud] DB init error: {err}", now_rfc3339());
+                    std::process::exit(2);
+                }
+            };
+
             // 启动 HTTP 后台和前端仪表盘服务 (端口 8088)
             http_server::start_http_server(
                 "0.0.0.0:8088",
                 cfg.telemetry_store_path.clone(),
                 cfg.image_store_path.clone(),
                 cfg.image_index_path.clone(),
+                cfg.image_db_error_store_path.clone(),
+                db.clone(),
             );
 
-            if let Err(err) = run(&cfg) {
+            if let Err(err) = run(&cfg, db) {
                 eprintln!("{} [cloud] ERROR: {err}", now_rfc3339());
                 std::process::exit(1);
             }
@@ -98,6 +111,7 @@ mod tests {
             legacy_ack_match: None,
             token_store_path_override: None,
             registry_path_override: None,
+            database_url_override: None,
         }
     }
 
@@ -145,6 +159,8 @@ mod tests {
             telemetry_store_path: "state/telemetry.test.jsonl".to_string(),
             image_store_path: "state/image_uploads.test".to_string(),
             image_index_path: "state/image_index.test.jsonl".to_string(),
+            image_db_error_store_path: "state/image_errors.test.jsonl".to_string(),
+            database_url: "postgres://postgres@127.0.0.1/cloud_test".to_string(),
             exact_rules,
             sensor_rules,
         }
@@ -226,6 +242,8 @@ registry_path = "state/registry.json"
 telemetry_store_path = "state/telemetry.jsonl"
 image_store_path = "state/image_uploads"
 image_index_path = "state/image_index.jsonl"
+image_db_error_store_path = "state/image_errors.jsonl"
+database_url = "postgres://postgres@127.0.0.1/cloud_test"
 
 [[exact_payloads]]
 payload = "success"
@@ -253,6 +271,8 @@ voltage = "f32"
         assert_eq!(cfg.telemetry_store_path, "state/telemetry.jsonl");
         assert_eq!(cfg.image_store_path, "state/image_uploads");
         assert_eq!(cfg.image_index_path, "state/image_index.jsonl");
+        assert_eq!(cfg.image_db_error_store_path, "state/image_errors.jsonl");
+        assert_eq!(cfg.database_url, "postgres://postgres@127.0.0.1/cloud_test");
         assert_eq!(
             cfg.exact_rules.get("success"),
             Some(&"ack:success".to_string())
@@ -282,6 +302,9 @@ id = "mq7"
     #[test]
     fn build_runtime_config_legacy_rule_injection() {
         let content = r#"
+[receiver]
+database_url = "postgres://postgres@127.0.0.1/cloud_test"
+
 [[exact_payloads]]
 payload = "success"
 ack = "ack:success"

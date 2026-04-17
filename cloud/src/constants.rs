@@ -16,6 +16,7 @@ pub(crate) const DEFAULT_REGISTRY_PATH: &str = "state/registry.json";
 pub(crate) const DEFAULT_TELEMETRY_STORE_PATH: &str = "state/telemetry.jsonl";
 pub(crate) const DEFAULT_IMAGE_STORE_PATH: &str = "state/image_uploads";
 pub(crate) const DEFAULT_IMAGE_INDEX_PATH: &str = "state/image_index.jsonl";
+pub(crate) const DEFAULT_IMAGE_DB_ERROR_STORE_PATH: &str = "state/image_upload_errors.jsonl";
 
 pub(crate) fn default_bind() -> String {
     DEFAULT_BIND.to_string()
@@ -47,4 +48,8 @@ pub(crate) fn default_image_store_path() -> String {
 
 pub(crate) fn default_image_index_path() -> String {
     DEFAULT_IMAGE_INDEX_PATH.to_string()
+}
+
+pub(crate) fn default_image_db_error_store_path() -> String {
+    DEFAULT_IMAGE_DB_ERROR_STORE_PATH.to_string()
 }

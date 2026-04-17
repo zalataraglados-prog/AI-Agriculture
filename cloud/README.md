@@ -54,6 +54,8 @@ ack_unknown_sensor = "ack:unknown_sensor"
 telemetry_store_path = "state/telemetry.jsonl"
 image_store_path = "state/image_uploads"
 image_index_path = "state/image_index.jsonl"
+image_db_error_store_path = "state/image_upload_errors.jsonl"
+database_url = "postgres://postgres@127.0.0.1/ai_agriculture"
 
 [[exact_payloads]]
 payload = "success"
@@ -125,13 +127,15 @@ The cloud receiver now appends matched sensor packets to `telemetry_store_path` 
   - `sensor_id`
   - `limit` (default `100`, max `1000`)
 
-## Image upload API (narrow scope, no DB)
+## Image upload API (DB primary + JSONL backup)
 
 - `POST /api/v1/image/upload`
 - `Content-Type: multipart/form-data`
 - file field names supported: `file` (default), `image`, `photo`
 - required query params: `device_id`, `ts`
 - optional query params: `location`, `crop_type`, `farm_note`
+- optional inference query params (when upstream already has AI result):
+  - `predicted_class`, `confidence`, `model_version`, `topk_json`, `metadata_json`, `geometry_json`, `latency_ms`, `advice_code`
 
 Response is always JSON with `status`:
 - success: includes `upload_id`, `saved_path`, and echoed `tag`
@@ -139,7 +143,20 @@ Response is always JSON with `status`:
 
 Persistence:
 - image file: `{image_store_path}/{device_id}/{yyyy-mm-dd}/{upload_id}.jpg|png`
-- index line: `{image_index_path}` (JSONL with path/tag/hash/size)
+- DB primary write: `image_uploads`
+- backup line: `{image_index_path}` (JSONL with path/tag/hash/size)
+- DB failure backup: `{image_db_error_store_path}` (JSONL errors)
+
+Query API:
+- `GET /api/v1/image/uploads`
+- Optional query params:
+  - `start_time` (RFC3339)
+  - `end_time` (RFC3339)
+  - `device_id`
+  - `crop_type`
+  - `upload_status` (`stored|inferred|failed`)
+  - `predicted_class`
+  - `limit` (default `100`, max `1000`)
 
 ## Add a new sensor (no Rust code change)
 

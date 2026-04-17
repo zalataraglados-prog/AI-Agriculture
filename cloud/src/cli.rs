@@ -12,7 +12,7 @@ pub(crate) fn print_usage(binary: &str) {
         "Usage:
   {binary} run [--config <path>] [--bind <ip:port>] [--once] [--max-packets <n>] [--timeout-ms <ms>]
                [--ack-mismatch <payload>] [--ack-unknown-sensor <payload>]
-               [--token-store <path>] [--registry <path>]
+               [--token-store <path>] [--registry <path>] [--database-url <dsn>]
                [--expected <legacy-payload>] [--ack-match <legacy-ack>]
       {binary} token [--config <path>] [--token-store <path>]
 
@@ -25,6 +25,7 @@ Defaults:
   --ack-unknown-sensor from config (fallback {DEFAULT_ACK_UNKNOWN_SENSOR})
   --token-store from config (fallback {DEFAULT_TOKEN_STORE_PATH})
   --registry from config (fallback {DEFAULT_REGISTRY_PATH})
+  --database-url from CLI/env/config (required)
 
 Notes:
   1) 默认子命令是 run（可省略 run）。
@@ -145,6 +146,12 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<CliConfig, String> {
                         .ok_or_else(|| "Missing value for --registry".to_string())?,
                 );
             }
+            "--database-url" => {
+                cfg.database_url_override = Some(
+                    args.next()
+                        .ok_or_else(|| "Missing value for --database-url".to_string())?,
+                );
+            }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "cloud".to_string());
                 print_usage(&binary);
@@ -207,5 +214,6 @@ fn default_run_cli() -> CliConfig {
         legacy_ack_match: None,
         token_store_path_override: None,
         registry_path_override: None,
+        database_url_override: None,
     }
 }

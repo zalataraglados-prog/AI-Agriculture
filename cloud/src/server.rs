@@ -1,10 +1,12 @@
 use std::io::ErrorKind;
 use std::net::UdpSocket;
+use std::sync::{Arc, Mutex};
 
 use crate::constants::{
     DEFAULT_ACK_CREDENTIAL_REVOKED, DEFAULT_ACK_REGISTER_CONFLICT, DEFAULT_ACK_REGISTER_OK,
     DEFAULT_ACK_TOKEN_INVALID, DEFAULT_ACK_UNREGISTERED, UDP_BUFFER_SIZE,
 };
+use crate::db::{DbManager, SensorTelemetryDbRecord};
 use crate::model::{EvalResult, RegisterOutcome, RegisterRequest, RuntimeConfig};
 use crate::payload::{evaluate_payload, parse_sensor_kv_payload};
 use crate::registry::{CredentialValidation, DeviceRegistry};
@@ -12,7 +14,7 @@ use crate::telemetry::{append_record, typed_fields_for_record, TelemetryRecord};
 use crate::time_util::now_rfc3339;
 use crate::token::validate_current_hour_token;
 
-pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
+pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), String> {
     let socket =
         UdpSocket::bind(&cfg.bind).map_err(|e| format!("Bind failed on {}: {e}", cfg.bind))?;
     //socket
@@ -93,7 +95,7 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
 
         if result.matched {
             success_count += 1;
-            if let Err(err) = persist_matched_telemetry(&payload, cfg) {
+            if let Err(err) = persist_matched_telemetry(&payload, cfg, db.clone()) {
                 eprintln!(
                     "{} [cloud] WARN: failed to persist telemetry: {err}",
                     now_rfc3339()
@@ -238,7 +240,11 @@ fn evaluate_data_packet(
     evaluate_payload(payload, cfg)
 }
 
-fn persist_matched_telemetry(payload: &str, cfg: &RuntimeConfig) -> Result<(), String> {
+fn persist_matched_telemetry(
+    payload: &str,
+    cfg: &RuntimeConfig,
+    db: Arc<Mutex<DbManager>>,
+) -> Result<(), String> {
     let (sensor_id, raw_fields) = parse_sensor_kv_payload(payload)?;
     let device_id = raw_fields
         .get("device_id")
@@ -248,10 +254,25 @@ fn persist_matched_telemetry(payload: &str, cfg: &RuntimeConfig) -> Result<(), S
     let typed_fields = typed_fields_for_record(&sensor_id, &raw_fields, cfg);
     let record = TelemetryRecord {
         ts: now_rfc3339(),
-        device_id,
-        sensor_id,
+        device_id: device_id.clone(),
+        sensor_id: sensor_id.clone(),
         fields: typed_fields,
     };
+
+    let ts = chrono::DateTime::parse_from_rfc3339(&record.ts)
+        .map(|v| v.with_timezone(&chrono::Utc))
+        .map_err(|e| format!("invalid telemetry timestamp format: {e}"))?;
+    let db_row = SensorTelemetryDbRecord {
+        ts,
+        device_id,
+        sensor_id,
+        fields_json: serde_json::to_value(&record.fields)
+            .map_err(|e| format!("failed to serialize telemetry fields for db: {e}"))?,
+    };
+
+    db.lock()
+        .map_err(|_| "db lock poisoned".to_string())
+        .and_then(|mut guard| guard.insert_sensor_telemetry(&db_row))?;
 
     append_record(&cfg.telemetry_store_path, &record)
 }
