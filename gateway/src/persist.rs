@@ -12,7 +12,10 @@ pub struct GatewayProfile {
     pub farm_location: String,
     pub crop_type: String,
     pub farm_note: String,
+    #[serde(default)]
     pub last_token: Option<String>,
+    #[serde(default)]
+    pub device_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,8 +79,8 @@ fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<Option<T>, Str
         return Ok(None);
     }
 
-    let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
     let value = serde_json::from_str::<T>(&content)
         .map_err(|e| format!("Failed to parse JSON {}: {e}", path.display()))?;
     Ok(Some(value))
@@ -88,4 +91,3 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
         .map_err(|e| format!("Failed to serialize {}: {e}", path.display()))?;
     fs::write(path, content).map_err(|e| format!("Failed to write {}: {e}", path.display()))
 }
-

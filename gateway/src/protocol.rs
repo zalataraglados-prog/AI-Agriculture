@@ -10,7 +10,10 @@ pub struct RegisterPayload {
     pub farm_note: String,
     pub sensors: Vec<String>,
     pub feature_mapping: BTreeMap<String, String>,
-    pub token: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_key: Option<String>,
 }
 
 pub fn build_register_packet(payload: &RegisterPayload) -> Result<String, String> {
@@ -37,10 +40,7 @@ pub fn build_sensor_packet(
     format!("{sensor_id}:{}", pairs.join(","))
 }
 
-pub fn build_image_channel_packet(
-    fields: &BTreeMap<String, String>,
-    device_id: &str,
-) -> String {
+pub fn build_image_channel_packet(fields: &BTreeMap<String, String>, device_id: &str) -> String {
     let mut pairs = Vec::new();
     pairs.push(format!("device_id={device_id}"));
     pairs.push("channel=image".to_string());
