@@ -90,10 +90,14 @@ pub(crate) fn build_runtime_config(
         .clone()
         .unwrap_or_else(|| file_cfg.receiver.registry_path.clone());
     let telemetry_store_path = file_cfg.receiver.telemetry_store_path.clone();
+    let image_store_path = file_cfg.receiver.image_store_path.clone();
+    let image_index_path = file_cfg.receiver.image_index_path.clone();
 
     ensure_parent_dir(&token_store_path)?;
     ensure_parent_dir(&registry_path)?;
     ensure_parent_dir(&telemetry_store_path)?;
+    ensure_parent_dir(&image_store_path)?;
+    ensure_parent_dir(&image_index_path)?;
 
     Ok(RuntimeConfig {
         bind,
@@ -105,6 +109,8 @@ pub(crate) fn build_runtime_config(
         token_store_path,
         registry_path,
         telemetry_store_path,
+        image_store_path,
+        image_index_path,
         exact_rules,
         sensor_rules,
     })

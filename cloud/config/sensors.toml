@@ -6,6 +6,8 @@ ack_mismatch = "ack:error"
 ack_unknown_sensor = "ack:unknown_sensor"
 token_store_path = "state/token_store.json"
 registry_path = "state/registry.json"
+image_store_path = "state/image_uploads"
+image_index_path = "state/image_index.jsonl"
 
 [[exact_payloads]]
 payload = "success"

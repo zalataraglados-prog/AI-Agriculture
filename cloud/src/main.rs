@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod constants;
 mod http_server;
+mod image_upload;
 mod model;
 mod payload;
 mod registry;
@@ -41,7 +42,12 @@ fn main() {
             };
 
             // 启动 HTTP 后台和前端仪表盘服务 (端口 8088)
-            http_server::start_http_server("0.0.0.0:8088", cfg.telemetry_store_path.clone());
+            http_server::start_http_server(
+                "0.0.0.0:8088",
+                cfg.telemetry_store_path.clone(),
+                cfg.image_store_path.clone(),
+                cfg.image_index_path.clone(),
+            );
 
             if let Err(err) = run(&cfg) {
                 eprintln!("{} [cloud] ERROR: {err}", now_rfc3339());
@@ -137,6 +143,8 @@ mod tests {
             token_store_path: "state/token_store.test.json".to_string(),
             registry_path: "state/registry.test.json".to_string(),
             telemetry_store_path: "state/telemetry.test.jsonl".to_string(),
+            image_store_path: "state/image_uploads.test".to_string(),
+            image_index_path: "state/image_index.test.jsonl".to_string(),
             exact_rules,
             sensor_rules,
         }
@@ -216,6 +224,8 @@ ack_unknown_sensor = "ack:unknown"
 token_store_path = "state/token.json"
 registry_path = "state/registry.json"
 telemetry_store_path = "state/telemetry.jsonl"
+image_store_path = "state/image_uploads"
+image_index_path = "state/image_index.jsonl"
 
 [[exact_payloads]]
 payload = "success"
@@ -241,6 +251,8 @@ voltage = "f32"
         assert_eq!(cfg.token_store_path, "state/token.json");
         assert_eq!(cfg.registry_path, "state/registry.json");
         assert_eq!(cfg.telemetry_store_path, "state/telemetry.jsonl");
+        assert_eq!(cfg.image_store_path, "state/image_uploads");
+        assert_eq!(cfg.image_index_path, "state/image_index.jsonl");
         assert_eq!(
             cfg.exact_rules.get("success"),
             Some(&"ack:success".to_string())

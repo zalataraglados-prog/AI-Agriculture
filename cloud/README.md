@@ -52,6 +52,8 @@ timeout_ms = 30000
 ack_mismatch = "ack:error"
 ack_unknown_sensor = "ack:unknown_sensor"
 telemetry_store_path = "state/telemetry.jsonl"
+image_store_path = "state/image_uploads"
+image_index_path = "state/image_index.jsonl"
 
 [[exact_payloads]]
 payload = "success"
@@ -122,6 +124,22 @@ The cloud receiver now appends matched sensor packets to `telemetry_store_path` 
   - `device_id`
   - `sensor_id`
   - `limit` (default `100`, max `1000`)
+
+## Image upload API (narrow scope, no DB)
+
+- `POST /api/v1/image/upload`
+- `Content-Type: multipart/form-data`
+- file field names supported: `file` (default), `image`, `photo`
+- required query params: `device_id`, `ts`
+- optional query params: `location`, `crop_type`, `farm_note`
+
+Response is always JSON with `status`:
+- success: includes `upload_id`, `saved_path`, and echoed `tag`
+- error: includes readable `message`
+
+Persistence:
+- image file: `{image_store_path}/{device_id}/{yyyy-mm-dd}/{upload_id}.jpg|png`
+- index line: `{image_index_path}` (JSONL with path/tag/hash/size)
 
 ## Add a new sensor (no Rust code change)
 

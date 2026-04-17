@@ -1,13 +1,22 @@
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::thread;
 use tiny_http::{Header, Method, Response, Server};
 
+use crate::image_upload::{
+    parse_multipart_file, parse_tag, persist_image, ImageUploadErrorResponse, ImageUploadOkResponse,
+};
 use crate::telemetry::load_records;
 use crate::time_util::now_rfc3339;
 
-pub fn start_http_server(bind_addr: &str, telemetry_store_path: String) {
+pub fn start_http_server(
+    bind_addr: &str,
+    telemetry_store_path: String,
+    image_store_path: String,
+    image_index_path: String,
+) {
     let server = Server::http(bind_addr).expect("Failed to start HTTP server");
     println!(
         "{} [cloud-http] Listening on http://{}",
@@ -23,7 +32,15 @@ pub fn start_http_server(bind_addr: &str, telemetry_store_path: String) {
 
             // Handle API routes
             if path.starts_with("/api/") {
-                handle_api(request, method, path, query, &telemetry_store_path);
+                handle_api(
+                    request,
+                    method,
+                    path,
+                    query,
+                    &telemetry_store_path,
+                    &image_store_path,
+                    &image_index_path,
+                );
                 continue;
             }
 
@@ -68,6 +85,8 @@ fn handle_api(
     path: &str,
     query: &str,
     telemetry_store_path: &str,
+    image_store_path: &str,
+    image_index_path: &str,
 ) {
     let respond_json = move |json: &str, req: tiny_http::Request| {
         let header = Header::from_bytes(
@@ -79,6 +98,9 @@ fn handle_api(
     };
 
     match (method, path) {
+        (Method::Post, "/api/v1/image/upload") => {
+            handle_image_upload(request, query, image_store_path, image_index_path);
+        }
         (Method::Post, "/api/send-code") => {
             respond_json(
                 r#"{"success": true, "message": "验证码发送成功", "data": null}"#,
@@ -169,6 +191,93 @@ fn handle_api(
     }
 }
 
+fn handle_image_upload(
+    mut request: tiny_http::Request,
+    query: &str,
+    image_store_path: &str,
+    image_index_path: &str,
+) {
+    let tag = match parse_tag(&parse_query(query)) {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: err,
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 200, &payload);
+            return;
+        }
+    };
+
+    let content_type = request
+        .headers()
+        .iter()
+        .find(|h| h.field.equiv("Content-Type"))
+        .map(|h| h.value.as_str().to_string())
+        .unwrap_or_default();
+    if !content_type
+        .to_ascii_lowercase()
+        .starts_with("multipart/form-data")
+    {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: "Content-Type must be multipart/form-data".to_string(),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+        respond_json_with_status(request, 200, &payload);
+        return;
+    }
+
+    let mut body = Vec::new();
+    if let Err(err) = request.as_reader().read_to_end(&mut body) {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: format!("failed to read request body: {err}"),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+        respond_json_with_status(request, 200, &payload);
+        return;
+    }
+
+    let file_part = match parse_multipart_file(&content_type, &body) {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: err,
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 200, &payload);
+            return;
+        }
+    };
+
+    match persist_image(image_store_path, image_index_path, &tag, &file_part) {
+        Ok(ok) => {
+            let payload = serde_json::to_string(&ok).unwrap_or_else(|_| {
+                serde_json::to_string(&ImageUploadOkResponse {
+                    status: "success".to_string(),
+                    message: "image upload accepted".to_string(),
+                    upload_id: String::new(),
+                    saved_path: String::new(),
+                    tag,
+                })
+                .unwrap_or_else(|_| "{\"status\":\"success\"}".to_string())
+            });
+            respond_json_with_status(request, 200, &payload);
+        }
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: err,
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 200, &payload);
+        }
+    }
+}
+
 fn split_query(url: &str) -> (&str, &str) {
     match url.split_once('?') {
         Some((path, query)) => (path, query),
@@ -192,4 +301,17 @@ fn parse_query(query: &str) -> HashMap<String, String> {
         out.insert(key.to_string(), value.to_string());
     }
     out
+}
+
+fn respond_json_with_status(request: tiny_http::Request, code: u16, payload: &str) {
+    let header = Header::from_bytes(
+        &b"Content-Type"[..],
+        &b"application/json; charset=utf-8"[..],
+    )
+    .unwrap();
+    let _ = request.respond(
+        Response::from_string(payload.to_string())
+            .with_header(header)
+            .with_status_code(code),
+    );
 }

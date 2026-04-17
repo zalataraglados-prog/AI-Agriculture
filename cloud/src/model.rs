@@ -4,8 +4,9 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::constants::{
-    default_ack_mismatch, default_ack_unknown_sensor, default_bind, default_registry_path,
-    default_telemetry_store_path, default_token_store_path, DEFAULT_ONCE, DEFAULT_TIMEOUT_MS,
+    default_ack_mismatch, default_ack_unknown_sensor, default_bind, default_image_index_path,
+    default_image_store_path, default_registry_path, default_telemetry_store_path,
+    default_token_store_path, DEFAULT_ONCE, DEFAULT_TIMEOUT_MS,
 };
 
 #[derive(Debug, Clone)]
@@ -46,6 +47,8 @@ pub(crate) struct RuntimeConfig {
     pub(crate) token_store_path: String,
     pub(crate) registry_path: String,
     pub(crate) telemetry_store_path: String,
+    pub(crate) image_store_path: String,
+    pub(crate) image_index_path: String,
     pub(crate) exact_rules: HashMap<String, String>,
     pub(crate) sensor_rules: HashMap<String, SensorRule>,
 }
@@ -76,6 +79,10 @@ pub(crate) struct ReceiverFileConfig {
     pub(crate) registry_path: String,
     #[serde(default = "default_telemetry_store_path")]
     pub(crate) telemetry_store_path: String,
+    #[serde(default = "default_image_store_path")]
+    pub(crate) image_store_path: String,
+    #[serde(default = "default_image_index_path")]
+    pub(crate) image_index_path: String,
 }
 
 impl Default for ReceiverFileConfig {
@@ -89,6 +96,8 @@ impl Default for ReceiverFileConfig {
             token_store_path: default_token_store_path(),
             registry_path: default_registry_path(),
             telemetry_store_path: default_telemetry_store_path(),
+            image_store_path: default_image_store_path(),
+            image_index_path: default_image_index_path(),
         }
     }
 }
