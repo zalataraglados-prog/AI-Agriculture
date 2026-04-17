@@ -65,9 +65,7 @@ impl SerialEsp32Source {
         format!("{}@{}", self.port, self.baud)
     }
 
-    pub fn next_event(
-        &mut self,
-    ) -> Result<SensorEvent, String> {
+    pub fn next_event(&mut self) -> Result<SensorEvent, String> {
         if let Some(last) = self.last_poll_at {
             let elapsed = last.elapsed();
             if elapsed < self.poll_interval {
@@ -76,7 +74,8 @@ impl SerialEsp32Source {
         }
         self.last_poll_at = Some(Instant::now());
 
-        let request = build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
+        let request =
+            build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
         self.serial
             .write_all(&request)
             .map_err(|e| format!("Failed to write Modbus request on {}: {e}", self.port))?;
@@ -93,7 +92,10 @@ impl SerialEsp32Source {
 
         let mut fields = BTreeMap::new();
         fields.insert("vwc".to_string(), format!("{:.1}", (vwc_raw as f32) / 10.0));
-        fields.insert("temp_c".to_string(), format!("{:.1}", (temp_raw as f32) / 10.0));
+        fields.insert(
+            "temp_c".to_string(),
+            format!("{:.1}", (temp_raw as f32) / 10.0),
+        );
         fields.insert("ec".to_string(), ec_raw.to_string());
         fields.insert("protocol".to_string(), "modbus.rtu.v1".to_string());
         fields.insert("slave_id".to_string(), MODBUS_SLAVE_ID.to_string());
@@ -135,7 +137,9 @@ fn read_exact_with_deadline(
             Ok(size) => {
                 offset += size;
             }
-            Err(err) if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock => {
+            Err(err)
+                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
+            {
                 continue;
             }
             Err(err) => return Err(format!("Failed to read Modbus response: {err}")),
@@ -175,7 +179,11 @@ pub fn list_serial_ports() -> Result<Vec<String>, String> {
     }
 }
 
-pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<DiscoveryResult, String> {
+pub fn discover_on_port(
+    port: &str,
+    baud: u32,
+    window: Duration,
+) -> Result<DiscoveryResult, String> {
     let mut serial = serialport::new(port, baud)
         .data_bits(DataBits::Eight)
         .parity(Parity::None)
@@ -188,12 +196,17 @@ pub fn discover_on_port(port: &str, baud: u32, window: Duration) -> Result<Disco
     let mut found = DiscoveryResult::default();
 
     while Instant::now() < deadline {
-        let request = build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
+        let request =
+            build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
         if let Err(err) = serial.write_all(&request) {
-            return Err(format!("Failed to write Modbus probe on {port}@{baud}: {err}"));
+            return Err(format!(
+                "Failed to write Modbus probe on {port}@{baud}: {err}"
+            ));
         }
         if let Err(err) = serial.flush() {
-            return Err(format!("Failed to flush Modbus probe on {port}@{baud}: {err}"));
+            return Err(format!(
+                "Failed to flush Modbus probe on {port}@{baud}: {err}"
+            ));
         }
 
         thread::sleep(Duration::from_millis(80));
@@ -251,16 +264,14 @@ fn parse_modbus_response_frame(frame: &[u8]) -> Result<(u16, u16, u16), String> 
     if frame[0] != MODBUS_SLAVE_ID {
         return Err(format!(
             "Unexpected slave id in response: expected {}, got {}",
-            MODBUS_SLAVE_ID,
-            frame[0]
+            MODBUS_SLAVE_ID, frame[0]
         ));
     }
 
     if frame[1] != MODBUS_FUNC_READ_HOLDING {
         return Err(format!(
             "Unexpected function code in response: expected {}, got {}",
-            MODBUS_FUNC_READ_HOLDING,
-            frame[1]
+            MODBUS_FUNC_READ_HOLDING, frame[1]
         ));
     }
 
@@ -276,8 +287,7 @@ fn parse_modbus_response_frame(frame: &[u8]) -> Result<(u16, u16, u16), String> 
     if crc_expected != crc_actual {
         return Err(format!(
             "CRC mismatch in Modbus response: expected {:04X}, got {:04X}",
-            crc_expected,
-            crc_actual
+            crc_expected, crc_actual
         ));
     }
 
@@ -329,7 +339,9 @@ mod tests {
 
     #[test]
     fn parse_response_rejects_bad_crc() {
-        let frame = [0x02, 0x03, 0x06, 0x01, 0x0D, 0x00, 0xF8, 0x01, 0xB0, 0x00, 0x00];
+        let frame = [
+            0x02, 0x03, 0x06, 0x01, 0x0D, 0x00, 0xF8, 0x01, 0xB0, 0x00, 0x00,
+        ];
         assert!(parse_modbus_response_frame(&frame).is_err());
     }
 }

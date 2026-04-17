@@ -26,4 +26,3 @@ impl DataSource for SerialEsp32DataSource {
         self.source.next_event()
     }
 }
-

@@ -5,8 +5,8 @@ use std::time::Duration;
 use serde::Deserialize;
 
 use crate::constants::{
-    DEFAULT_ACK_TIMEOUT_MS, DEFAULT_BAUD_LIST, DEFAULT_SCAN_INTERVAL_MS, DEFAULT_SCAN_WINDOW_MS,
-    DEFAULT_STATE_DIR, DEFAULT_TARGET,
+    DEFAULT_ACK_TIMEOUT_MS, DEFAULT_BAUD_LIST, DEFAULT_IMAGE_UPLOAD_INTERVAL_MS,
+    DEFAULT_SCAN_INTERVAL_MS, DEFAULT_SCAN_WINDOW_MS, DEFAULT_STATE_DIR, DEFAULT_TARGET,
 };
 
 #[derive(Debug, Clone)]
@@ -25,6 +25,9 @@ pub struct RunConfig {
     pub scan_window: Duration,
     pub ack_timeout: Duration,
     pub baud_list: Vec<u32>,
+    pub image_dir: Option<String>,
+    pub image_upload_url: Option<String>,
+    pub image_upload_interval: Duration,
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +47,7 @@ pub fn print_usage(binary: &str) {
         "Usage:
   {binary} run [--config <path>] [--target <ip:port>] [--state-dir <dir>] [--scan-interval-ms <ms>]
                [--scan-window-ms <ms>] [--ack-timeout-ms <ms>] [--baud-list <csv>]
+               [--image-dir <dir>] [--image-upload-url <url>] [--image-interval-ms <ms>]
   {binary} diag [--state-dir <dir>] [--scan-window-ms <ms>] [--baud-list <csv>]
   {binary} reset [--state-dir <dir>]
 
@@ -53,6 +57,7 @@ Defaults:
   --scan-interval-ms {DEFAULT_SCAN_INTERVAL_MS}
   --scan-window-ms {DEFAULT_SCAN_WINDOW_MS}
   --ack-timeout-ms {DEFAULT_ACK_TIMEOUT_MS}
+  --image-interval-ms {DEFAULT_IMAGE_UPLOAD_INTERVAL_MS}
   --baud-list {}
 
 Notes:
@@ -140,6 +145,27 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<RunConfig, String> {
                     .next()
                     .ok_or_else(|| "Missing value for --baud-list".to_string())?;
                 cfg.baud_list = parse_baud_csv(&value)?;
+            }
+            "--image-dir" => {
+                cfg.image_dir = Some(
+                    args.next()
+                        .ok_or_else(|| "Missing value for --image-dir".to_string())?,
+                );
+            }
+            "--image-upload-url" => {
+                cfg.image_upload_url = Some(
+                    args.next()
+                        .ok_or_else(|| "Missing value for --image-upload-url".to_string())?,
+                );
+            }
+            "--image-interval-ms" => {
+                let value = parse_u64_arg(
+                    args.next(),
+                    "--image-interval-ms",
+                    "Invalid --image-interval-ms, expected unsigned integer",
+                )?;
+                ensure_non_zero(value, "--image-interval-ms")?;
+                cfg.image_upload_interval = Duration::from_millis(value);
             }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "gateway".to_string());
@@ -233,6 +259,9 @@ struct RunToml {
     scan_window_ms: Option<u64>,
     ack_timeout_ms: Option<u64>,
     baud_list: Option<Vec<u32>>,
+    image_dir: Option<String>,
+    image_upload_url: Option<String>,
+    image_interval_ms: Option<u64>,
 }
 
 fn preprocess_run_args(raw_args: Vec<String>, cfg: &mut RunConfig) -> Result<Vec<String>, String> {
@@ -261,8 +290,8 @@ fn preprocess_run_args(raw_args: Vec<String>, cfg: &mut RunConfig) -> Result<Vec
 fn apply_run_config_toml(path: &str, cfg: &mut RunConfig) -> Result<(), String> {
     let text = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read run config file {path}: {e}"))?;
-    let parsed: GatewayToml = toml::from_str(&text)
-        .map_err(|e| format!("Failed to parse TOML config {path}: {e}"))?;
+    let parsed: GatewayToml =
+        toml::from_str(&text).map_err(|e| format!("Failed to parse TOML config {path}: {e}"))?;
     let Some(run) = parsed.run else {
         return Ok(());
     };
@@ -289,6 +318,16 @@ fn apply_run_config_toml(path: &str, cfg: &mut RunConfig) -> Result<(), String> 
         validate_baud_list(&baud_list)?;
         cfg.baud_list = baud_list;
     }
+    if let Some(image_dir) = run.image_dir {
+        cfg.image_dir = Some(image_dir);
+    }
+    if let Some(image_upload_url) = run.image_upload_url {
+        cfg.image_upload_url = Some(image_upload_url);
+    }
+    if let Some(ms) = run.image_interval_ms {
+        ensure_non_zero(ms, "run.image_interval_ms")?;
+        cfg.image_upload_interval = Duration::from_millis(ms);
+    }
 
     Ok(())
 }
@@ -302,6 +341,20 @@ fn default_run_config() -> RunConfig {
         scan_window: Duration::from_millis(DEFAULT_SCAN_WINDOW_MS),
         ack_timeout: Duration::from_millis(DEFAULT_ACK_TIMEOUT_MS),
         baud_list: DEFAULT_BAUD_LIST.to_vec(),
+        image_dir: env::var("GATEWAY_IMAGE_DIR")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
+        image_upload_url: env::var("GATEWAY_IMAGE_UPLOAD_URL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
+        image_upload_interval: env::var("GATEWAY_IMAGE_UPLOAD_INTERVAL_MS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .filter(|v| *v > 0)
+            .map(Duration::from_millis)
+            .unwrap_or_else(|| Duration::from_millis(DEFAULT_IMAGE_UPLOAD_INTERVAL_MS)),
     }
 }
 
@@ -347,11 +400,9 @@ fn parse_u64_arg(raw: Option<String>, name: &str, invalid_msg: &str) -> Result<u
     value.parse::<u64>().map_err(|_| invalid_msg.to_string())
 }
 
-
 fn ensure_non_zero(value: u64, flag: &str) -> Result<(), String> {
     if value == 0 {
         return Err(format!("{flag} must be >= 1"));
     }
     Ok(())
 }
-

@@ -1,17 +1,19 @@
 use chrono::Local;
+use rand::seq::SliceRandom;
 use std::collections::{BTreeMap, HashMap};
+use std::fs;
 use std::io::{self, BufRead, ErrorKind, Write};
 use std::net::UdpSocket;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::config::{DiagConfig, GatewayCommand, RunConfig};
 use crate::constants::{
-    DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_PAYLOAD_SUCCESS, DEFAULT_TARGET, RESERVED_IMAGE_FEATURE,
-    RESERVED_IMAGE_SENSOR_ID,
+    DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_IMAGE_UPLOAD_PATH, DEFAULT_PAYLOAD_SUCCESS,
+    DEFAULT_TARGET, RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID,
 };
 use crate::datasource::{DataSource, SerialEsp32DataSource};
 use crate::persist::{
@@ -67,6 +69,20 @@ struct SharedContext {
     prompt_lock: Arc<Mutex<()>>,
 }
 
+#[derive(Debug, Clone)]
+struct ImageUploadContext {
+    image_dir: PathBuf,
+    upload_url: String,
+    upload_interval: Duration,
+}
+
+#[derive(Debug, Clone)]
+struct ImageCyclePicker {
+    files: Vec<PathBuf>,
+    order: Vec<usize>,
+    cursor: usize,
+}
+
 pub fn run_command(command: GatewayCommand) -> Result<(), String> {
     match command {
         GatewayCommand::Run(cfg) => run_managed(cfg),
@@ -102,6 +118,21 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     if !profile_is_new {
         prompt_trial_field_info(&mut profile, &prompt_lock)?;
         save_profile(&state_dir, &profile)?;
+    }
+    let image_upload_ctx = build_image_upload_context(&run_cfg, &profile)?;
+    if let Some(ctx) = image_upload_ctx.as_ref() {
+        println!(
+            "[{}][gateway] Image simulator enabled: dir={} interval_ms={} upload={}",
+            ts(),
+            ctx.image_dir.display(),
+            ctx.upload_interval.as_millis(),
+            ctx.upload_url
+        );
+    } else {
+        println!(
+            "[{}][gateway] Image simulator disabled (set --image-dir or GATEWAY_IMAGE_DIR to enable).",
+            ts()
+        );
     }
 
     let device_index = load_device_index(&state_dir)?;
@@ -158,8 +189,11 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
                 );
                 let thread_port = device.port.clone();
                 let thread_shared = shared.clone();
+                let thread_image_ctx = image_upload_ctx.clone();
                 let handle = thread::spawn(move || {
-                    if let Err(err) = run_device_session_loop(device, thread_shared) {
+                    if let Err(err) =
+                        run_device_session_loop(device, thread_shared, thread_image_ctx)
+                    {
                         eprintln!("[{}][gateway] session ended with error: {err}", ts());
                     }
                 });
@@ -269,7 +303,190 @@ fn get_or_create_device_id(
     Ok((created, true))
 }
 
-fn run_device_session_loop(device: DiscoveredDevice, shared: SharedContext) -> Result<(), String> {
+impl ImageCyclePicker {
+    fn from_dir(root: &Path) -> Result<Self, String> {
+        let mut files = Vec::new();
+        collect_image_files(root, &mut files)?;
+        if files.is_empty() {
+            return Err(format!(
+                "no .jpg/.jpeg/.png images found under {}",
+                root.display()
+            ));
+        }
+        let mut order: Vec<usize> = (0..files.len()).collect();
+        order.shuffle(&mut rand::rng());
+        Ok(Self {
+            files,
+            order,
+            cursor: 0,
+        })
+    }
+
+    fn next_path(&mut self) -> Option<&PathBuf> {
+        if self.files.is_empty() {
+            return None;
+        }
+        if self.cursor >= self.order.len() {
+            self.cursor = 0;
+            self.order.shuffle(&mut rand::rng());
+        }
+        let idx = *self.order.get(self.cursor)?;
+        self.cursor += 1;
+        self.files.get(idx)
+    }
+}
+
+fn collect_image_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries = fs::read_dir(root)
+        .map_err(|e| format!("failed to read image dir {}: {e}", root.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("failed to read dir entry: {e}"))?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_image_files(&path, out)?;
+            continue;
+        }
+        if is_supported_image_file(&path) {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn is_supported_image_file(path: &Path) -> bool {
+    let Some(ext) = path.extension().and_then(|v| v.to_str()) else {
+        return false;
+    };
+    matches!(ext.to_ascii_lowercase().as_str(), "jpg" | "jpeg" | "png")
+}
+
+fn build_image_upload_context(
+    run_cfg: &RunConfig,
+    profile: &GatewayProfile,
+) -> Result<Option<ImageUploadContext>, String> {
+    let Some(image_dir_raw) = run_cfg.image_dir.as_ref() else {
+        return Ok(None);
+    };
+    let image_dir = PathBuf::from(image_dir_raw);
+    if !image_dir.exists() || !image_dir.is_dir() {
+        return Err(format!(
+            "image dir not found or not a directory: {}",
+            image_dir.display()
+        ));
+    }
+
+    let upload_url = match run_cfg.image_upload_url.as_ref() {
+        Some(v) => v.clone(),
+        None => derive_image_upload_url(&profile.cloud_target),
+    };
+
+    Ok(Some(ImageUploadContext {
+        image_dir,
+        upload_url,
+        upload_interval: run_cfg.image_upload_interval,
+    }))
+}
+
+fn derive_image_upload_url(udp_target: &str) -> String {
+    let host = udp_target
+        .split(':')
+        .next()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .unwrap_or("127.0.0.1");
+    format!("http://{host}:8088{DEFAULT_IMAGE_UPLOAD_PATH}")
+}
+
+fn try_upload_cycle_image(
+    ctx: &ImageUploadContext,
+    picker: &mut ImageCyclePicker,
+    device: &DiscoveredDevice,
+    shared: &SharedContext,
+) -> Result<(), String> {
+    let Some(path) = picker.next_path().cloned() else {
+        return Ok(());
+    };
+    let profile = shared
+        .profile
+        .lock()
+        .map_err(|_| "Profile lock poisoned".to_string())?
+        .clone();
+    let ts_rfc3339 = Local::now().to_rfc3339();
+    let bytes = fs::read(&path)
+        .map_err(|e| format!("failed to read image file {}: {e}", path.display()))?;
+    let file_name = path
+        .file_name()
+        .and_then(|v| v.to_str())
+        .unwrap_or("image.bin")
+        .to_string();
+    let mime = match path
+        .extension()
+        .and_then(|v| v.to_str())
+        .map(|v| v.to_ascii_lowercase())
+    {
+        Some(ext) if ext == "png" => "image/png",
+        Some(ext) if ext == "jpg" || ext == "jpeg" => "image/jpeg",
+        _ => "application/octet-stream",
+    };
+
+    let part = reqwest::blocking::multipart::Part::bytes(bytes)
+        .file_name(file_name.clone())
+        .mime_str(mime)
+        .map_err(|e| format!("failed to build multipart image part: {e}"))?;
+    let form = reqwest::blocking::multipart::Form::new().part("file", part);
+
+    let response = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .build()
+        .map_err(|e| format!("failed to create image upload http client: {e}"))?
+        .post(&ctx.upload_url)
+        .query(&[
+            ("device_id", device.device_id.as_str()),
+            ("ts", ts_rfc3339.as_str()),
+            ("location", profile.farm_location.as_str()),
+            ("crop_type", profile.crop_type.as_str()),
+            ("farm_note", profile.farm_note.as_str()),
+        ])
+        .multipart(form)
+        .send()
+        .map_err(|e| format!("failed to upload image {}: {e}", path.display()))?;
+    let status = response.status();
+    let body = response
+        .text()
+        .unwrap_or_else(|_| String::from("<read-body-failed>"));
+    if !status.is_success() {
+        return Err(format!(
+            "image upload http {} for {} body={}",
+            status,
+            path.display(),
+            truncate_for_log(&body)
+        ));
+    }
+    println!(
+        "[{}][gateway] image upload ok: device={} file={} -> {} body={}",
+        ts(),
+        device.device_id,
+        path.display(),
+        ctx.upload_url,
+        truncate_for_log(&body)
+    );
+    Ok(())
+}
+
+fn truncate_for_log(raw: &str) -> String {
+    const MAX_LEN: usize = 200;
+    if raw.chars().count() <= MAX_LEN {
+        return raw.to_string();
+    }
+    let short: String = raw.chars().take(MAX_LEN).collect();
+    format!("{short}...(truncated)")
+}
+
+fn run_device_session_loop(
+    device: DiscoveredDevice,
+    shared: SharedContext,
+    image_upload_ctx: Option<ImageUploadContext>,
+) -> Result<(), String> {
     loop {
         let mut source = match SerialEsp32DataSource::open(&device.port, device.baud) {
             Ok(s) => s,
@@ -299,7 +516,30 @@ fn run_device_session_loop(device: DiscoveredDevice, shared: SharedContext) -> R
             );
             return Ok(());
         }
+        let mut image_picker = match image_upload_ctx.as_ref() {
+            Some(ctx) => match ImageCyclePicker::from_dir(&ctx.image_dir) {
+                Ok(v) => Some(v),
+                Err(err) => {
+                    eprintln!(
+                        "[{}][gateway] image simulator disabled for {}: {err}",
+                        ts(),
+                        device.device_id
+                    );
+                    None
+                }
+            },
+            None => None,
+        };
+        let mut next_image_due = Instant::now();
         loop {
+            if let (Some(ctx), Some(picker)) = (image_upload_ctx.as_ref(), image_picker.as_mut()) {
+                if Instant::now() >= next_image_due {
+                    if let Err(err) = try_upload_cycle_image(ctx, picker, &device, &shared) {
+                        eprintln!("[{}][gateway] image upload warning: {err}", ts());
+                    }
+                    next_image_due = Instant::now() + ctx.upload_interval;
+                }
+            }
             let event = match source.next_event() {
                 Ok(v) => v,
                 Err(err) => {
@@ -714,4 +954,60 @@ pub(crate) fn send_internal_success_probe(
     let ack = String::from_utf8_lossy(&buf[..size]).trim().to_string();
     println!("[{}][gateway][internal] success probe ACK: {ack}", ts());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{derive_image_upload_url, ImageCyclePicker};
+    use std::collections::HashSet;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn make_temp_dir() -> PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|v| v.as_nanos())
+            .unwrap_or(0);
+        let dir = std::env::temp_dir().join(format!("gateway_image_picker_{suffix}"));
+        fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    #[test]
+    fn derive_upload_url_from_udp_target() {
+        assert_eq!(
+            derive_image_upload_url("8.134.32.223:9000"),
+            "http://8.134.32.223:8088/api/v1/image/upload"
+        );
+        assert_eq!(
+            derive_image_upload_url("10.72.40.186:7777"),
+            "http://10.72.40.186:8088/api/v1/image/upload"
+        );
+    }
+
+    #[test]
+    fn cycle_picker_no_repeat_per_round() {
+        let root = make_temp_dir();
+        fs::write(root.join("a.jpg"), [1_u8, 2, 3]).expect("write a");
+        fs::write(root.join("b.png"), [4_u8, 5, 6]).expect("write b");
+        fs::write(root.join("c.jpeg"), [7_u8, 8, 9]).expect("write c");
+
+        let mut picker = ImageCyclePicker::from_dir(&root).expect("create picker");
+        let mut first_round = HashSet::new();
+        for _ in 0..3 {
+            let next = picker.next_path().expect("next path");
+            first_round.insert(next.file_name().unwrap().to_string_lossy().to_string());
+        }
+        assert_eq!(first_round.len(), 3);
+
+        let mut second_round = HashSet::new();
+        for _ in 0..3 {
+            let next = picker.next_path().expect("next path");
+            second_round.insert(next.file_name().unwrap().to_string_lossy().to_string());
+        }
+        assert_eq!(second_round.len(), 3);
+
+        fs::remove_dir_all(root).ok();
+    }
 }
