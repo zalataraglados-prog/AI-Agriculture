@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use crate::model::{EvalResult, FieldType, RuntimeConfig};
 
-pub(crate) fn parse_sensor_kv_payload(payload: &str) -> Result<(String, HashMap<String, String>), String> {
+pub(crate) fn parse_sensor_kv_payload(
+    payload: &str,
+) -> Result<(String, HashMap<String, String>), String> {
     let (sensor_id, kv_text) = payload
         .split_once(':')
         .ok_or_else(|| "missing ':' separator".to_string())?;

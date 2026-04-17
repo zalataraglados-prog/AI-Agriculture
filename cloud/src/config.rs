@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -10,7 +10,10 @@ pub(crate) fn parse_config_file(content: &str) -> Result<ConfigFile, String> {
     toml::from_str(content).map_err(|e| format!("Failed to parse TOML config: {e}"))
 }
 
-pub(crate) fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Result<RuntimeConfig, String> {
+pub(crate) fn build_runtime_config(
+    cli: &CliConfig,
+    file_cfg: ConfigFile,
+) -> Result<RuntimeConfig, String> {
     let mut exact_rules = HashMap::new();
     for rule in file_cfg.exact_payloads {
         if rule.payload.trim().is_empty() {
@@ -58,7 +61,9 @@ pub(crate) fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Res
         .clone()
         .unwrap_or_else(|| file_cfg.receiver.bind.clone());
 
-    let once = cli.once.unwrap_or_else(|| file_cfg.receiver.once.unwrap_or(false));
+    let once = cli
+        .once
+        .unwrap_or_else(|| file_cfg.receiver.once.unwrap_or(false));
 
     let timeout = match cli.timeout_override {
         Some(override_value) => override_value,
@@ -84,9 +89,11 @@ pub(crate) fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Res
         .registry_path_override
         .clone()
         .unwrap_or_else(|| file_cfg.receiver.registry_path.clone());
+    let telemetry_store_path = file_cfg.receiver.telemetry_store_path.clone();
 
     ensure_parent_dir(&token_store_path)?;
     ensure_parent_dir(&registry_path)?;
+    ensure_parent_dir(&telemetry_store_path)?;
 
     Ok(RuntimeConfig {
         bind,
@@ -97,6 +104,7 @@ pub(crate) fn build_runtime_config(cli: &CliConfig, file_cfg: ConfigFile) -> Res
         ack_unknown_sensor,
         token_store_path,
         registry_path,
+        telemetry_store_path,
         exact_rules,
         sensor_rules,
     })
@@ -109,7 +117,9 @@ pub(crate) fn load_runtime_config(cli: CliConfig) -> Result<RuntimeConfig, Strin
     build_runtime_config(&cli, file_cfg)
 }
 
-pub(crate) fn resolve_token_store_path_for_token_command(cli: &TokenCliConfig) -> Result<String, String> {
+pub(crate) fn resolve_token_store_path_for_token_command(
+    cli: &TokenCliConfig,
+) -> Result<String, String> {
     if let Some(path) = &cli.token_store_path_override {
         return Ok(path.clone());
     }
@@ -167,10 +177,7 @@ mod tests {
             "/opt/ai-agriculture/cloud/config/sensors.toml",
             "state/token_store.json",
         );
-        assert_eq!(
-            resolved,
-            "/opt/ai-agriculture/cloud/state/token_store.json"
-        );
+        assert_eq!(resolved, "/opt/ai-agriculture/cloud/state/token_store.json");
     }
 
     #[test]
@@ -179,10 +186,6 @@ mod tests {
             "/opt/ai-agriculture/cloud/config/sensors.toml",
             "/opt/ai-agriculture/cloud/state/token_store.json",
         );
-        assert_eq!(
-            resolved,
-            "/opt/ai-agriculture/cloud/state/token_store.json"
-        );
+        assert_eq!(resolved, "/opt/ai-agriculture/cloud/state/token_store.json");
     }
 }
-

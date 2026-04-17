@@ -1,13 +1,14 @@
 mod cli;
 mod config;
 mod constants;
+mod http_server;
 mod model;
 mod payload;
 mod registry;
 mod server;
+mod telemetry;
 mod time_util;
 mod token;
-mod http_server;
 
 use std::env;
 
@@ -40,7 +41,7 @@ fn main() {
             };
 
             // 启动 HTTP 后台和前端仪表盘服务 (端口 8088)
-            http_server::start_http_server("0.0.0.0:8088");
+            http_server::start_http_server("0.0.0.0:8088", cfg.telemetry_store_path.clone());
 
             if let Err(err) = run(&cfg) {
                 eprintln!("{} [cloud] ERROR: {err}", now_rfc3339());
@@ -101,6 +102,12 @@ mod tests {
         let mut mq7_types = HashMap::new();
         mq7_types.insert("raw".to_string(), FieldType::U16);
         mq7_types.insert("voltage".to_string(), FieldType::F32);
+        let mut soil_modbus_types = HashMap::new();
+        soil_modbus_types.insert("vwc".to_string(), FieldType::F32);
+        soil_modbus_types.insert("temp_c".to_string(), FieldType::F32);
+        soil_modbus_types.insert("ec".to_string(), FieldType::U32);
+        soil_modbus_types.insert("protocol".to_string(), FieldType::String);
+        soil_modbus_types.insert("slave_id".to_string(), FieldType::U16);
 
         let mut sensor_rules = HashMap::new();
         sensor_rules.insert(
@@ -109,6 +116,14 @@ mod tests {
                 ack: "ack:mq7".to_string(),
                 required_fields: vec!["raw".to_string(), "voltage".to_string()],
                 field_types: mq7_types,
+            },
+        );
+        sensor_rules.insert(
+            "soil_modbus_02".to_string(),
+            SensorRule {
+                ack: "ack:soil_modbus_02".to_string(),
+                required_fields: vec!["vwc".to_string(), "temp_c".to_string(), "ec".to_string()],
+                field_types: soil_modbus_types,
             },
         );
 
@@ -121,6 +136,7 @@ mod tests {
             ack_unknown_sensor: DEFAULT_ACK_UNKNOWN_SENSOR.to_string(),
             token_store_path: "state/token_store.test.json".to_string(),
             registry_path: "state/registry.test.json".to_string(),
+            telemetry_store_path: "state/telemetry.test.jsonl".to_string(),
             exact_rules,
             sensor_rules,
         }
@@ -128,8 +144,8 @@ mod tests {
 
     #[test]
     fn parse_sensor_payload_ok() {
-        let (sensor, fields) =
-            parse_sensor_kv_payload("mq7:device_id=dev01,raw=206,voltage=0.166").expect("should parse");
+        let (sensor, fields) = parse_sensor_kv_payload("mq7:device_id=dev01,raw=206,voltage=0.166")
+            .expect("should parse");
         assert_eq!(sensor, "mq7");
         assert_eq!(fields.get("raw"), Some(&"206".to_string()));
         assert_eq!(fields.get("voltage"), Some(&"0.166".to_string()));
@@ -167,6 +183,28 @@ mod tests {
     }
 
     #[test]
+    fn evaluate_soil_modbus_optional_fields_supported() {
+        let cfg = test_runtime();
+        let result = evaluate_payload(
+            "soil_modbus_02:device_id=dev01,vwc=26.9,temp_c=24.8,ec=432,protocol=modbus.rtu.v1,slave_id=2",
+            &cfg,
+        );
+        assert!(result.matched);
+        assert_eq!(result.ack, "ack:soil_modbus_02");
+    }
+
+    #[test]
+    fn evaluate_soil_modbus_missing_optional_fields_supported() {
+        let cfg = test_runtime();
+        let result = evaluate_payload(
+            "soil_modbus_02:device_id=dev01,vwc=26.9,temp_c=24.8,ec=432",
+            &cfg,
+        );
+        assert!(result.matched);
+        assert_eq!(result.ack, "ack:soil_modbus_02");
+    }
+
+    #[test]
     fn build_runtime_config_from_toml_ok() {
         let content = r#"
 [receiver]
@@ -177,6 +215,7 @@ ack_mismatch = "ack:bad"
 ack_unknown_sensor = "ack:unknown"
 token_store_path = "state/token.json"
 registry_path = "state/registry.json"
+telemetry_store_path = "state/telemetry.jsonl"
 
 [[exact_payloads]]
 payload = "success"
@@ -201,6 +240,7 @@ voltage = "f32"
         assert_eq!(cfg.ack_unknown_sensor, "ack:unknown");
         assert_eq!(cfg.token_store_path, "state/token.json");
         assert_eq!(cfg.registry_path, "state/registry.json");
+        assert_eq!(cfg.telemetry_store_path, "state/telemetry.jsonl");
         assert_eq!(
             cfg.exact_rules.get("success"),
             Some(&"ack:success".to_string())
@@ -247,4 +287,3 @@ ack = "ack:success"
         );
     }
 }
-

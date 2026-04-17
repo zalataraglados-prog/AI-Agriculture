@@ -1,4 +1,4 @@
-﻿use std::env;
+use std::env;
 use std::time::Duration;
 
 use crate::constants::{
@@ -209,4 +209,3 @@ fn default_run_cli() -> CliConfig {
         registry_path_override: None,
     }
 }
-

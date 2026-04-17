@@ -1,4 +1,4 @@
-﻿pub(crate) const DEFAULT_BIND: &str = "0.0.0.0:9000";
+pub(crate) const DEFAULT_BIND: &str = "0.0.0.0:9000";
 pub(crate) const DEFAULT_CONFIG_PATH: &str = "config/sensors.toml";
 pub(crate) const DEFAULT_ACK_MATCH_LEGACY: &str = "ack:success";
 pub(crate) const DEFAULT_ACK_MISMATCH: &str = "ack:error";
@@ -12,6 +12,7 @@ pub(crate) const DEFAULT_ONCE: bool = false;
 pub(crate) const UDP_BUFFER_SIZE: usize = 65_535;
 pub(crate) const DEFAULT_TOKEN_STORE_PATH: &str = "state/token_store.json";
 pub(crate) const DEFAULT_REGISTRY_PATH: &str = "state/registry.json";
+pub(crate) const DEFAULT_TELEMETRY_STORE_PATH: &str = "state/telemetry.jsonl";
 
 pub(crate) fn default_bind() -> String {
     DEFAULT_BIND.to_string()
@@ -33,3 +34,6 @@ pub(crate) fn default_registry_path() -> String {
     DEFAULT_REGISTRY_PATH.to_string()
 }
 
+pub(crate) fn default_telemetry_store_path() -> String {
+    DEFAULT_TELEMETRY_STORE_PATH.to_string()
+}

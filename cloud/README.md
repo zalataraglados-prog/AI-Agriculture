@@ -6,6 +6,7 @@ Now supports config-driven sensor rules, so adding a new sensor only requires co
 It is designed to pair with the `gateway-wsl` sender:
 - fixed smoke packet: `success`
 - sensor packet: `sensor_id:key=value,key2=value2` (examples: `mq7:raw=206,voltage=0.166`, `dht22:temp_c=28.0,hum=48.9`, `adc:pin=34,raw=523,voltage=0.421`, `pcf8591:addr=0x48,ain0=172,ain1=255,ain2=90,ain3=129`)
+- modbus soil packet: `soil_modbus_02:device_id=dev_xxx,vwc=26.9,temp_c=24.8,ec=432,protocol=modbus.rtu.v1,slave_id=2`
 
 For each received packet, it sends an ACK back to the sender.
 
@@ -50,6 +51,7 @@ once = false
 timeout_ms = 30000
 ack_mismatch = "ack:error"
 ack_unknown_sensor = "ack:unknown_sensor"
+telemetry_store_path = "state/telemetry.jsonl"
 
 [[exact_payloads]]
 payload = "success"
@@ -94,10 +96,32 @@ ain0 = "u8"
 ain1 = "u8"
 ain2 = "u8"
 ain3 = "u8"
+
+[[sensors]]
+id = "soil_modbus_02"
+ack = "ack:soil_modbus_02"
+required_fields = ["vwc", "temp_c", "ec"]
+
+[sensors.field_types]
+vwc = "f32"
+temp_c = "f32"
+ec = "u32"
+protocol = "string"
+slave_id = "u16"
 ```
 
 Supported `field_types`:
 - `string`, `bool`, `u8`, `u16`, `u32`, `i32`, `f32`, `f64`
+
+## Telemetry query API
+
+The cloud receiver now appends matched sensor packets to `telemetry_store_path` (`jsonl`) and exposes:
+
+- `GET /api/telemetry`
+- Optional query parameters:
+  - `device_id`
+  - `sensor_id`
+  - `limit` (default `100`, max `1000`)
 
 ## Add a new sensor (no Rust code change)
 

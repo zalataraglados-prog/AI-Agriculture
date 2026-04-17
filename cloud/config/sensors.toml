@@ -50,3 +50,15 @@ ain0 = "u8"
 ain1 = "u8"
 ain2 = "u8"
 ain3 = "u8"
+
+[[sensors]]
+id = "soil_modbus_02"
+ack = "ack:soil_modbus_02"
+required_fields = ["vwc", "temp_c", "ec"]
+
+[sensors.field_types]
+vwc = "f32"
+temp_c = "f32"
+ec = "u32"
+protocol = "string"
+slave_id = "u16"
