@@ -4,7 +4,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::constants::{
-    default_ack_mismatch, default_ack_unknown_sensor, default_bind,
+    default_ack_mismatch, default_ack_unknown_sensor, default_ai_predict_url, default_bind,
     default_image_db_error_store_path, default_image_index_path, default_image_store_path,
     default_registry_path, default_telemetry_store_path, default_token_store_path, DEFAULT_ONCE,
     DEFAULT_TIMEOUT_MS,
@@ -53,6 +53,7 @@ pub(crate) struct RuntimeConfig {
     pub(crate) image_index_path: String,
     pub(crate) image_db_error_store_path: String,
     pub(crate) database_url: String,
+    pub(crate) ai_predict_url: String,
     pub(crate) exact_rules: HashMap<String, String>,
     pub(crate) sensor_rules: HashMap<String, SensorRule>,
 }
@@ -90,6 +91,8 @@ pub(crate) struct ReceiverFileConfig {
     #[serde(default = "default_image_db_error_store_path")]
     pub(crate) image_db_error_store_path: String,
     pub(crate) database_url: Option<String>,
+    #[serde(default = "default_ai_predict_url")]
+    pub(crate) ai_predict_url: String,
 }
 
 impl Default for ReceiverFileConfig {
@@ -107,6 +110,7 @@ impl Default for ReceiverFileConfig {
             image_index_path: default_image_index_path(),
             image_db_error_store_path: default_image_db_error_store_path(),
             database_url: None,
+            ai_predict_url: default_ai_predict_url(),
         }
     }
 }

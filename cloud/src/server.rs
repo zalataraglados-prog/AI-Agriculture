@@ -17,9 +17,9 @@ use crate::token::validate_current_hour_token;
 pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), String> {
     let socket =
         UdpSocket::bind(&cfg.bind).map_err(|e| format!("Bind failed on {}: {e}", cfg.bind))?;
-    //socket
-    //   .set_read_timeout(cfg.timeout)
-    //   .map_err(|e| format!("Failed to set read timeout: {e}"))?;
+    socket
+        .set_read_timeout(cfg.timeout)
+        .map_err(|e| format!("Failed to set read timeout: {e}"))?;
 
     let mut registry = DeviceRegistry::load(&cfg.registry_path)?;
 

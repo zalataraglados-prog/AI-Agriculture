@@ -104,6 +104,11 @@ pub(crate) fn build_runtime_config(
             "Config error: missing database_url (set receiver.database_url or DATABASE_URL)"
                 .to_string()
         })?;
+    let ai_predict_url = std::env::var("AI_PREDICT_URL")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| file_cfg.receiver.ai_predict_url.clone());
 
     ensure_parent_dir(&token_store_path)?;
     ensure_parent_dir(&registry_path)?;
@@ -126,6 +131,7 @@ pub(crate) fn build_runtime_config(
         image_index_path,
         image_db_error_store_path,
         database_url,
+        ai_predict_url,
         exact_rules,
         sensor_rules,
     })
@@ -198,7 +204,10 @@ mod tests {
             "/opt/ai-agriculture/cloud/config/sensors.toml",
             "state/token_store.json",
         );
-        assert_eq!(resolved, "/opt/ai-agriculture/cloud/state/token_store.json");
+        assert_eq!(
+            resolved.replace('\\', "/"),
+            "/opt/ai-agriculture/cloud/state/token_store.json"
+        );
     }
 
     #[test]
@@ -207,6 +216,9 @@ mod tests {
             "/opt/ai-agriculture/cloud/config/sensors.toml",
             "/opt/ai-agriculture/cloud/state/token_store.json",
         );
-        assert_eq!(resolved, "/opt/ai-agriculture/cloud/state/token_store.json");
+        assert_eq!(
+            resolved.replace('\\', "/"),
+            "/opt/ai-agriculture/cloud/state/token_store.json"
+        );
     }
 }

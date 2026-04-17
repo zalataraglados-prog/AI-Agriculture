@@ -1,3 +1,4 @@
+mod ai_client;
 mod cli;
 mod config;
 mod constants;
@@ -59,6 +60,7 @@ fn main() {
                 cfg.image_store_path.clone(),
                 cfg.image_index_path.clone(),
                 cfg.image_db_error_store_path.clone(),
+                cfg.ai_predict_url.clone(),
                 db.clone(),
             );
 
@@ -161,6 +163,7 @@ mod tests {
             image_index_path: "state/image_index.test.jsonl".to_string(),
             image_db_error_store_path: "state/image_errors.test.jsonl".to_string(),
             database_url: "postgres://postgres@127.0.0.1/cloud_test".to_string(),
+            ai_predict_url: "http://127.0.0.1:8000/api/v1/predict".to_string(),
             exact_rules,
             sensor_rules,
         }
@@ -244,6 +247,7 @@ image_store_path = "state/image_uploads"
 image_index_path = "state/image_index.jsonl"
 image_db_error_store_path = "state/image_errors.jsonl"
 database_url = "postgres://postgres@127.0.0.1/cloud_test"
+ai_predict_url = "http://127.0.0.1:8000/api/v1/predict"
 
 [[exact_payloads]]
 payload = "success"
@@ -273,6 +277,7 @@ voltage = "f32"
         assert_eq!(cfg.image_index_path, "state/image_index.jsonl");
         assert_eq!(cfg.image_db_error_store_path, "state/image_errors.jsonl");
         assert_eq!(cfg.database_url, "postgres://postgres@127.0.0.1/cloud_test");
+        assert_eq!(cfg.ai_predict_url, "http://127.0.0.1:8000/api/v1/predict");
         assert_eq!(
             cfg.exact_rules.get("success"),
             Some(&"ack:success".to_string())

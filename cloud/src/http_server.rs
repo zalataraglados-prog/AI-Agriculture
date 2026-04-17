@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Read;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -8,6 +7,7 @@ use std::thread;
 use chrono::{DateTime, Utc};
 use tiny_http::{Header, Method, Response, Server};
 
+use crate::ai_client::{infer_image_from_file, AiInferenceOutput};
 use crate::db::{DbManager, ImageInferenceDbRecord, ImageUploadDbRecord, ImageUploadQueryFilter};
 use crate::image_upload::{
     append_image_error_backup, append_image_index_backup, build_upload_ok_response,
@@ -23,6 +23,7 @@ pub fn start_http_server(
     image_store_path: String,
     image_index_path: String,
     image_db_error_store_path: String,
+    ai_predict_url: String,
     db: Arc<Mutex<DbManager>>,
 ) {
     let server = Server::http(bind_addr).expect("Failed to start HTTP server");
@@ -33,7 +34,7 @@ pub fn start_http_server(
     );
 
     thread::spawn(move || {
-        for mut request in server.incoming_requests() {
+        for request in server.incoming_requests() {
             let url = request.url().to_string();
             let method = request.method().clone();
             let (path, query) = split_query(&url);
@@ -48,6 +49,7 @@ pub fn start_http_server(
                     &image_store_path,
                     &image_index_path,
                     &image_db_error_store_path,
+                    &ai_predict_url,
                     db.clone(),
                 );
                 continue;
@@ -96,6 +98,7 @@ fn handle_api(
     image_store_path: &str,
     image_index_path: &str,
     image_db_error_store_path: &str,
+    ai_predict_url: &str,
     db: Arc<Mutex<DbManager>>,
 ) {
     let respond_json = move |json: &str, req: tiny_http::Request| {
@@ -115,6 +118,7 @@ fn handle_api(
                 image_store_path,
                 image_index_path,
                 image_db_error_store_path,
+                ai_predict_url,
                 db,
             );
         }
@@ -196,6 +200,7 @@ fn handle_image_upload(
     image_store_path: &str,
     image_index_path: &str,
     image_db_error_store_path: &str,
+    ai_predict_url: &str,
     db: Arc<Mutex<DbManager>>,
 ) {
     let tag = match parse_tag(&parse_query(query)) {
@@ -315,17 +320,43 @@ fn handle_image_upload(
         return;
     }
 
-    if let Some(inference_record) = build_optional_inference_record(&persisted.upload_id, query) {
-        let inference_result = db
-            .lock()
-            .map_err(|_| "db lock poisoned".to_string())
-            .and_then(|mut guard| guard.insert_image_inference(&inference_record));
-        if let Err(err) = inference_result {
-            eprintln!(
-                "{} [cloud-http] WARN: insert image inference failed: {}",
-                now_rfc3339(),
-                err
-            );
+    let infer_result =
+        infer_image_from_file(ai_predict_url, &persisted.saved_path, &persisted.image_type);
+    match infer_result {
+        Ok(ai) => {
+            let inference_record = to_inference_record(&persisted.upload_id, ai);
+            let write_result = db
+                .lock()
+                .map_err(|_| "db lock poisoned".to_string())
+                .and_then(|mut guard| guard.insert_inference_and_mark_inferred(&inference_record));
+            if let Err(err) = write_result {
+                let _ = db
+                    .lock()
+                    .map_err(|_| "db lock poisoned".to_string())
+                    .and_then(|mut guard| {
+                        guard.update_upload_status(
+                            &persisted.upload_id,
+                            "failed",
+                            Some(format!("db write inference failed: {err}")),
+                        )
+                    });
+                let _ = append_image_error_backup(
+                    image_db_error_store_path,
+                    &tag,
+                    &format!("db write inference failed: {err}"),
+                    Some(&persisted),
+                );
+            }
+        }
+        Err(err) => {
+            let _ = db
+                .lock()
+                .map_err(|_| "db lock poisoned".to_string())
+                .and_then(|mut guard| {
+                    guard.update_upload_status(&persisted.upload_id, "failed", Some(err.clone()))
+                });
+            let _ =
+                append_image_error_backup(image_db_error_store_path, &tag, &err, Some(&persisted));
         }
     }
 
@@ -433,41 +464,18 @@ fn non_empty(raw: Option<String>) -> Option<String> {
     })
 }
 
-fn build_optional_inference_record(upload_id: &str, query: &str) -> Option<ImageInferenceDbRecord> {
-    let params = parse_query(query);
-    let predicted_class = non_empty(params.get("predicted_class").cloned());
-    if predicted_class.is_none() {
-        return None;
-    }
-
-    let confidence = params.get("confidence").and_then(|v| v.parse::<f64>().ok());
-    let model_version = non_empty(params.get("model_version").cloned());
-    let latency_ms = params.get("latency_ms").and_then(|v| v.parse::<i32>().ok());
-    let advice_code = non_empty(params.get("advice_code").cloned());
-
-    let topk_json = params
-        .get("topk_json")
-        .and_then(|v| serde_json::from_str::<serde_json::Value>(v).ok())
-        .unwrap_or_else(|| serde_json::Value::Array(Vec::new()));
-    let metadata_json = params
-        .get("metadata_json")
-        .and_then(|v| serde_json::from_str::<serde_json::Value>(v).ok())
-        .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
-    let geometry_json = params
-        .get("geometry_json")
-        .and_then(|v| serde_json::from_str::<serde_json::Value>(v).ok());
-
-    Some(ImageInferenceDbRecord {
+fn to_inference_record(upload_id: &str, ai: AiInferenceOutput) -> ImageInferenceDbRecord {
+    ImageInferenceDbRecord {
         upload_id: upload_id.to_string(),
-        predicted_class,
-        confidence,
-        model_version,
-        topk_json,
-        metadata_json,
-        geometry_json,
-        latency_ms,
-        advice_code,
-    })
+        predicted_class: ai.predicted_class,
+        confidence: ai.confidence,
+        model_version: ai.model_version,
+        topk_json: ai.topk_json,
+        metadata_json: ai.metadata_json,
+        geometry_json: ai.geometry_json,
+        latency_ms: ai.latency_ms,
+        advice_code: ai.advice_code,
+    }
 }
 
 fn split_query(url: &str) -> (&str, &str) {

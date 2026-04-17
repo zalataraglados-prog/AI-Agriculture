@@ -147,50 +147,6 @@ impl DbManager {
         Ok(())
     }
 
-    pub(crate) fn insert_image_inference(
-        &mut self,
-        record: &ImageInferenceDbRecord,
-    ) -> Result<(), String> {
-        let stmt = self
-            .client
-            .prepare(
-                "INSERT INTO image_inference_results (
-                    upload_id, predicted_class, confidence, model_version,
-                    topk_json, metadata_json, geometry_json, latency_ms, advice_code
-                ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9
-                )
-                ON CONFLICT (upload_id) DO UPDATE SET
-                    predicted_class = EXCLUDED.predicted_class,
-                    confidence = EXCLUDED.confidence,
-                    model_version = EXCLUDED.model_version,
-                    topk_json = EXCLUDED.topk_json,
-                    metadata_json = EXCLUDED.metadata_json,
-                    geometry_json = EXCLUDED.geometry_json,
-                    latency_ms = EXCLUDED.latency_ms,
-                    advice_code = EXCLUDED.advice_code",
-            )
-            .map_err(|e| format!("failed to prepare inference insert: {e}"))?;
-
-        self.client
-            .execute(
-                &stmt,
-                &[
-                    &record.upload_id,
-                    &record.predicted_class,
-                    &record.confidence,
-                    &record.model_version,
-                    &record.topk_json,
-                    &record.metadata_json,
-                    &record.geometry_json,
-                    &record.latency_ms,
-                    &record.advice_code,
-                ],
-            )
-            .map_err(|e| format!("failed to insert inference record: {e}"))?;
-        Ok(())
-    }
-
     pub(crate) fn insert_sensor_telemetry(
         &mut self,
         record: &SensorTelemetryDbRecord,
@@ -213,6 +169,85 @@ impl DbManager {
                 ],
             )
             .map_err(|e| format!("failed to insert sensor telemetry: {e}"))?;
+        Ok(())
+    }
+
+    pub(crate) fn update_upload_status(
+        &mut self,
+        upload_id: &str,
+        upload_status: &str,
+        error_message: Option<String>,
+    ) -> Result<(), String> {
+        let stmt = self
+            .client
+            .prepare(
+                "UPDATE image_uploads
+                 SET upload_status = $2, error_message = $3
+                 WHERE upload_id = $1",
+            )
+            .map_err(|e| format!("failed to prepare upload status update: {e}"))?;
+        self.client
+            .execute(&stmt, &[&upload_id, &upload_status, &error_message])
+            .map_err(|e| format!("failed to update upload status: {e}"))?;
+        Ok(())
+    }
+
+    pub(crate) fn insert_inference_and_mark_inferred(
+        &mut self,
+        record: &ImageInferenceDbRecord,
+    ) -> Result<(), String> {
+        let mut tx = self
+            .client
+            .transaction()
+            .map_err(|e| format!("failed to start inference transaction: {e}"))?;
+
+        let insert_stmt = tx
+            .prepare(
+                "INSERT INTO image_inference_results (
+                    upload_id, predicted_class, confidence, model_version,
+                    topk_json, metadata_json, geometry_json, latency_ms, advice_code
+                ) VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9
+                )
+                ON CONFLICT (upload_id) DO UPDATE SET
+                    predicted_class = EXCLUDED.predicted_class,
+                    confidence = EXCLUDED.confidence,
+                    model_version = EXCLUDED.model_version,
+                    topk_json = EXCLUDED.topk_json,
+                    metadata_json = EXCLUDED.metadata_json,
+                    geometry_json = EXCLUDED.geometry_json,
+                    latency_ms = EXCLUDED.latency_ms,
+                    advice_code = EXCLUDED.advice_code",
+            )
+            .map_err(|e| format!("failed to prepare inference insert in tx: {e}"))?;
+        tx.execute(
+            &insert_stmt,
+            &[
+                &record.upload_id,
+                &record.predicted_class,
+                &record.confidence,
+                &record.model_version,
+                &record.topk_json,
+                &record.metadata_json,
+                &record.geometry_json,
+                &record.latency_ms,
+                &record.advice_code,
+            ],
+        )
+        .map_err(|e| format!("failed to insert inference record: {e}"))?;
+
+        let update_stmt = tx
+            .prepare(
+                "UPDATE image_uploads
+                 SET upload_status = 'inferred', error_message = NULL
+                 WHERE upload_id = $1",
+            )
+            .map_err(|e| format!("failed to prepare inferred status update in tx: {e}"))?;
+        tx.execute(&update_stmt, &[&record.upload_id])
+            .map_err(|e| format!("failed to update upload status to inferred: {e}"))?;
+
+        tx.commit()
+            .map_err(|e| format!("failed to commit inference transaction: {e}"))?;
         Ok(())
     }
 

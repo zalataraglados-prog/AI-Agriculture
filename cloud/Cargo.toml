@@ -5,13 +5,11 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-toml = "1.1.2+spec-1.1.0"
+toml = "1.1.2"
 serde_json = "1.0"
 rand = "0.8"
 sha2 = "0.10"
 tiny_http = "0.12"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 postgres = { version = "0.19", features = ["with-chrono-0_4", "with-serde_json-1"] }
-dht-sensor = "0.3.0"
-embedded-hal = "1.0.0"
-sysfs_gpio = "0.6.2"
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "multipart", "rustls-tls"] }

@@ -20,6 +20,11 @@ fn cloud_help_flag_exits_success() {
 
 #[test]
 fn cloud_receiver_ack_success_packet() {
+    let Ok(database_url) = std::env::var("CLOUD_SMOKE_DATABASE_URL") else {
+        eprintln!("skip cloud_receiver_ack_success_packet: CLOUD_SMOKE_DATABASE_URL not set");
+        return;
+    };
+
     let port = find_free_udp_port();
     let bind_addr = format!("127.0.0.1:{port}");
 
@@ -28,9 +33,11 @@ fn cloud_receiver_ack_success_packet() {
         "config/sensors.toml".to_string(),
         "--bind".to_string(),
         bind_addr.clone(),
-        //"--once".to_string(),
+        "--once".to_string(),
         "--timeout-ms".to_string(),
         "0".to_string(),
+        "--database-url".to_string(),
+        database_url,
     ];
 
     let child = Command::new(env!("CARGO_BIN_EXE_cloud"))

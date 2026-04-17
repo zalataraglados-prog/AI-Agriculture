@@ -56,6 +56,7 @@ image_store_path = "state/image_uploads"
 image_index_path = "state/image_index.jsonl"
 image_db_error_store_path = "state/image_upload_errors.jsonl"
 database_url = "postgres://postgres@127.0.0.1/ai_agriculture"
+ai_predict_url = "http://127.0.0.1:8000/api/v1/predict"
 
 [[exact_payloads]]
 payload = "success"
@@ -134,16 +135,17 @@ The cloud receiver now appends matched sensor packets to `telemetry_store_path` 
 - file field names supported: `file` (default), `image`, `photo`
 - required query params: `device_id`, `ts`
 - optional query params: `location`, `crop_type`, `farm_note`
-- optional inference query params (when upstream already has AI result):
-  - `predicted_class`, `confidence`, `model_version`, `topk_json`, `metadata_json`, `geometry_json`, `latency_ms`, `advice_code`
+- inference fields are no longer read from query; cloud invokes AI predict API after DB `stored`.
 
 Response is always JSON with `status`:
 - success: includes `upload_id`, `saved_path`, and echoed `tag`
 - error: includes readable `message`
 
-Persistence:
+Persistence (DB-first):
 - image file: `{image_store_path}/{device_id}/{yyyy-mm-dd}/{upload_id}.jpg|png`
-- DB primary write: `image_uploads`
+- DB primary write: `image_uploads` (`stored -> inferred` or `stored -> failed`)
+- AI inference write: `image_inference_results`
+- UDP telemetry write: `sensor_telemetry`
 - backup line: `{image_index_path}` (JSONL with path/tag/hash/size)
 - DB failure backup: `{image_db_error_store_path}` (JSONL errors)
 
