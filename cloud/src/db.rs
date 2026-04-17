@@ -151,18 +151,6 @@ impl DbManager {
         &mut self,
         record: &ImageInferenceDbRecord,
     ) -> Result<(), String> {
-        let topk = serde_json::to_string(&record.topk_json)
-            .map_err(|e| format!("failed to encode topk_json: {e}"))?;
-        let metadata = serde_json::to_string(&record.metadata_json)
-            .map_err(|e| format!("failed to encode metadata_json: {e}"))?;
-        let geometry = match &record.geometry_json {
-            Some(v) => Some(
-                serde_json::to_string(v)
-                    .map_err(|e| format!("failed to encode geometry_json: {e}"))?,
-            ),
-            None => None,
-        };
-
         let stmt = self
             .client
             .prepare(
@@ -170,7 +158,7 @@ impl DbManager {
                     upload_id, predicted_class, confidence, model_version,
                     topk_json, metadata_json, geometry_json, latency_ms, advice_code
                 ) VALUES (
-                    $1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9
                 )
                 ON CONFLICT (upload_id) DO UPDATE SET
                     predicted_class = EXCLUDED.predicted_class,
@@ -192,9 +180,9 @@ impl DbManager {
                     &record.predicted_class,
                     &record.confidence,
                     &record.model_version,
-                    &topk,
-                    &metadata,
-                    &geometry,
+                    &record.topk_json,
+                    &record.metadata_json,
+                    &record.geometry_json,
                     &record.latency_ms,
                     &record.advice_code,
                 ],
@@ -207,13 +195,11 @@ impl DbManager {
         &mut self,
         record: &SensorTelemetryDbRecord,
     ) -> Result<(), String> {
-        let fields_json = serde_json::to_string(&record.fields_json)
-            .map_err(|e| format!("failed to encode fields_json: {e}"))?;
         let stmt = self
             .client
             .prepare(
                 "INSERT INTO sensor_telemetry (ts, device_id, sensor_id, fields_json)
-                 VALUES ($1, $2, $3, $4::jsonb)",
+                 VALUES ($1, $2, $3, $4)",
             )
             .map_err(|e| format!("failed to prepare sensor telemetry insert: {e}"))?;
         self.client
@@ -223,7 +209,7 @@ impl DbManager {
                     &record.ts,
                     &record.device_id,
                     &record.sensor_id,
-                    &fields_json,
+                    &record.fields_json,
                 ],
             )
             .map_err(|e| format!("failed to insert sensor telemetry: {e}"))?;
