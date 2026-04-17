@@ -1,0 +1,9 @@
+{
+  "additionalFiles": "",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "",
+  "fqbn": "esp32:esp32:esp32",
+  "hardwareFolders": "C:\\Users\\18236\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7,C:\\Users\\18236\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7",
+  "otherLibrariesFolders": "I:\\OneDrive - DRC 创意科技有限责任公司\\文档\\Arduino\\libraries",
+  "sketchLocation": "I:\\files\\双创\\智慧农业\\AI-Agriculture\\gateway\\firmware\\esp32\\new_device_mock"
+}

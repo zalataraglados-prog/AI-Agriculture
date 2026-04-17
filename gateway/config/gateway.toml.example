@@ -1,0 +1,14 @@
+[run]
+# Optional cloud target override; also can be passed via --target
+target = "127.0.0.1:9000"
+
+# State directory storing profile/feature map/device index
+state_dir = "state"
+
+# Managed serial discovery timings (milliseconds)
+scan_interval_ms = 5000
+scan_window_ms = 1800
+ack_timeout_ms = 3000
+
+# Candidate baud rates for managed serial device discovery
+baud_list = [9600]
