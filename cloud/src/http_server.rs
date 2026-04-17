@@ -498,9 +498,51 @@ fn parse_query(query: &str) -> HashMap<String, String> {
         if key.is_empty() {
             continue;
         }
-        out.insert(key.to_string(), value.to_string());
+        out.insert(
+            decode_query_component(key).unwrap_or_else(|| key.to_string()),
+            decode_query_component(value).unwrap_or_else(|| value.to_string()),
+        );
     }
     out
+}
+
+fn decode_query_component(raw: &str) -> Option<String> {
+    if raw.is_empty() {
+        return Some(String::new());
+    }
+
+    let bytes = raw.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b'%' if i + 2 < bytes.len() => {
+                let hi = hex_val(bytes[i + 1])?;
+                let lo = hex_val(bytes[i + 2])?;
+                out.push((hi << 4) | lo);
+                i += 3;
+            }
+            b'%' => return None,
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+fn hex_val(ch: u8) -> Option<u8> {
+    match ch {
+        b'0'..=b'9' => Some(ch - b'0'),
+        b'a'..=b'f' => Some(ch - b'a' + 10),
+        b'A'..=b'F' => Some(ch - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn respond_json_with_status(request: tiny_http::Request, code: u16, payload: &str) {
@@ -514,4 +556,22 @@ fn respond_json_with_status(request: tiny_http::Request, code: u16, payload: &st
             .with_header(header)
             .with_status_code(code),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_query;
+
+    #[test]
+    fn parse_query_decodes_percent_encoded_values() {
+        let params = parse_query("ts=2026-04-18T03%3A35%3A22.813%2B08%3A00&location=test+plot");
+        assert_eq!(
+            params.get("ts").map(String::as_str),
+            Some("2026-04-18T03:35:22.813+08:00")
+        );
+        assert_eq!(
+            params.get("location").map(String::as_str),
+            Some("test plot")
+        );
+    }
 }
