@@ -2,12 +2,12 @@ use std::io::ErrorKind;
 use std::net::UdpSocket;
 
 use crate::constants::{
-    DEFAULT_ACK_REGISTER_CONFLICT, DEFAULT_ACK_REGISTER_OK, DEFAULT_ACK_TOKEN_INVALID,
-    DEFAULT_ACK_UNREGISTERED, UDP_BUFFER_SIZE,
+    DEFAULT_ACK_CREDENTIAL_REVOKED, DEFAULT_ACK_REGISTER_CONFLICT, DEFAULT_ACK_REGISTER_OK,
+    DEFAULT_ACK_TOKEN_INVALID, DEFAULT_ACK_UNREGISTERED, UDP_BUFFER_SIZE,
 };
 use crate::model::{EvalResult, RegisterOutcome, RegisterRequest, RuntimeConfig};
 use crate::payload::{evaluate_payload, parse_sensor_kv_payload};
-use crate::registry::DeviceRegistry;
+use crate::registry::{CredentialValidation, DeviceRegistry};
 use crate::telemetry::{append_record, typed_fields_for_record, TelemetryRecord};
 use crate::time_util::now_rfc3339;
 use crate::token::validate_current_hour_token;
@@ -71,7 +71,7 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
             println!(
                 "{} [cloud] Packet #{received_count} from {peer}: register request => ACK=\"{}\"",
                 now_rfc3339(),
-                ack
+                redact_register_ack_for_log(&ack)
             );
 
             if ack == DEFAULT_ACK_REGISTER_OK {
@@ -135,14 +135,49 @@ pub(crate) fn run(cfg: &RuntimeConfig) -> Result<(), String> {
 
     Ok(())
 }
+
+fn redact_register_ack_for_log(ack: &str) -> String {
+    if ack.starts_with("ack:register_ok;device_key=") {
+        "ack:register_ok;device_key=***".to_string()
+    } else {
+        ack.to_string()
+    }
+}
 //Mark 01
 fn handle_register(json_text: &str, cfg: &RuntimeConfig, registry: &mut DeviceRegistry) -> String {
     let request = match serde_json::from_str::<RegisterRequest>(json_text) {
         Ok(v) => v,
         Err(_) => return cfg.ack_mismatch.clone(),
     };
+    let allowed_sensor_ids = cfg.sensor_rules.keys().cloned().collect();
 
-    let token_ok = match validate_current_hour_token(&cfg.token_store_path, &request.token) {
+    if let Some(device_key) = request
+        .device_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        let device_id = request.device_id.clone();
+        match registry.validate_device_credential(&device_id, device_key) {
+            CredentialValidation::Valid => {
+                return match registry.register_device_with_credential(request, &allowed_sensor_ids)
+                {
+                    Ok(RegisterOutcome::Ok) => DEFAULT_ACK_REGISTER_OK.to_string(),
+                    Ok(RegisterOutcome::Conflict) => DEFAULT_ACK_REGISTER_CONFLICT.to_string(),
+                    Err(_) => cfg.ack_mismatch.clone(),
+                };
+            }
+            CredentialValidation::Revoked => return DEFAULT_ACK_CREDENTIAL_REVOKED.to_string(),
+            CredentialValidation::Invalid => return DEFAULT_ACK_TOKEN_INVALID.to_string(),
+        }
+    }
+
+    let candidate_token = request.token.as_deref().map(str::trim).unwrap_or("");
+    if candidate_token.is_empty() {
+        return DEFAULT_ACK_TOKEN_INVALID.to_string();
+    }
+
+    let token_ok = match validate_current_hour_token(&cfg.token_store_path, candidate_token) {
         Ok(v) => v,
         Err(_) => return cfg.ack_mismatch.clone(),
     };
@@ -151,10 +186,15 @@ fn handle_register(json_text: &str, cfg: &RuntimeConfig, registry: &mut DeviceRe
         return DEFAULT_ACK_TOKEN_INVALID.to_string();
     }
 
-    let allowed_sensor_ids = cfg.sensor_rules.keys().cloned().collect();
-    match registry.register_device(request, &allowed_sensor_ids) {
-        Ok(RegisterOutcome::Ok) => DEFAULT_ACK_REGISTER_OK.to_string(),
-        Ok(RegisterOutcome::Conflict) => DEFAULT_ACK_REGISTER_CONFLICT.to_string(),
+    match registry.register_device_with_token(request, &allowed_sensor_ids) {
+        Ok((RegisterOutcome::Ok, issued_key)) => {
+            if let Some(device_key) = issued_key {
+                format!("{DEFAULT_ACK_REGISTER_OK};device_key={device_key}")
+            } else {
+                DEFAULT_ACK_REGISTER_OK.to_string()
+            }
+        }
+        Ok((RegisterOutcome::Conflict, _)) => DEFAULT_ACK_REGISTER_CONFLICT.to_string(),
         Err(_) => cfg.ack_mismatch.clone(),
     }
 }

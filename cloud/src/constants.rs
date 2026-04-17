@@ -6,6 +6,7 @@ pub(crate) const DEFAULT_ACK_UNKNOWN_SENSOR: &str = "ack:unknown_sensor";
 pub(crate) const DEFAULT_ACK_REGISTER_OK: &str = "ack:register_ok";
 pub(crate) const DEFAULT_ACK_TOKEN_INVALID: &str = "ack:token_invalid";
 pub(crate) const DEFAULT_ACK_REGISTER_CONFLICT: &str = "ack:register_conflict";
+pub(crate) const DEFAULT_ACK_CREDENTIAL_REVOKED: &str = "ack:credential_revoked";
 pub(crate) const DEFAULT_ACK_UNREGISTERED: &str = "ack:unregistered";
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 pub(crate) const DEFAULT_ONCE: bool = false;

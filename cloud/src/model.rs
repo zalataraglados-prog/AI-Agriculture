@@ -147,7 +147,10 @@ pub(crate) struct RegisterRequest {
     pub(crate) sensors: Vec<String>,
     #[serde(default)]
     pub(crate) feature_mapping: HashMap<String, String>,
-    pub(crate) token: String,
+    #[serde(default)]
+    pub(crate) token: Option<String>,
+    #[serde(default)]
+    pub(crate) device_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,6 +162,12 @@ pub(crate) struct RegisteredDevice {
     pub(crate) sensors: Vec<String>,
     pub(crate) feature_mapping: HashMap<String, String>,
     pub(crate) registered_at_epoch_sec: u64,
+    #[serde(default)]
+    pub(crate) device_key_hash: String,
+    #[serde(default)]
+    pub(crate) credential_revoked: bool,
+    #[serde(default)]
+    pub(crate) credential_issued_at_epoch_sec: u64,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
