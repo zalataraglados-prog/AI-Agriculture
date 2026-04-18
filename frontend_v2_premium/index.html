@@ -63,25 +63,25 @@
           </div>
           <div class="glass-panel p-6 flex flex-col justify-between relative overflow-hidden group">
               <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
-              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-tint"></i>广域平均墒情 (VWC)</p>
+              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-leaf"></i>广域平均肥力 (EC)</p>
               <div class="mt-4 flex items-end justify-between">
-                  <p id="valAvgVwc" class="text-4xl font-bold text-white tracking-widest text-glow">--</p>
-                  <span class="text-xs text-emerald-400">%</span>
+                  <p id="valAvgEc" class="text-3xl font-bold text-white tracking-widest text-glow">--</p>
+                  <span class="text-xs text-emerald-400">μS/cm</span>
               </div>
           </div>
           <div class="glass-panel p-6 flex flex-col justify-between relative overflow-hidden group">
               <div class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all"></div>
-              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-thermometer-half"></i>地表环境温度</p>
+              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-exclamation-triangle"></i>故障设备总数</p>
               <div class="mt-4 flex items-end justify-between">
-                  <p id="valAvgTemp" class="text-4xl font-bold text-white tracking-widest text-glow">--</p>
-                  <span class="text-xs text-amber-400">°C</span>
+                  <p id="valFaultDevices" class="text-4xl font-bold text-rose-500 tracking-widest text-glow">--</p>
+                  <span class="text-xs text-amber-400">Nodes</span>
               </div>
           </div>
           <div class="glass-panel p-6 flex flex-col justify-between relative overflow-hidden group">
               <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all"></div>
-              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-brain"></i>AI 引擎覆盖率</p>
+              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-bug"></i>平均病害率</p>
               <div class="mt-4 flex items-end justify-between">
-                  <p id="valInferRate" class="text-4xl font-bold text-white tracking-widest text-glow">--</p>
+                  <p id="valAvgDiseaseRate" class="text-4xl font-bold text-white tracking-widest text-glow">--</p>
                   <span class="text-xs text-purple-400">Rate</span>
               </div>
           </div>
@@ -90,13 +90,24 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <!-- Left Column: Charts & Telemetry (occupies 2 columns on lg) -->
           <div class="lg:col-span-2 space-y-8">
-              <!-- Charts -->
-              <div class="glass-panel p-6">
-                  <div class="flex items-center justify-between mb-6">
-                      <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa fa-line-chart text-emerald-500"></i>温湿度动态协同基准线</h2>
-                      <span class="text-xs text-slate-500 px-3 py-1 bg-white/5 rounded-full border border-white/10">Telemetry Trend</span>
+              <!-- Charts Grid -->
+              <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <!-- Environment Chart -->
+                  <div class="glass-panel p-6">
+                      <div class="flex items-center justify-between mb-6">
+                          <h2 class="text-base font-bold text-slate-100 flex items-center gap-2"><i class="fa fa-line-chart text-emerald-500"></i>温湿度动态协同基准线</h2>
+                          <span class="text-[10px] text-slate-500 px-3 py-1 bg-white/5 rounded-full border border-white/10">Trend</span>
+                      </div>
+                      <div class="h-64 w-full"><canvas id="envChart"></canvas></div>
                   </div>
-                  <div class="h-80 w-full"><canvas id="envChart"></canvas></div>
+                  <!-- Fault Trend Chart -->
+                  <div class="glass-panel p-6">
+                      <div class="flex items-center justify-between mb-6">
+                          <h2 class="text-base font-bold text-slate-100 flex items-center gap-2"><i class="fa fa-heartbeat text-rose-500"></i>硬件拓扑健康故障趋势</h2>
+                          <span class="text-[10px] text-slate-500 px-3 py-1 bg-white/5 rounded-full border border-white/10">Health</span>
+                      </div>
+                      <div class="h-64 w-full"><canvas id="faultTrendChart"></canvas></div>
+                  </div>
               </div>
 
               <!-- Telemetry Table -->

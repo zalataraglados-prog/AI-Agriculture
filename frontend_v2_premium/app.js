@@ -29,7 +29,12 @@ const deviceId = (params.get('device_id') || localStorage.getItem('device_id') |
 if (deviceId) localStorage.setItem('device_id', deviceId);
 document.getElementById('ctxDevice').textContent = `Node: ${deviceId || 'GLOBAL'}`;
 
+const GATEWAY_STALE_MS = 5 * 60 * 1000;
+const DISEASE_THRESHOLD = 0.5;
+
 let envChart;
+let faultTrendChart;
+let schemaBySensor = new Map();
 
 // Modal Logic
 function openModal() {
@@ -63,81 +68,243 @@ async function fetchJson(url) {
     return await res.json();
 }
 
-function buildApiUrl(base, queryObj) {
+function apiUrl(base, queryObj) {
     const u = new URL(base, location.origin);
-    Object.entries(queryObj).forEach(([k, v]) => { if (v) u.searchParams.set(k, v); });
+    Object.entries(queryObj).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && `${v}`.trim() !== '') u.searchParams.set(k, v);
+    });
     return u.toString();
 }
 
-function buildTelemetryStatus(vwc) {
-    if(vwc === null) return { t: 'OFFLINE', c: 'text-slate-500 bg-white/5 border border-white/10' };
-    if(vwc < 20) return { t: '严重干枯', c: 'text-rose-400 bg-rose-500/10 border border-rose-500/20' };
-    if(vwc < 40) return { t: '缺水警告', c: 'text-amber-400 bg-amber-500/10 border border-amber-500/20' };
-    if(vwc > 80) return { t: '洪涝风险', c: 'text-blue-400 bg-blue-500/10 border border-blue-500/20' };
-    return { t: '完美墒情', c: 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' };
+function fieldSpec(sensorId, field) {
+    const sensor = schemaBySensor.get(sensorId);
+    return sensor ? (sensor.fields.get(field) || null) : null;
+}
+
+function getRequiredFields(sensorId) {
+    const sensor = schemaBySensor.get(sensorId);
+    if (!sensor) return [];
+    return Array.from(sensor.fields.values()).filter(v => v.required).map(v => v.field);
+}
+
+function normalizeSchema(payload) {
+    const sensors = Array.isArray(payload?.sensors) ? payload.sensors : [];
+    sensors.forEach(sensor => {
+      if (!sensor?.sensor_id) return;
+      const fields = new Map();
+      (sensor.fields || []).forEach(field => {
+        if (!field?.field) return;
+        fields.set(field.field, {
+          field: field.field,
+          label: field.label || field.field,
+          unit: field.unit || '',
+          data_type: field.data_type || 'string',
+          required: !!field.required,
+          threshold_low: typeof field.threshold_low === 'number' ? field.threshold_low : null,
+          threshold_high: typeof field.threshold_high === 'number' ? field.threshold_high : null
+        });
+      });
+      schemaBySensor.set(sensor.sensor_id, {
+        trendMetric: sensor.trend_metric || null,
+        categoryMetric: sensor.category_metric || null,
+        fields
+      });
+    });
+}
+
+async function loadSchema() {
+    try {
+      const schema = await fetchJson('/api/v1/sensor/schema');
+      normalizeSchema(schema);
+    } catch (err) {
+      console.warn("Schema loading failed, falling back to basic checks:", err);
+    }
+}
+
+function detectSensorFault(record) {
+    const sensorId = record.sensor_id;
+    const fields = record.fields || {};
+    const reasons = [];
+    const required = getRequiredFields(sensorId);
+    required.forEach(name => {
+      if (fields[name] === undefined || fields[name] === null || `${fields[name]}`.trim() === '') {
+        reasons.push(`缺少必填字段:${name}`);
+      }
+    });
+  
+    const sensorSchema = schemaBySensor.get(sensorId);
+    if (sensorSchema) {
+      sensorSchema.fields.forEach((spec, field) => {
+        const value = fields[field];
+        if (value === undefined || value === null || value === '') return;
+        if (!['u8', 'u16', 'u32', 'i32', 'f32', 'f64'].includes(spec.data_type)) return;
+        const num = parseNum(value);
+        if (num === null) { reasons.push(`字段非数值:${field}`); return; }
+        if (spec.threshold_low !== null && num < spec.threshold_low) reasons.push(`字段过低:${field}`);
+        if (spec.threshold_high !== null && num > spec.threshold_high) reasons.push(`字段过高:${field}`);
+      });
+    }
+    return { isFault: reasons.length > 0, reasons };
+}
+
+function buildDeviceLatest(telemetry) {
+    const latest = new Map();
+    telemetry.forEach(row => {
+      const key = row.device_id || 'unknown';
+      const old = latest.get(key);
+      const ts = Date.parse(row.ts || '');
+      if (!old || (Number.isFinite(ts) && ts > old.tsMs)) {
+        latest.set(key, { row, tsMs: Number.isFinite(ts) ? ts : -1 });
+      }
+    });
+    return latest;
+}
+
+function gatewayFaultDevices(latestMap, nowMs) {
+    const out = new Set();
+    latestMap.forEach((item, devId) => {
+      if (!Number.isFinite(item.tsMs) || nowMs - item.tsMs > GATEWAY_STALE_MS) out.add(devId);
+    });
+    return out;
+}
+
+function sensorFaultDevices(latestMap) {
+    const out = new Set();
+    latestMap.forEach((item, devId) => {
+      if (detectSensorFault(item.row).isFault) out.add(devId);
+    });
+    return out;
+}
+
+function fertilitySeries(telemetry) {
+    return telemetry
+      .filter(r => r.sensor_id === 'soil_modbus_02')
+      .map(r => ({ tsMs: Date.parse(r.ts || ''), ts: r.ts, ec: parseNum(r?.fields?.ec) }))
+      .filter(x => Number.isFinite(x.tsMs) && x.ec !== null)
+      .sort((a, b) => a.tsMs - b.tsMs);
+}
+
+function faultTrendSeries(telemetry, nowMs) {
+    const sensorBuckets = new Map();
+    const gatewayBuckets = new Map();
+    const bucketKey = (tsMs) => {
+      const d = new Date(tsMs); d.setSeconds(0, 0); return d.getTime();
+    };
+  
+    telemetry.forEach(row => {
+      const tsMs = Date.parse(row.ts || '');
+      if (!Number.isFinite(tsMs)) return;
+      const key = bucketKey(tsMs);
+      if (detectSensorFault(row).isFault) sensorBuckets.set(key, (sensorBuckets.get(key) || 0) + 1);
+    });
+  
+    const byDevice = new Map();
+    telemetry.forEach(row => {
+      const id = row.device_id || 'unknown';
+      if (!byDevice.has(id)) byDevice.set(id, []);
+      byDevice.get(id).push(Date.parse(row.ts || ''));
+    });
+    byDevice.forEach(list => {
+      const points = list.filter(Number.isFinite).sort((a, b) => a - b);
+      for (let i = 1; i < points.length; i++) {
+        if (points[i] - points[i - 1] > GATEWAY_STALE_MS) {
+          const key = bucketKey(points[i]);
+          gatewayBuckets.set(key, (gatewayBuckets.get(key) || 0) + 1);
+        }
+      }
+      if (points.length && nowMs - points[points.length - 1] > GATEWAY_STALE_MS) {
+        gatewayBuckets.set(bucketKey(nowMs), (gatewayBuckets.get(bucketKey(nowMs)) || 0) + 1);
+      }
+    });
+  
+    const keys = Array.from(new Set([...sensorBuckets.keys(), ...gatewayBuckets.keys()])).sort((a, b) => a - b);
+    return {
+      labels: keys.map(k => formatDate(new Date(k).toISOString())),
+      sensorFault: keys.map(k => sensorBuckets.get(k) || 0),
+      gatewayFault: keys.map(k => gatewayBuckets.get(k) || 0)
+    };
+}
+
+function fmtRate(v) {
+    const n = parseNum(v);
+    if (n === null) return null;
+    return (n >= 0 && n <= 1) ? n : (n > 1 && n <= 100 ? n/100 : null);
 }
 
 // 4. Main Update Logic
 async function updateData() {
     try {
-        const telUrl = buildApiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 100 });
-        const imgUrl = buildApiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: 15 });
+        const telUrl = apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 300 });
+        const imgUrl = apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: 50 });
         const [telemetry, imageUploads] = await Promise.all([
             fetchJson(telUrl).catch(() => []),
             fetchJson(imgUrl).catch(() => [])
         ]);
 
+        const nowMs = Date.now();
+        const latestMap = buildDeviceLatest(telemetry);
+        const gatewaySet = gatewayFaultDevices(latestMap, nowMs);
+        const sensorFaultSet = sensorFaultDevices(latestMap);
+        const faultDeviceSet = new Set([...gatewaySet, ...sensorFaultSet]);
+
+        const soilRows = fertilitySeries(telemetry);
+        const avgEc = soilRows.length ? (soilRows.reduce((sum, r) => sum + r.ec, 0) / soilRows.length) : null;
+
+        const diseaseRates = imageUploads.map(r => fmtRate(r.disease_rate)).filter(v => v !== null);
+        const avgDiseaseRate = diseaseRates.length ? (diseaseRates.reduce((a, b) => a + b, 0) / diseaseRates.length) : null;
+
         // Update KPIs
-        const devices = new Set();
-        const vwcData = [];
-        const tempData = [];
-        telemetry.forEach(r => {
-            if (r.device_id) devices.add(r.device_id);
-            const v = parseNum(r?.fields?.vwc);
-            const t = parseNum(r?.fields?.temp_c);
-            if (v !== null) vwcData.push(v);
-            if (t !== null) tempData.push(t);
-        });
+        document.getElementById('valDeviceCount').textContent = latestMap.size || '0';
+        document.getElementById('valAvgEc').textContent = avgEc === null ? '--' : `${avgEc.toFixed(1)}`;
+        document.getElementById('valFaultDevices').textContent = faultDeviceSet.size || '0';
+        document.getElementById('valAvgDiseaseRate').textContent = avgDiseaseRate === null ? '--' : `${(avgDiseaseRate * 100).toFixed(1)}%`;
 
-        const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : null;
-        const aV = avg(vwcData);
-        const aT = avg(tempData);
-        
-        const inferred = imageUploads.filter(x => x.upload_status === 'inferred').length;
-        const rate = imageUploads.length ? Math.round((inferred/imageUploads.length)*100) : null;
-
-        document.getElementById('valDeviceCount').textContent = devices.size || '0';
-        document.getElementById('valAvgVwc').textContent = aV !== null ? aV.toFixed(1) : '--';
-        document.getElementById('valAvgTemp').textContent = aT !== null ? aT.toFixed(1) : '--';
-        document.getElementById('valInferRate').textContent = rate !== null ? `${rate}%` : '--';
-
-        // Update Chart
-        const trend = telemetry.slice(0, 15).reverse();
-        envChart.data.labels = trend.map(x => formatDate(x.ts));
-        envChart.data.datasets[0].data = trend.map(x => parseNum(x?.fields?.vwc));
-        envChart.data.datasets[1].data = trend.map(x => parseNum(x?.fields?.temp_c));
+        // Update Charts
+        envChart.data.labels = soilRows.map(r => formatDate(r.ts));
+        envChart.data.datasets[0].data = soilRows.map(r => r.ec);
         envChart.update();
+
+        const faultTrend = faultTrendSeries(telemetry, nowMs);
+        faultTrendChart.data.labels = faultTrend.labels;
+        faultTrendChart.data.datasets[0].data = faultTrend.sensorFault;
+        faultTrendChart.data.datasets[1].data = faultTrend.gatewayFault;
+        faultTrendChart.update();
 
         // Render Telemetry Table
         const tbody = document.getElementById('telemetryBody');
         if(!telemetry.length) {
             tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-slate-500"><i class="fa fa-inbox text-3xl mb-3 block opacity-50"></i>网络环境静默，暂无遥测源</td></tr>`;
         } else {
-            tbody.innerHTML = telemetry.slice(0, 15).map(r => {
-                const v = parseNum(r?.fields?.vwc);
-                const t = parseNum(r?.fields?.temp_c);
-                const stat = buildTelemetryStatus(v);
+            const telemetryRows = [...telemetry].sort((a,b) => Date.parse(b.ts||'') - Date.parse(a.ts||'')).slice(0, 15);
+            tbody.innerHTML = telemetryRows.map(r => {
+                const device = r.device_id || '-';
+                const ec = parseNum(r?.fields?.ec);
+                const isGatewayFault = gatewaySet.has(device);
+                const sensorRes = detectSensorFault(r);
+                
+                let statusText = '正常';
+                let statusCls = 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20';
+                let detail = '数据采集正常';
+
+                if (isGatewayFault) {
+                    statusText = '网关掉线';
+                    statusCls = 'text-rose-400 bg-rose-500/10 border border-rose-500/20';
+                    detail = '5分钟内无心跳信号';
+                } else if (sensorRes.isFault) {
+                    statusText = '传感器异常';
+                    statusCls = 'text-amber-400 bg-amber-500/10 border border-amber-500/20';
+                    detail = sensorRes.reasons.join('; ');
+                }
+
                 return `
                 <tr class="hover:bg-white/[0.04] transition-colors group">
                     <td class="px-6 py-4 whitespace-nowrap text-slate-300 font-mono text-xs">${formatDate(r.ts)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-blue-400 font-mono text-xs">${r.device_id || 'UNKNOWN'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-200 font-bold">${v !== null ? v.toFixed(1) : '--'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-amber-200/80 font-bold">${t !== null ? t.toFixed(1) : '--'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                        <span class="px-3 py-1.5 rounded bg-black/20 text-[11px] font-bold tracking-wider ${stat.c} flex inline-flex items-center gap-1 justify-end">
-                            <div class="w-1.5 h-1.5 rounded-full ${stat.c.split(' ')[0].replace('text-', 'bg-')}"></div> ${stat.t}
-                        </span>
+                    <td class="px-6 py-4 whitespace-nowrap text-blue-400 font-mono text-xs">${device}<span class="ml-1 opacity-40">${r.sensor_id||''}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-200 font-bold">${ec !== null ? ec.toFixed(1) : '--'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 rounded text-[10px] font-bold ${statusCls}">${statusText}</span>
                     </td>
+                    <td class="px-6 py-4 text-slate-400 text-xs text-right">${detail}</td>
                 </tr>`;
             }).join('');
         }
@@ -148,62 +315,52 @@ async function updateData() {
             aiContainer.innerHTML = `<div class="p-8 text-center text-slate-500 border border-dashed border-white/10 rounded-xl mt-4"><i class="fa fa-camera-retro text-3xl mb-3 opacity-50 block"></i><p class="text-sm">图传队列阻塞或无感知节点</p></div>`;
         } else {
             aiContainer.innerHTML = imageUploads.map(r => {
-                const isComplete = r.upload_status === 'inferred';
+                const isComplete = r.upload_status === 'inferred' || !!r.predicted_class;
                 const pClass = r.predicted_class || '正在张量推断...';
-                const confObj = parseNum(r.confidence);
-                const conf = confObj !== null ? (confObj * 100).toFixed(1) : 0;
+                const dRate = fmtRate(r.disease_rate);
+                const conf = dRate !== null ? (dRate * 100).toFixed(1) : (parseNum(r.confidence) ? (r.confidence*100).toFixed(1) : 0);
                 
                 const theme = isComplete ? (diseaseColors[r.predicted_class] || diseaseColors['default']) : { bg: 'bg-white/5', text: 'text-slate-400', border: 'border-white/10', bar: 'bg-blue-500 animate-pulse', icon: 'fa-cogs' };
-                const adviceObj = isComplete ? (adviceAdapter[r.predicted_class] || {txt: '未匹配标准治疗手册。核心阵列请求专家实地勘探。', img: ''}) : {txt: '特征图谱正在进入云端神经网络层提取，请稍候...', img: ''};
+                const adviceObj = isComplete ? (adviceAdapter[r.predicted_class] || {txt: '当前状态已记录，模型建议保持观察或人工复核。', img: ''}) : {txt: '边缘端正在回传原始特征图谱，请耐心等待推断结果...', img: ''};
 
                 return `
                 <div class="p-5 border ${theme.border} ${theme.bg} rounded-xl relative overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:border-opacity-50 group">
-                    <!-- Overlay gradient for depth -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
-                    
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
                     <div class="relative z-10 flex justify-between items-start mb-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center border border-white/5 shadow-inner cursor-pointer hover:bg-emerald-500/20 transition-colors" onclick="openModal()" title="点击调取原生光谱图像">
-                                <i class="${isComplete ? 'fa fa-camera text-emerald-400' : 'fa fa-spinner fa-spin text-blue-400'} text-sm"></i>
+                            <div class="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center border border-white/5 shadow-inner cursor-pointer hover:bg-emerald-500/20 transition-colors" onclick="openModal()">
+                                <i class="${isComplete ? 'fa fa-microchip text-emerald-400' : 'fa fa-spinner fa-spin text-blue-400'} text-xs"></i>
                             </div>
                             <div>
-                                <p class="text-[10px] text-slate-400 font-mono tracking-widest">${formatDate(r.captured_at)}</p>
-                                <p class="text-sm font-bold text-slate-200 tracking-wide">${r.device_id || 'UNKNOWN'}</p>
+                                <p class="text-[10px] text-slate-400 font-mono tracking-widest">${formatDate(r.captured_at || r.ts)}</p>
+                                <p class="text-sm font-bold text-slate-200">${r.device_id || 'UNKNOWN'}</p>
                             </div>
                         </div>
                     </div>
                     
                     <div class="relative z-10 mb-5 pl-1">
-                        <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><i class="fa fa-microscope opacity-70"></i>病理定性</p>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><i class="fa fa-search opacity-70"></i>病理语义识别</p>
                         <p class="text-xl font-bold ${theme.text} drop-shadow-md tracking-wider flex items-center gap-2">
-                           <i class="fa ${theme.icon} opacity-80 text-sm"></i> ${pClass}
+                           ${pClass}
                         </p>
                         
                         <div class="mt-3 flex items-center gap-3">
-                          <div class="h-2 flex-1 bg-black/40 rounded-full overflow-hidden shadow-inner border border-white/5">
-                              <div class="h-full ${theme.bar} rounded-full transition-all duration-1000 relative" style="width: ${conf}%;">
-                                 <div class="absolute inset-0 bg-white/20 w-1/2 blur-sm translate-x-[-100%] animate-[shimmer_2s_infinite]"></div>
-                              </div>
+                          <div class="h-1.5 flex-1 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                              <div class="h-full ${theme.bar} rounded-full transition-all duration-1000" style="width: ${conf}%;"></div>
                           </div>
-                          <span class="${theme.text} font-mono text-xs font-bold w-12 text-right tracking-wider">${conf}%</span>
+                          <span class="${theme.text} font-mono text-xs font-bold w-12 text-right">${conf}%</span>
                         </div>
                     </div>
                     
-                    <div class="relative z-10 p-4 bg-black/30 rounded-xl border border-white/5 shadow-inner backdrop-blur-md flex flex-col md:flex-row gap-4">
-                        <div class="flex-1">
-                            <p class="text-[10px] ${theme.text} opacity-90 uppercase tracking-widest mb-2 font-bold flex items-center gap-1.5"><i class="fa fa-stethoscope"></i>智脑策略生成</p>
-                            <p class="text-sm text-slate-200 leading-relaxed font-light">${adviceObj.txt}</p>
-                        </div>
-                        ${adviceObj.img ? `<div class="w-24 h-24 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-lg relative group/img cursor-pointer" title="请在此替换为您本地的病理图片素材">
-                            <img src="${adviceObj.img}" onerror="this.onerror=null;this.src='https://placehold.co/400x400/1e293b/34d399?text=请替换图片';" class="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500" alt="病症参考占位图" />
-                            <div class="absolute inset-0 bg-emerald-500/20 mix-blend-overlay"></div>
-                        </div>` : ''}
+                    <div class="relative z-10 p-3 bg-black/30 rounded-lg border border-white/5 backdrop-blur-md">
+                        <p class="text-[10px] ${theme.text} opacity-80 uppercase tracking-widest mb-1.5 font-bold flex items-center gap-1.5"><i class="fa fa-stethoscope"></i>专家处置建议</p>
+                        <p class="text-xs text-slate-200 leading-relaxed">${adviceObj.txt}</p>
                     </div>
                 </div>`;
             }).join('');
         }
     } catch(e) {
-        console.error(e);
+        console.error("Data update failed:", e);
     }
 }
 
@@ -213,74 +370,82 @@ styleSheet.innerText = `@keyframes shimmer { 100% { transform: translateX(200%);
 document.head.appendChild(styleSheet);
 
 // 5. App Initialization
-window.onload = () => {
+window.onload = async () => {
     Chart.defaults.color = "rgba(255,255,255,0.4)";
     Chart.defaults.font.family = "Inter";
     
-    const ctx = document.getElementById('envChart').getContext('2d');
-    
-    const gradientVwc = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientVwc.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
-    gradientVwc.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-    
-    const gradientTemp = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientTemp.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
-    gradientTemp.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+    // Chart 1: Fertility (EC)
+    const ctx1 = document.getElementById('envChart').getContext('2d');
+    const gradEc = ctx1.createLinearGradient(0, 0, 0, 300);
+    gradEc.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+    gradEc.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
-    envChart = new Chart(ctx, {
+    envChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '土壤肥力 EC (μS/cm)',
+                data: [],
+                borderColor: '#10b981',
+                backgroundColor: gradEc,
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+
+    // Chart 2: Fault Trend
+    const ctx2 = document.getElementById('faultTrendChart').getContext('2d');
+    faultTrendChart = new Chart(ctx2, {
         type: 'line',
         data: {
             labels: [],
             datasets: [
                 {
-                    label: '林下/土壤墒情 VWC (%)',
-                    data: [],
-                    borderColor: '#10b981',
-                    backgroundColor: gradientVwc,
-                    borderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#10b981',
-                    pointBorderColor: '#0f172a',
-                    tension: 0.4,
-                    fill: true,
-                    yAxisID: 'y'
-                },
-                {
-                    label: '地表环境温度 (°C)',
+                    label: '传感器故障',
                     data: [],
                     borderColor: '#f59e0b',
-                    backgroundColor: gradientTemp,
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
                     borderWidth: 2,
-                    borderDash: [4, 4],
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#f59e0b',
-                    pointBorderColor: '#0f172a',
-                    tension: 0.4,
-                    fill: true,
-                    yAxisID: 'y1'
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: '网关掉线',
+                    data: [],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: { position: 'top', align: 'end', labels: { boxWidth: 10, usePointStyle: true, font: {size: 11} } },
-                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.95)', titleColor: '#fff', padding: 14, cornerRadius: 10, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }
-            },
+            plugins: { legend: { labels: { boxWidth: 10, font: { size: 10 } } } },
             scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false } },
-                y: { type: 'linear', display: true, position: 'left', grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, min: 0, max: 100 },
-                y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, min: -10, max: 50 }
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
             }
         }
     });
 
-    updateData();
-    setInterval(updateData, 8000);
+    await loadSchema();
+    await updateData();
+    setInterval(updateData, 15000);
 };
 
 // -----------------------------------------------------------------------------
@@ -393,8 +558,8 @@ window.sendMessageToOpenClaw = async function(message) {
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     // 模拟 AI 响应逻辑
-    if (message.includes('湿度') || message.includes('水')) {
-        return `当前平均土壤湿度为 ${document.getElementById('valAvgVwc').innerText}。根据模型分析，暂时处于良好区间。不过下午阳光较强，建议开启 3 号阀门滴灌 10 分钟。`;
+    if (message.includes('肥') || message.includes('肥力') || message.includes('EC')) {
+        return `当前广域平均肥力 (EC) 为 ${document.getElementById('valAvgEc').innerText} μS/cm。根据土壤语义模型判定，肥力水平处于正常波动范围。建议维持当前的水肥配比。`;
     }
     if (message.includes('病') || message.includes('稻瘟')) {
         return `我在监控流中注意到了光谱异常。结合智脑策略，如果确诊为稻瘟病潜伏期，请务必立即装载三环唑进行全覆盖。需要我自动下发无人机指令吗？`;
