@@ -42,7 +42,11 @@ def load_receiver_config(config_path: str) -> dict[str, Any]:
 
 def resolve_paths(config_path: str) -> dict[str, str]:
     cfg = load_receiver_config(config_path)
-    base = Path(config_path).resolve().parent
+    config_dir = Path(config_path).resolve().parent
+    if config_dir.name.lower() == "config":
+        base = config_dir.parent
+    else:
+        base = config_dir
 
     def resolve(key: str, default: str) -> str:
         raw = str(cfg.get(key, default))
