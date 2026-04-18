@@ -56,11 +56,11 @@ fn main() {
             // 启动 HTTP 后台和前端仪表盘服务 (端口 8088)
             http_server::start_http_server(
                 "0.0.0.0:8088",
-                cfg.telemetry_store_path.clone(),
                 cfg.image_store_path.clone(),
                 cfg.image_index_path.clone(),
                 cfg.image_db_error_store_path.clone(),
                 cfg.ai_predict_url.clone(),
+                cfg.sensor_rules.clone(),
                 db.clone(),
             );
 

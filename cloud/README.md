@@ -118,9 +118,10 @@ slave_id = "u16"
 Supported `field_types`:
 - `string`, `bool`, `u8`, `u16`, `u32`, `i32`, `f32`, `f64`
 
-## Telemetry query API
+## Telemetry query API (DB-only reads)
 
-The cloud receiver now appends matched sensor packets to `telemetry_store_path` (`jsonl`) and exposes:
+The cloud receiver appends matched packets to `telemetry_store_path` (`jsonl`) for backup and writes
+authoritative records to `sensor_telemetry` in PostgreSQL/TimescaleDB. Query APIs read DB only:
 
 - `GET /api/telemetry`
 - Optional query parameters:
@@ -159,6 +160,14 @@ Query API:
   - `upload_status` (`stored|inferred|failed`)
   - `predicted_class`
   - `limit` (default `100`, max `1000`)
+
+## Database layout
+
+- Migrations run in order: `0001` + `0002` + `0003`.
+- `0003_timescale_rewrite.sql` enables TimescaleDB and converts:
+  - `sensor_telemetry(ts)` -> hypertable (`2 hours` chunks)
+  - `image_uploads(captured_at)` -> hypertable (`2 hours` chunks)
+- Image upload/inference linkage uses `(upload_id, captured_at)` to keep partition-safe uniqueness.
 
 ## Add a new sensor (no Rust code change)
 
