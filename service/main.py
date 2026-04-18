@@ -54,6 +54,10 @@ MODEL_CONFIG_FILE = os.environ.get(
     "MODEL_CONFIG_FILE",
     "models/rice_leaf_classifier/config.yaml",
 )
+MODEL_ADVICE_FILE = os.environ.get(
+    "MODEL_ADVICE_FILE",
+    "models/rice_leaf_classifier/advice_map.yaml",
+)
 
 
 # ------------------------------------------------------------------
@@ -70,11 +74,13 @@ async def lifespan(app: FastAPI):
     logger.info("Checkpoint : %s", MODEL_CHECKPOINT_PATH)
     logger.info("Labels     : %s", MODEL_LABELS_FILE)
     logger.info("Config     : %s", MODEL_CONFIG_FILE)
+    logger.info("Advice Map : %s", MODEL_ADVICE_FILE)
 
     classifier = RiceLeafClassifier(
         checkpoint_path=MODEL_CHECKPOINT_PATH,
         labels_file=MODEL_LABELS_FILE,
         config_file=MODEL_CONFIG_FILE,
+        advice_file=MODEL_ADVICE_FILE,
     )
     set_classifier(classifier)
 
