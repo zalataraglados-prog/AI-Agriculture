@@ -9,6 +9,7 @@
 :root {
   --sidebar-w: 80px;
   --sidebar-expanded-w: 200px;
+  --panel-left-w: 380px;
   --glass-bg: rgba(15, 23, 42, 0.9);
   --glass-border: rgba(255, 255, 255, 0.08);
 }
@@ -95,6 +96,78 @@
 .view-section.active {
   display: block !important;
   animation: fadeIn 0.4s ease-out;
+}
+
+/* Home Redesign: Two-Column specific styles */
+.dashboard-layout {
+  display: flex;
+  height: calc(100vh - 120px); /* Adjust based on header height */
+  gap: 1.5rem;
+}
+
+.dashboard-left {
+  width: var(--panel-left-w);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  height: 100%;
+}
+
+.dashboard-right {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  height: 100%;
+}
+
+/* Hide scrollbar for clean look but keep functionality */
+.dashboard-right::-webkit-scrollbar {
+  width: 4px;
+}
+.dashboard-right::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+
+/* Status Light Component */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 0.75rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+/* Sensor Tile Component */
+.sensor-tile {
+  background: rgba(30, 41, 59, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.sensor-tile:hover {
+  transform: translateY(-5px);
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
 }
 
 @keyframes fadeIn {

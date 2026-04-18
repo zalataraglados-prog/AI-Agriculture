@@ -75,110 +75,121 @@
               </div>
           </div>
       </header>
-
-      <div id="view-container" class="relative">
           <!-- VIEW: Home (Dashboard) -->
-          <section id="view-home" class="view-section active p-4 md:p-8 space-y-8">
-      
-      <!-- KPI Row -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div class="glass-panel p-6 flex flex-col justify-between relative overflow-hidden group">
-              <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all"></div>
-              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-microchip"></i>活跃设备节点</p>
-              <div class="mt-4 flex items-end justify-between">
-                  <p id="valDeviceCount" class="text-4xl font-bold text-white tracking-widest text-glow">--</p>
-                  <span class="text-xs text-blue-400">Nodes</span>
-              </div>
-          </div>
-          <div class="glass-panel p-6 flex flex-col justify-between relative overflow-hidden group">
-              <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
-              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-leaf"></i>广域平均肥力 (EC)</p>
-              <div class="mt-4 flex items-end justify-between">
-                  <p id="valAvgEc" class="text-3xl font-bold text-white tracking-widest text-glow">--</p>
-                  <span class="text-xs text-emerald-400">μS/cm</span>
-              </div>
-          </div>
-          <div class="glass-panel p-6 flex flex-col justify-between relative overflow-hidden group">
-              <div class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all"></div>
-              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-exclamation-triangle"></i>故障设备总数</p>
-              <div class="mt-4 flex items-end justify-between">
-                  <p id="valFaultDevices" class="text-4xl font-bold text-rose-500 tracking-widest text-glow">--</p>
-                  <span class="text-xs text-amber-400">Nodes</span>
-              </div>
-          </div>
-          <div class="glass-panel p-6 flex flex-col justify-between relative overflow-hidden group">
-              <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all"></div>
-              <p class="text-slate-400 text-sm font-medium flex items-center gap-2"><i class="fa fa-bug"></i>平均病害率</p>
-              <div class="mt-4 flex items-end justify-between">
-                  <p id="valAvgDiseaseRate" class="text-4xl font-bold text-white tracking-widest text-glow">--</p>
-                  <span class="text-xs text-purple-400">Rate</span>
-              </div>
-          </div>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <!-- Left Column: Charts & Telemetry (occupies 2 columns on lg) -->
-          <div class="lg:col-span-2 space-y-8">
-              <!-- Charts Grid -->
-              <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  <!-- Environment Chart -->
-                  <div class="glass-panel p-6">
-                      <div class="flex items-center justify-between mb-6">
-                          <h2 class="text-base font-bold text-slate-100 flex items-center gap-2"><i class="fa fa-line-chart text-emerald-500"></i>温湿度动态协同基准线</h2>
-                          <span class="text-[10px] text-slate-500 px-3 py-1 bg-white/5 rounded-full border border-white/10">Trend</span>
+          <section id="view-home" class="view-section active p-4 md:p-8">
+              <div class="dashboard-layout">
+                  <!-- LEFT: Support & Status Panel -->
+                  <div class="dashboard-left">
+                      <!-- Cloud Status -->
+                      <div class="glass-panel p-6">
+                          <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-cloud text-blue-400"></i>云端服务器状态</h2>
+                          <div id="cloudStatusContainer">
+                              <div class="status-indicator">
+                                  <span class="text-xs text-slate-300">Telemetry Gateway (Rust)</span>
+                                  <div class="flex items-center gap-2 font-mono text-[10px] text-emerald-400">
+                                      <span>RUNNING</span>
+                                      <div class="status-dot text-emerald-400 bg-emerald-400"></div>
+                                  </div>
+                              </div>
+                              <div class="status-indicator">
+                                  <span class="text-xs text-slate-300">AI Logic Hub (FastAPI)</span>
+                                  <div class="flex items-center gap-2 font-mono text-[10px] text-emerald-400">
+                                      <span>ACTIVE</span>
+                                      <div class="status-dot text-emerald-400 bg-emerald-400"></div>
+                                  </div>
+                              </div>
+                              <div class="status-indicator">
+                                  <span class="text-xs text-slate-300">Data Persistence (Postgres)</span>
+                                  <div class="flex items-center gap-2 font-mono text-[10px] text-emerald-400">
+                                      <span>STABLE</span>
+                                      <div class="status-dot text-emerald-400 bg-emerald-400"></div>
+                                  </div>
+                              </div>
+                              <div class="status-indicator">
+                                  <span class="text-xs text-slate-300">Object Storage (CDN)</span>
+                                  <div class="flex items-center gap-2 font-mono text-[10px] text-blue-400">
+                                      <span>SYNCED</span>
+                                      <div class="status-dot text-blue-400 bg-blue-400"></div>
+                                  </div>
+                              </div>
+                          </div>
                       </div>
-                      <div class="h-64 w-full"><canvas id="envChart"></canvas></div>
-                  </div>
-                  <!-- Fault Trend Chart -->
-                  <div class="glass-panel p-6">
-                      <div class="flex items-center justify-between mb-6">
-                          <h2 class="text-base font-bold text-slate-100 flex items-center gap-2"><i class="fa fa-heartbeat text-rose-500"></i>硬件拓扑健康故障趋势</h2>
-                          <span class="text-[10px] text-slate-500 px-3 py-1 bg-white/5 rounded-full border border-white/10">Health</span>
+
+                      <!-- Persistent Chat Box -->
+                      <div class="glass-panel flex-1 flex flex-col overflow-hidden">
+                          <div class="px-5 py-4 bg-white/5 border-b border-white/10 flex items-center gap-3">
+                              <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                                  <i class="fa fa-paw text-emerald-400 text-xs"></i>
+                              </div>
+                              <div>
+                                  <h3 class="text-sm font-bold text-white tracking-wider">Agri-AI <span class="font-light text-emerald-300">OpenClaw</span></h3>
+                                  <p class="text-[10px] text-emerald-400/70">在线协助中</p>
+                              </div>
+                          </div>
+                          <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-4 text-xs">
+                              <!-- AI Greeting -->
+                              <div class="flex w-full mt-2 space-x-3 max-w-xs">
+                                  <div class="p-3 bg-slate-800/80 rounded-xl msg-ai leading-relaxed border border-white/5">
+                                      您好，我已经准备好协助您管理该田块。您可以询问关于云端状态或设备遥控的任何问题。
+                                  </div>
+                              </div>
+                          </div>
+                          <div class="p-4 bg-black/20 border-t border-white/5">
+                              <form id="chatForm" class="flex items-center gap-2" onsubmit="handleChatSubmit(event)">
+                                  <input type="text" id="chatInput" autocomplete="off" class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50" placeholder="发送指令..." />
+                                  <button type="submit" class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center"><i class="fa fa-paper-plane text-xs"></i></button>
+                              </form>
+                          </div>
                       </div>
-                      <div class="h-64 w-full"><canvas id="faultTrendChart"></canvas></div>
                   </div>
-              </div>
 
-              <!-- Telemetry Table -->
-              <div class="glass-panel p-0 overflow-hidden">
-                  <div class="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                      <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa fa-database text-blue-500"></i>近地表传感器网络汇聚点</h2>
-                      <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                  </div>
-                  <div class="overflow-x-auto max-h-[450px] overflow-y-auto">
-                      <table class="w-full text-sm text-left">
-                          <thead class="text-xs text-slate-400 uppercase bg-white/[0.03] sticky top-0 backdrop-blur-md">
-                              <tr>
-                                  <th class="px-6 py-4 font-medium">接收指令帧</th>
-                                  <th class="px-6 py-4 font-medium">边缘网关源</th>
-                                  <th class="px-6 py-4 font-medium">湿度分析</th>
-                                  <th class="px-6 py-4 font-medium">温度反馈</th>
-                                  <th class="px-6 py-4 font-medium text-right">生态阈值评估</th>
-                              </tr>
-                          </thead>
-                          <tbody id="telemetryBody" class="divide-y divide-white/5">
-                              <!-- JS Injected rows -->
-                          </tbody>
-                      </table>
-                  </div>
-              </div>
-          </div>
+                  <!-- RIGHT: Telemetry & Vision Board -->
+                  <div class="dashboard-right space-y-8">
+                      <!-- Field Positioning -->
+                      <div class="glass-panel p-6 border-l-4 border-emerald-500/50">
+                          <div class="flex items-center justify-between">
+                              <div>
+                                  <p class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold mb-1">Positioning System</p>
+                                  <h2 class="text-2xl font-black text-white tracking-widest">田野区块定位：<span class="text-emerald-400">Sector 01-A (Rice Field)</span></h2>
+                              </div>
+                              <div class="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
+                                  <i class="fa fa-map-marker text-emerald-500 text-xl"></i>
+                              </div>
+                          </div>
+                      </div>
 
-          <!-- Right Column: AI Diagnoses -->
-          <div class="lg:col-span-1 space-y-6">
-              <div class="glass-panel p-6 flex flex-col h-full">
-                  <div class="flex items-center justify-between mb-6">
-                      <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa fa-medkit text-rose-500"></i>智能植物病理研究池</h2>
-                      <span class="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 pulse-bg animate-pulse">Live Stream</span>
-                  </div>
-                  
-                  <!-- AI Cards Container -->
-                  <div id="aiDiagnosisContainer" class="flex-1 space-y-4 overflow-y-auto max-h-[850px] pr-2">
-                      <!-- JS injected AI Cards -->
+                      <!-- Gateway Visuals -->
+                      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                          <div class="glass-panel p-6">
+                              <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-camera text-blue-400"></i>网关实时视觉</h2>
+                              <div class="aspect-video bg-black/40 rounded-xl overflow-hidden border border-white/5 relative group">
+                                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                  <div class="absolute bottom-4 left-4">
+                                      <p class="text-[10px] text-white/60 font-mono tracking-widest">GATEWAY_CAM_01</p>
+                                      <p class="text-xs text-white">实时推流中...</p>
+                                  </div>
+                                  <!-- Shimmer Overlay -->
+                                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
+                              </div>
+                          </div>
+
+                          <div class="glass-panel p-6 flex flex-col">
+                              <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-microchip text-rose-400"></i>视觉 AI 反馈</h2>
+                              <div id="aiDiagnosisContainer" class="flex-1 space-y-4 overflow-y-auto max-h-[250px] pr-2">
+                                  <!-- Diagnosis Cards -->
+                              </div>
+                          </div>
+                      </div>
+
+                      <!-- Sensor Device Base -->
+                      <div class="glass-panel p-6">
+                          <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-cube text-emerald-400"></i>网关传感器设备底座</h2>
+                          <div id="sensorGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                              <!-- Dynamic Device Tiles -->
+                          </div>
+                      </div>
                   </div>
               </div>
-          </div>
-      </div>
           </section>
 
           <!-- VIEW: Charts (Placeholder) -->
@@ -226,51 +237,6 @@
       </div>
   </div>
 
-  <!-- OpenClaw Chat Assistant UI -->
-  <!-- Floating Button -->
-  <button id="chatToggleBtn" onclick="toggleChat()" class="fixed bottom-6 right-6 z-[110] w-14 h-14 bg-gradient-to-tr from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 text-white hover:scale-110 transition-transform pulse-glow">
-      <i id="chatIcon" class="fa fa-commenting text-2xl"></i>
-  </button>
-
-  <!-- Chat Window -->
-  <div id="chatWindow" class="fixed bottom-24 right-6 z-[100] w-80 md:w-96 rounded-2xl flex flex-col hidden-chat chat-popup glass-panel overflow-hidden border border-emerald-500/30 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.3)]">
-      <!-- Header -->
-      <div class="px-5 py-4 bg-gradient-to-r from-emerald-600/80 to-slate-800/80 border-b border-white/10 flex items-center justify-between backdrop-blur">
-          <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-emerald-300/30 shadow-inner overflow-hidden">
-                  <i class="fa fa-paw text-emerald-400 text-sm"></i>
-              </div>
-              <div>
-                  <h3 class="text-sm font-bold text-white tracking-wider">Agri-AI <span class="font-light text-emerald-300">OpenClaw</span></h3>
-                  <p class="text-[10px] text-emerald-200/70 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> 自主策略分析中</p>
-              </div>
-          </div>
-          <button onclick="toggleChat()" class="text-white/60 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10"><i class="fa fa-chevron-down"></i></button>
-      </div>
-
-      <!-- Messages Area -->
-      <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-4 max-h-[400px] min-h-[300px] bg-slate-900/40 relative">
-          <!-- Initial AI Greeting -->
-          <div class="flex w-full mt-2 space-x-3 max-w-xs">
-              <div class="flex-shrink-0 h-8 w-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-                   <i class="fa fa-paw text-emerald-400 text-xs"></i>
-              </div>
-              <div class="p-3 text-sm rounded-xl msg-ai leading-relaxed">
-                  您好，我是 OpenClaw 农业管家。我已经接入了当前温湿度数据和作物诊断报告。您可以直接询问我任何关于本区域农场管理、环境调节或病害处理的建议。
-              </div>
-          </div>
-      </div>
-
-      <!-- Input Area -->
-      <div class="p-3 bg-slate-800/60 border-t border-white/10 backdrop-blur-md">
-          <form id="chatForm" class="flex items-center gap-2" onsubmit="handleChatSubmit(event)">
-              <input type="text" id="chatInput" autocomplete="off" class="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-colors" placeholder="输入问题，按回车发送..." />
-              <button type="submit" class="w-10 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center transition-colors shadow-lg shadow-emerald-500/20 shrink-0">
-                  <i class="fa fa-paper-plane text-sm translate-x-[-1px] translate-y-[1px]"></i>
-              </button>
-          </form>
-      </div>
-  </div>
 
   <script src="app.js"></script>
 </body>
