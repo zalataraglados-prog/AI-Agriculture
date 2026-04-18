@@ -13,6 +13,26 @@ window.UI = (() => {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
     };
 
+    const calcYAxisBounds = (values) => {
+        if (!values.length) {
+            return { min: 0, max: 1 };
+        }
+        let min = Math.min(...values);
+        let max = Math.max(...values);
+        if (!Number.isFinite(min) || !Number.isFinite(max)) {
+            return { min: 0, max: 1 };
+        }
+        if (min === max) {
+            const pad = Math.max(Math.abs(min) * 0.08, 1);
+            return { min: min - pad, max: max + pad };
+        }
+        const span = max - min;
+        const pad = Math.max(span * 0.12, Math.abs(max) * 0.02, 0.5);
+        min -= pad;
+        max += pad;
+        return { min, max };
+    };
+
     const switchView = (viewId, el) => {
         if (el) {
             document.querySelectorAll('.sidebar-item').forEach((item) => item.classList.remove('active'));
@@ -269,6 +289,7 @@ window.UI = (() => {
                     const canvasId = `canvas-${sid}-${fieldName}`;
                     const vals = sensorData.map((r) => Number(r.fields[fieldName])).filter((v) => Number.isFinite(v));
                     const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : '--';
+                    const yBounds = calcYAxisBounds(vals);
 
                     const card = document.createElement('div');
                     card.className = 'chart-card';
@@ -290,8 +311,8 @@ window.UI = (() => {
                     const ctx = document.getElementById(canvasId)?.getContext('2d');
                     if (!ctx) return;
                     const grad = ctx.createLinearGradient(0, 0, 0, 250);
-                    grad.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
-                    grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                    grad.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
                     const chart = new Chart(ctx, {
                         type: 'line',
@@ -304,7 +325,7 @@ window.UI = (() => {
                                         const n = Number(r.fields[fieldName]);
                                         return Number.isFinite(n) ? n : null;
                                     }),
-                                    borderColor: '#10b981',
+                                    borderColor: '#ffffff',
                                     backgroundColor: grad,
                                     borderWidth: 2,
                                     tension: 0.2,
@@ -320,7 +341,12 @@ window.UI = (() => {
                             plugins: { legend: { display: false } },
                             scales: {
                                 x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 10 } } },
-                                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { font: { size: 10 } } },
+                                y: {
+                                    min: yBounds.min,
+                                    max: yBounds.max,
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { font: { size: 10 } },
+                                },
                             },
                         },
                     });
