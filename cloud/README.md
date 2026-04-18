@@ -181,6 +181,24 @@ chmod +x scripts/install_openclaw_chat_adapter.sh
 It starts `openclaw-chat-adapter` on `127.0.0.1:3000` and bridges chat requests to:
 `openclaw agent --local --agent main --message ... --json`.
 
+## AI-ag Ops CLI
+
+Install the `AI-ag` command (whitelist ops wrapper described in `doc/AI-ag-agent-skill.md`):
+
+```bash
+chmod +x scripts/install_ai_ag_cli.sh
+./scripts/install_ai_ag_cli.sh
+```
+
+Quick checks:
+
+```bash
+AI-ag server
+AI-ag token
+AI-ag ls-gateway
+AI-ag help
+```
+
 ## Database layout
 
 - Migrations run in order: `0001` + `0002` + `0003`.
