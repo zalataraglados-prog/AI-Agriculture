@@ -47,6 +47,12 @@ ALTER TABLE image_inference_results
     REFERENCES image_uploads(upload_id, captured_at)
     ON DELETE CASCADE;
 
+ALTER TABLE sensor_telemetry
+    DROP CONSTRAINT IF EXISTS sensor_telemetry_pkey;
+
+ALTER TABLE sensor_telemetry
+    ADD CONSTRAINT sensor_telemetry_pkey PRIMARY KEY (ts, id);
+
 SELECT create_hypertable(
     'sensor_telemetry',
     'ts',
