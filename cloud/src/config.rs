@@ -109,6 +109,11 @@ pub(crate) fn build_runtime_config(
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| file_cfg.receiver.ai_predict_url.clone());
+    let openclaw_url = std::env::var("OPENCLAW_URL")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| file_cfg.receiver.openclaw_url.clone());
 
     ensure_parent_dir(&token_store_path)?;
     ensure_parent_dir(&registry_path)?;
@@ -132,6 +137,7 @@ pub(crate) fn build_runtime_config(
         image_db_error_store_path,
         database_url,
         ai_predict_url,
+        openclaw_url,
         exact_rules,
         sensor_rules,
     })

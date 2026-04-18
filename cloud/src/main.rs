@@ -60,6 +60,7 @@ fn main() {
                 cfg.image_index_path.clone(),
                 cfg.image_db_error_store_path.clone(),
                 cfg.ai_predict_url.clone(),
+                cfg.openclaw_url.clone(),
                 cfg.sensor_rules.clone(),
                 db.clone(),
             );
@@ -164,6 +165,7 @@ mod tests {
             image_db_error_store_path: "state/image_errors.test.jsonl".to_string(),
             database_url: "postgres://postgres@127.0.0.1/cloud_test".to_string(),
             ai_predict_url: "http://127.0.0.1:8000/api/v1/predict".to_string(),
+            openclaw_url: "http://127.0.0.1:3000".to_string(),
             exact_rules,
             sensor_rules,
         }

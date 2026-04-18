@@ -101,12 +101,25 @@ struct SensorFieldSchema {
     threshold_high: Option<f64>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct ChatProxyRequest {
+    message: String,
+    #[serde(default)]
+    context: serde_json::Value,
+}
+
+#[derive(Debug, serde::Deserialize, Serialize)]
+struct ChatProxyResponse {
+    reply: String,
+}
+
 pub fn start_http_server(
     bind_addr: &str,
     image_store_path: String,
     image_index_path: String,
     image_db_error_store_path: String,
     ai_predict_url: String,
+    openclaw_url: String,
     sensor_rules: HashMap<String, SensorRule>,
     db: Arc<Mutex<DbManager>>,
 ) {
@@ -138,6 +151,7 @@ pub fn start_http_server(
                     &image_index_path,
                     &image_db_error_store_path,
                     &ai_predict_url,
+                    &openclaw_url,
                     &sensor_schema_payload,
                     db.clone(),
                     query_cache.clone(),
@@ -150,7 +164,7 @@ pub fn start_http_server(
                 file_path = "/index.html".to_string();
             }
 
-            let path = PathBuf::from(format!("dashboard{}", file_path));
+            let path = resolve_static_file_path(&file_path);
             if path.exists() && path.is_file() {
                 let content_type = match path.extension().and_then(|s| s.to_str()) {
                     Some("html") => "text/html; charset=utf-8",
@@ -188,6 +202,7 @@ fn handle_api(
     image_index_path: &str,
     image_db_error_store_path: &str,
     ai_predict_url: &str,
+    openclaw_url: &str,
     sensor_schema_payload: &str,
     db: Arc<Mutex<DbManager>>,
     query_cache: Arc<Mutex<QueryCache>>,
@@ -212,6 +227,9 @@ fn handle_api(
                 ai_predict_url,
                 db,
             );
+        }
+        (Method::Post, "/api/v1/chat") => {
+            handle_chat_proxy(request, openclaw_url);
         }
         (Method::Get, "/api/v1/image/uploads") => {
             handle_image_upload_query(request, query, db, query_cache);
@@ -343,6 +361,119 @@ fn handle_telemetry_query(
             respond_json_with_status(request, 503, &payload);
         }
     }
+}
+
+fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
+    let mut body = Vec::new();
+    if let Err(err) = request.as_reader().read_to_end(&mut body) {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: format!("failed to read request body: {err}"),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+        respond_json_with_status(request, 400, &payload);
+        return;
+    }
+
+    let req: ChatProxyRequest = match serde_json::from_slice::<ChatProxyRequest>(&body) {
+        Ok(v) if !v.message.trim().is_empty() => v,
+        Ok(_) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: "message must not be empty".to_string(),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 400, &payload);
+            return;
+        }
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("invalid json body: {err}"),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 400, &payload);
+            return;
+        }
+    };
+
+    let forward_url = format!("{}/api/v1/chat", openclaw_url.trim_end_matches('/'));
+    let upstream = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .build()
+        .and_then(|client| client.post(forward_url).json(&req).send());
+
+    let upstream = match upstream {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("openclaw request failed: {err}"),
+            })
+            .unwrap_or_else(|_| {
+                "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string()
+            });
+            respond_json_with_status(request, 503, &payload);
+            return;
+        }
+    };
+
+    let status = upstream.status();
+    let text = match upstream.text() {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("failed to read openclaw response: {err}"),
+            })
+            .unwrap_or_else(|_| {
+                "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string()
+            });
+            respond_json_with_status(request, 503, &payload);
+            return;
+        }
+    };
+
+    if !status.is_success() {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: format!("openclaw returned {}", status.as_u16()),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string());
+        respond_json_with_status(request, 503, &payload);
+        return;
+    }
+
+    if let Ok(parsed) = serde_json::from_str::<ChatProxyResponse>(&text) {
+        let payload =
+            serde_json::to_string(&parsed).unwrap_or_else(|_| "{\"reply\":\"\"}".to_string());
+        respond_json_with_status(request, 200, &payload);
+        return;
+    }
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+        if let Some(reply) = v
+            .get("reply")
+            .and_then(|x| x.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| {
+                v.get("message")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string())
+            })
+        {
+            let payload = serde_json::to_string(&ChatProxyResponse { reply })
+                .unwrap_or_else(|_| "{\"reply\":\"\"}".to_string());
+            respond_json_with_status(request, 200, &payload);
+            return;
+        }
+    }
+
+    let payload = serde_json::to_string(&ImageUploadErrorResponse {
+        status: "error".to_string(),
+        message: "openclaw response missing reply field".to_string(),
+    })
+    .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream bad response\"}".to_string());
+    respond_json_with_status(request, 503, &payload);
 }
 
 fn handle_image_upload(
@@ -775,6 +906,15 @@ fn split_query(url: &str) -> (&str, &str) {
         Some((path, query)) => (path, query),
         None => (url, ""),
     }
+}
+
+fn resolve_static_file_path(file_path: &str) -> PathBuf {
+    let normalized = file_path.trim_start_matches('/');
+    let preferred = PathBuf::from("frontend_v2_premium").join(normalized);
+    if preferred.exists() {
+        return preferred;
+    }
+    PathBuf::from("dashboard").join(normalized)
 }
 
 fn parse_query(query: &str) -> HashMap<String, String> {

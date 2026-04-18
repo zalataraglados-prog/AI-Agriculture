@@ -57,6 +57,7 @@ image_index_path = "state/image_index.jsonl"
 image_db_error_store_path = "state/image_upload_errors.jsonl"
 database_url = "postgres://postgres@127.0.0.1/ai_agriculture"
 ai_predict_url = "http://127.0.0.1:8000/api/v1/predict"
+openclaw_url = "http://127.0.0.1:3000"
 
 [[exact_payloads]]
 payload = "success"
@@ -161,6 +162,15 @@ Query API:
   - `predicted_class`
   - `limit` (default `100`, max `1000`)
 
+## Agent chat proxy API
+
+- `POST /api/v1/chat`
+- request body:
+  - `message` (required string)
+  - `context` (optional JSON object)
+- cloud forwards the request to `${openclaw_url}/api/v1/chat` and normalizes response to:
+  - `{ "reply": "..." }`
+
 ## Database layout
 
 - Migrations run in order: `0001` + `0002` + `0003`.
@@ -188,13 +198,19 @@ Environment variables:
 - `SERVICE_NAME` (default `ai-agri-cloud-receiver`)
 - `BIND_ADDR` (default `0.0.0.0:9000`)
 - `CONFIG_PATH` (default `${INSTALL_ROOT}/config/sensors.toml`)
+- `OVERWRITE_CONFIG` (default `0`; set to `1` only when you want to replace existing config)
+- `STATIC_SOURCE_FRONTEND` (default `${SCRIPT_DIR}/../frontend_v2_premium`)
+- `STATIC_SOURCE_DASHBOARD` (default `${SCRIPT_DIR}/dashboard`)
+- `STATIC_TARGET_FRONTEND` (default `${INSTALL_ROOT}/frontend_v2_premium`)
+- `STATIC_TARGET_DASHBOARD` (default `${INSTALL_ROOT}/dashboard`)
 
 The script will:
 
 1. Build release binary
 2. Install it under `${INSTALL_ROOT}/bin`
-3. Install config under `${INSTALL_ROOT}/config/sensors.toml`
-4. Prefer systemd service deployment (fallback to `nohup` if systemd is unavailable)
+3. Keep existing config by default (install default only if missing; set `OVERWRITE_CONFIG=1` to replace)
+4. Sync static files (`frontend_v2_premium` as primary, `dashboard` as fallback)
+5. Prefer systemd service deployment (fallback to `nohup` if systemd is unavailable)
 
 ## Quick test from another machine
 
