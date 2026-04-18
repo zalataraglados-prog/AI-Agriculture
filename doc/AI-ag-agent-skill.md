@@ -17,7 +17,7 @@
 - `AI-ag stop`：停止服务。
 - `AI-ag restart`：重启服务（提示会触发落盘动作，避免滥用）。
 - `AI-ag log -t <N>`：最近日志，`-t` 为行数，默认 50。
-- `AI-ag database -p <PATH> -t <RANGE> -v`：数据库检查（`-p/-t` 必填）。
+- `AI-ag database -p <PATH> -t <RANGE>`：数据库检查（`-p/-t` 必填）。
 - `AI-ag check-database`：检查分块文件/时间主轴缺失。
 - `AI-ag token`：输出当前 token（新设备注册用）。
 - `AI-ag refresh-token`：立即废弃旧 token 并生成新 token。
