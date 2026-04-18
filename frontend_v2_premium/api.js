@@ -81,6 +81,36 @@ window.API = (() => {
         ];
     };
 
+    const getSectors = () => {
+        return [
+            { id: 'sector-01-a', name: 'Sector 01-A (Rice)', status: 'active' },
+            { id: 'sector-01-b', name: 'Sector 01-B (Corn)', status: 'active' },
+            { id: 'sector-02-a', name: 'Sector 02-A (Fruit)', status: 'standby' }
+        ];
+    };
+
+    const fetchHistory = async (sectorId, hours = 24) => {
+        // In a real scenario, this calls /api/v1/telemetry?device_id=...&hours=...
+        // For now, we return high-fidelity mock history
+        const points = [];
+        const now = Date.now();
+        const count = hours * 4; // 15min intervals
+        for (let i = 0; i < count; i++) {
+            const ts = new Date(now - (count - i) * 15 * 60 * 1000).toISOString();
+            points.push({
+                sensor_id: 'soil_modbus_02',
+                fields: { ec: 1.0 + Math.random() * 0.5, moisture: 40 + Math.random() * 10 },
+                ts
+            });
+            points.push({
+                sensor_id: 'dht22',
+                fields: { humidity: 60 + Math.random() * 10, temperature: 22 + Math.random() * 5 },
+                ts
+            });
+        }
+        return points;
+    };
+
     return {
         GATEWAY_STALE_MS,
         getSchema: () => schemaBySensor,
@@ -88,6 +118,8 @@ window.API = (() => {
         loadSchema,
         detectSensorFault,
         getMockSensors,
+        getSectors,
+        fetchHistory,
         apiUrl: (base, queryObj) => {
             const u = new URL(base, window.location.origin);
             Object.entries(queryObj).forEach(([k, v]) => {
