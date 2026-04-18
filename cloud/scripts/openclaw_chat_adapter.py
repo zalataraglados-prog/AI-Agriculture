@@ -84,7 +84,9 @@ class ChatHandler(BaseHTTPRequestHandler):
             self._write_json(HTTPStatus.SERVICE_UNAVAILABLE, {"status": "error", "message": err[:1000]})
             return
 
-        text = proc.stdout.strip()
+        text = (proc.stdout or "").strip()
+        if "{" not in text:
+            text = (proc.stderr or "").strip()
         start = text.find("{")
         end = text.rfind("}")
         if start < 0 or end < start:
