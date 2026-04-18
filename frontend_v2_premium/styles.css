@@ -175,6 +175,34 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Sensor Detail View Styles */
+#view-sensor-detail {
+    min-height: 80vh;
+}
+
+#sensorDetailContent {
+    animation: fadeIn 0.6s ease-out;
+}
+
+.lab-stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.lab-stat-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(16, 185, 129, 0.2);
+    transform: scale(1.02);
+}
+
 /* OpenClaw Chat UI Styles */
 @keyframes chatSlideUp {
   from { opacity: 0; transform: translateY(20px) scale(0.95); }

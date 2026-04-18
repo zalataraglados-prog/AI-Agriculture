@@ -135,7 +135,7 @@
                               </div>
                           </div>
                           <div class="p-4 bg-black/20 border-t border-white/5">
-                              <form id="chatForm" class="flex items-center gap-2" onsubmit="handleChatSubmit(event)">
+                              <form id="chatForm" class="flex items-center gap-2" onsubmit="window.CHAT.handleSubmit(event)">
                                   <input type="text" id="chatInput" autocomplete="off" class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50" placeholder="发送指令..." />
                                   <button type="submit" class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center"><i class="fa fa-paper-plane text-xs"></i></button>
                               </form>
@@ -209,6 +209,22 @@
                   <p class="text-slate-400">拓扑完整性校验中... 预计在下一个迭代版本支持实时硬件诊断反馈。</p>
               </div>
           </section>
+
+          <!-- VIEW: Sensor Detail (The "Laboratory") -->
+          <section id="view-sensor-detail" class="view-section p-4 md:p-8">
+              <div class="flex items-center justify-between mb-8">
+                  <div>
+                      <h2 class="text-2xl font-black text-white tracking-widest uppercase mb-1">传感器实验室<span class="text-emerald-400"> / SENSOR LAB</span></h2>
+                      <p class="text-[10px] text-slate-500 uppercase tracking-widest">底层硬件寄存器实时探测与协议栈监控</p>
+                  </div>
+                  <button onclick="UI.switchView('view-home')" class="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 hover:text-white transition-all uppercase tracking-widest flex items-center gap-2">
+                       <i class="fa fa-arrow-left"></i> Close Lab
+                  </button>
+              </div>
+              <div id="sensorDetailContent" class="space-y-8">
+                  <!-- Data Injected via UI.openSensorDetail -->
+              </div>
+          </section>
       </div>
   </div>
 
@@ -238,6 +254,9 @@
   </div>
 
 
+  <script src="api.js"></script>
+  <script src="ui.js"></script>
+  <script src="chat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
