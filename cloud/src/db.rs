@@ -29,6 +29,7 @@ pub(crate) struct ImageUploadDbRecord {
 #[derive(Debug, Clone)]
 pub(crate) struct ImageInferenceDbRecord {
     pub(crate) upload_id: String,
+    pub(crate) captured_at: DateTime<Utc>,
     pub(crate) predicted_class: Option<String>,
     pub(crate) confidence: Option<f64>,
     pub(crate) model_version: Option<String>,
@@ -112,6 +113,9 @@ impl DbManager {
                 "../sql/migrations/0002_migrate_legacy_tables.sql"
             ))
             .map_err(|e| format!("failed to run migration 0002_migrate_legacy_tables.sql: {e}"))?;
+        client
+            .batch_execute(include_str!("../sql/migrations/0003_timescale_rewrite.sql"))
+            .map_err(|e| format!("failed to run migration 0003_timescale_rewrite.sql: {e}"))?;
 
         Ok(Self { client })
     }
@@ -129,7 +133,7 @@ impl DbManager {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
                 )
-                ON CONFLICT (upload_id) DO UPDATE SET
+                ON CONFLICT (captured_at, upload_id) DO UPDATE SET
                     device_id = EXCLUDED.device_id,
                     captured_at = EXCLUDED.captured_at,
                     received_at = EXCLUDED.received_at,
@@ -195,6 +199,7 @@ impl DbManager {
     pub(crate) fn update_upload_status(
         &mut self,
         upload_id: &str,
+        captured_at: DateTime<Utc>,
         upload_status: &str,
         error_message: Option<String>,
     ) -> Result<(), String> {
@@ -203,11 +208,14 @@ impl DbManager {
             .prepare(
                 "UPDATE image_uploads
                  SET upload_status = $2, error_message = $3
-                 WHERE upload_id = $1",
+                 WHERE upload_id = $1 AND captured_at = $4",
             )
             .map_err(|e| format!("failed to prepare upload status update: {e}"))?;
         self.client
-            .execute(&stmt, &[&upload_id, &upload_status, &error_message])
+            .execute(
+                &stmt,
+                &[&upload_id, &upload_status, &error_message, &captured_at],
+            )
             .map_err(|e| format!("failed to update upload status: {e}"))?;
         Ok(())
     }
@@ -224,12 +232,12 @@ impl DbManager {
         let insert_stmt = tx
             .prepare(
                 "INSERT INTO image_inference_results (
-                    upload_id, predicted_class, confidence, model_version,
+                    upload_id, captured_at, predicted_class, confidence, model_version,
                     topk_json, metadata_json, geometry_json, latency_ms, advice_code
                 ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
                 )
-                ON CONFLICT (upload_id) DO UPDATE SET
+                ON CONFLICT (upload_id, captured_at) DO UPDATE SET
                     predicted_class = EXCLUDED.predicted_class,
                     confidence = EXCLUDED.confidence,
                     model_version = EXCLUDED.model_version,
@@ -244,6 +252,7 @@ impl DbManager {
             &insert_stmt,
             &[
                 &record.upload_id,
+                &record.captured_at,
                 &record.predicted_class,
                 &record.confidence,
                 &record.model_version,
@@ -260,10 +269,10 @@ impl DbManager {
             .prepare(
                 "UPDATE image_uploads
                  SET upload_status = 'inferred', error_message = NULL
-                 WHERE upload_id = $1",
+                 WHERE upload_id = $1 AND captured_at = $2",
             )
             .map_err(|e| format!("failed to prepare inferred status update in tx: {e}"))?;
-        tx.execute(&update_stmt, &[&record.upload_id])
+        tx.execute(&update_stmt, &[&record.upload_id, &record.captured_at])
             .map_err(|e| format!("failed to update upload status to inferred: {e}"))?;
 
         tx.commit()
@@ -322,7 +331,8 @@ impl DbManager {
                     END AS is_diseased,
                     ir.model_version
                 FROM image_uploads iu
-                LEFT JOIN image_inference_results ir ON ir.upload_id = iu.upload_id
+                LEFT JOIN image_inference_results ir
+                  ON ir.upload_id = iu.upload_id AND ir.captured_at = iu.captured_at
                 WHERE
                     ($1::timestamptz IS NULL OR iu.captured_at >= $1) AND
                     ($2::timestamptz IS NULL OR iu.captured_at < $2) AND
@@ -420,8 +430,8 @@ impl DbManager {
         for row in rows {
             let ts: DateTime<Utc> = row.get("ts");
             let fields_json: Value = row.get("fields_json");
-            let fields = serde_json::from_value::<HashMap<String, Value>>(fields_json)
-                .unwrap_or_default();
+            let fields =
+                serde_json::from_value::<HashMap<String, Value>>(fields_json).unwrap_or_default();
             out.push(SensorTelemetryQueryRow {
                 ts: ts.to_rfc3339(),
                 device_id: row.get("device_id"),
@@ -433,4 +443,3 @@ impl DbManager {
         Ok(out)
     }
 }
-

@@ -1,35 +1,121 @@
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use tiny_http::{Header, Method, Response, Server};
 
 use crate::ai_client::{infer_image_from_file, AiInferenceOutput};
 use crate::db::{
     DbManager, ImageInferenceDbRecord, ImageUploadDbRecord, ImageUploadQueryFilter,
-    SensorTelemetryQueryFilter, SensorTelemetryQueryRow,
+    SensorTelemetryQueryFilter,
 };
 use crate::image_upload::{
     append_image_error_backup, append_image_index_backup, build_upload_ok_response,
     parse_captured_at_utc, parse_multipart_file, parse_tag, save_image_file,
     ImageUploadErrorResponse, ImageUploadOkResponse,
 };
-use crate::telemetry::{load_records, TelemetryRecord};
+use crate::model::{FieldType, SensorRule};
 use crate::time_util::now_rfc3339;
+
+const QUERY_CACHE_TTL_SECONDS: u64 = 15;
+const QUERY_CACHE_MAX_ENTRIES: usize = 500;
+
+#[derive(Debug, Clone)]
+struct QueryCacheEntry {
+    value: String,
+    expires_at: Instant,
+}
+
+#[derive(Debug)]
+struct QueryCache {
+    entries: HashMap<String, QueryCacheEntry>,
+    order: VecDeque<String>,
+    ttl: Duration,
+    capacity: usize,
+}
+
+impl QueryCache {
+    fn new(capacity: usize, ttl: Duration) -> Self {
+        Self {
+            entries: HashMap::new(),
+            order: VecDeque::new(),
+            ttl,
+            capacity,
+        }
+    }
+
+    fn get(&mut self, key: &str) -> Option<String> {
+        let now = Instant::now();
+        match self.entries.get(key) {
+            Some(entry) if entry.expires_at > now => Some(entry.value.clone()),
+            Some(_) => {
+                self.entries.remove(key);
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn insert(&mut self, key: String, value: String) {
+        let expires_at = Instant::now() + self.ttl;
+        self.entries
+            .insert(key.clone(), QueryCacheEntry { value, expires_at });
+        self.order.push_back(key);
+
+        while self.entries.len() > self.capacity {
+            let Some(oldest) = self.order.pop_front() else {
+                break;
+            };
+            self.entries.remove(&oldest);
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct SensorSchemaPayload {
+    sensors: Vec<SensorSchemaItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct SensorSchemaItem {
+    sensor_id: String,
+    fields: Vec<SensorFieldSchema>,
+    trend_metric: Option<String>,
+    category_metric: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SensorFieldSchema {
+    field: String,
+    label: String,
+    unit: String,
+    data_type: String,
+    required: bool,
+    threshold_low: Option<f64>,
+    threshold_high: Option<f64>,
+}
 
 pub fn start_http_server(
     bind_addr: &str,
-    telemetry_store_path: String,
     image_store_path: String,
     image_index_path: String,
     image_db_error_store_path: String,
     ai_predict_url: String,
+    sensor_rules: HashMap<String, SensorRule>,
     db: Arc<Mutex<DbManager>>,
 ) {
     let server = Server::http(bind_addr).expect("Failed to start HTTP server");
+    let sensor_schema_payload = build_sensor_schema_payload(&sensor_rules);
+    let query_cache = Arc::new(Mutex::new(QueryCache::new(
+        QUERY_CACHE_MAX_ENTRIES,
+        Duration::from_secs(QUERY_CACHE_TTL_SECONDS),
+    )));
     println!(
         "{} [cloud-http] Listening on http://{}",
         now_rfc3339(),
@@ -48,12 +134,13 @@ pub fn start_http_server(
                     method,
                     path,
                     query,
-                    &telemetry_store_path,
                     &image_store_path,
                     &image_index_path,
                     &image_db_error_store_path,
                     &ai_predict_url,
+                    &sensor_schema_payload,
                     db.clone(),
+                    query_cache.clone(),
                 );
                 continue;
             }
@@ -97,12 +184,13 @@ fn handle_api(
     method: Method,
     path: &str,
     query: &str,
-    telemetry_store_path: &str,
     image_store_path: &str,
     image_index_path: &str,
     image_db_error_store_path: &str,
     ai_predict_url: &str,
+    sensor_schema_payload: &str,
     db: Arc<Mutex<DbManager>>,
+    query_cache: Arc<Mutex<QueryCache>>,
 ) {
     let respond_json = move |json: &str, req: tiny_http::Request| {
         let header = Header::from_bytes(
@@ -126,49 +214,51 @@ fn handle_api(
             );
         }
         (Method::Get, "/api/v1/image/uploads") => {
-            handle_image_upload_query(request, query, db);
+            handle_image_upload_query(request, query, db, query_cache);
+        }
+        (Method::Get, "/api/v1/sensor/schema") => {
+            respond_json_with_status(request, 200, sensor_schema_payload);
         }
         (Method::Get, "/api/v1/telemetry") | (Method::Get, "/api/telemetry") => {
-            handle_telemetry_query(request, query, telemetry_store_path, db);
+            handle_telemetry_query(request, query, db, query_cache);
         }
         (Method::Post, "/api/send-code") => {
-            respond_json(
-                r#"{"success": true, "message": "验证码发送成功", "data": null}"#,
+            respond_json_with_status(
                 request,
+                410,
+                r#"{"status":"error","message":"deprecated endpoint: /api/send-code"}"#,
             );
         }
         (Method::Post, "/api/login") => {
             respond_json(
                 r#"{
                 "success": true, 
-                "message": "登录成功", 
-                "data": {
-                    "token": "jwt_token_mock",
-                    "userInfo": {"id": 1, "role": "admin"}
-                }
+                "message": "login compatibility endpoint", 
+                "data": null
             }"#,
                 request,
             );
         }
         (Method::Get, "/api/dashboard") => {
-            respond_json(
-                r#"{"totalFields": "68", "avgHumidity": "65%", "todayTemp": "30℃", "deviceOnline": "98%"}"#,
+            respond_json_with_status(
                 request,
+                410,
+                r#"{"status":"error","message":"deprecated endpoint: /api/dashboard"}"#,
             );
         }
         (Method::Get, "/api/charts") => {
-            respond_json(
-                r#"{"humidityData": [58, 61, 63, 65, 64, 66, 65], "typesData": [35, 25, 20, 20]}"#,
+            respond_json_with_status(
                 request,
+                410,
+                r#"{"status":"error","message":"deprecated endpoint: /api/charts"}"#,
             );
         }
         (Method::Get, "/api/fields") => {
-            let fields_json = r#"[
-                {"id":"D001","location":"东区一号田","humidity":"62%","temperature":"29℃","status":"正常","color":"green"},
-                {"id":"D002","location":"西区试验田","humidity":"58%","temperature":"30℃","status":"正常","color":"green"},
-                {"id":"D003","location":"北区高产田","humidity":"71%","temperature":"28℃","status":"偏高","color":"yellow"}
-            ]"#;
-            respond_json(fields_json, request);
+            respond_json_with_status(
+                request,
+                410,
+                r#"{"status":"error","message":"deprecated endpoint: /api/fields"}"#,
+            );
         }
         _ => {
             let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
@@ -179,8 +269,8 @@ fn handle_api(
 fn handle_telemetry_query(
     request: tiny_http::Request,
     query: &str,
-    telemetry_store_path: &str,
     db: Arc<Mutex<DbManager>>,
+    query_cache: Arc<Mutex<QueryCache>>,
 ) {
     let params = parse_query(query);
     let start_time = match parse_optional_rfc3339(params.get("start_time").map(|v| v.as_str())) {
@@ -191,7 +281,7 @@ fn handle_telemetry_query(
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -203,7 +293,7 @@ fn handle_telemetry_query(
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -219,6 +309,17 @@ fn handle_telemetry_query(
             .clamp(1, 1000),
     };
 
+    let cache_key = format!(
+        "telemetry|{:?}|{:?}|{:?}|{:?}|{}",
+        filter.start_time, filter.end_time, filter.device_id, filter.sensor_id, filter.limit
+    );
+    if let Ok(mut cache) = query_cache.lock() {
+        if let Some(payload) = cache.get(cache_key.as_str()) {
+            respond_json_with_status(request, 200, &payload);
+            return;
+        }
+    }
+
     let db_result = db
         .lock()
         .map_err(|_| "db lock poisoned".to_string())
@@ -226,17 +327,20 @@ fn handle_telemetry_query(
     match db_result {
         Ok(rows) => {
             let body = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_string());
+            if let Ok(mut cache) = query_cache.lock() {
+                cache.insert(cache_key, body.clone());
+            }
             respond_json_with_status(request, 200, &body);
         }
         Err(err) => {
-            eprintln!(
-                "{} [cloud-http] WARN: telemetry db query failed, fallback to JSONL: {}",
-                now_rfc3339(),
-                err
-            );
-            let fallback_rows = filter_telemetry_records_jsonl(telemetry_store_path, &filter);
-            let body = serde_json::to_string(&fallback_rows).unwrap_or_else(|_| "[]".to_string());
-            respond_json_with_status(request, 200, &body);
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("database query failed: {err}"),
+            })
+            .unwrap_or_else(|_| {
+                "{\"status\":\"error\",\"message\":\"database query failed\"}".to_string()
+            });
+            respond_json_with_status(request, 503, &payload);
         }
     }
 }
@@ -258,7 +362,7 @@ fn handle_image_upload(
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -278,7 +382,7 @@ fn handle_image_upload(
             message: "Content-Type must be multipart/form-data".to_string(),
         })
         .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-        respond_json_with_status(request, 200, &payload);
+        respond_json_with_status(request, 400, &payload);
         return;
     }
 
@@ -289,7 +393,7 @@ fn handle_image_upload(
             message: format!("failed to read request body: {err}"),
         })
         .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-        respond_json_with_status(request, 200, &payload);
+        respond_json_with_status(request, 400, &payload);
         return;
     }
 
@@ -301,7 +405,7 @@ fn handle_image_upload(
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -315,7 +419,7 @@ fn handle_image_upload(
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -330,7 +434,7 @@ fn handle_image_upload(
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -363,7 +467,7 @@ fn handle_image_upload(
         .unwrap_or_else(|_| {
             "{\"status\":\"error\",\"message\":\"database write failed\"}".to_string()
         });
-        respond_json_with_status(request, 200, &payload);
+        respond_json_with_status(request, 503, &payload);
         return;
     }
 
@@ -371,7 +475,7 @@ fn handle_image_upload(
         infer_image_from_file(ai_predict_url, &persisted.saved_path, &persisted.image_type);
     match infer_result {
         Ok(ai) => {
-            let inference_record = to_inference_record(&persisted.upload_id, ai);
+            let inference_record = to_inference_record(&persisted.upload_id, captured_at, ai);
             let write_result = db
                 .lock()
                 .map_err(|_| "db lock poisoned".to_string())
@@ -383,6 +487,7 @@ fn handle_image_upload(
                     .and_then(|mut guard| {
                         guard.update_upload_status(
                             &persisted.upload_id,
+                            captured_at,
                             "failed",
                             Some(format!("db write inference failed: {err}")),
                         )
@@ -400,7 +505,12 @@ fn handle_image_upload(
                 .lock()
                 .map_err(|_| "db lock poisoned".to_string())
                 .and_then(|mut guard| {
-                    guard.update_upload_status(&persisted.upload_id, "failed", Some(err.clone()))
+                    guard.update_upload_status(
+                        &persisted.upload_id,
+                        captured_at,
+                        "failed",
+                        Some(err.clone()),
+                    )
                 });
             let _ =
                 append_image_error_backup(image_db_error_store_path, &tag, &err, Some(&persisted));
@@ -429,7 +539,12 @@ fn handle_image_upload(
     respond_json_with_status(request, 200, &payload);
 }
 
-fn handle_image_upload_query(request: tiny_http::Request, query: &str, db: Arc<Mutex<DbManager>>) {
+fn handle_image_upload_query(
+    request: tiny_http::Request,
+    query: &str,
+    db: Arc<Mutex<DbManager>>,
+    query_cache: Arc<Mutex<QueryCache>>,
+) {
     let params = parse_query(query);
     let start_time = match parse_optional_rfc3339(params.get("start_time").map(|v| v.as_str())) {
         Ok(v) => v,
@@ -439,7 +554,7 @@ fn handle_image_upload_query(request: tiny_http::Request, query: &str, db: Arc<M
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -451,7 +566,7 @@ fn handle_image_upload_query(request: tiny_http::Request, query: &str, db: Arc<M
                 message: err,
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 400, &payload);
             return;
         }
     };
@@ -466,8 +581,26 @@ fn handle_image_upload_query(request: tiny_http::Request, query: &str, db: Arc<M
         limit: params
             .get("limit")
             .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(100),
+            .unwrap_or(100)
+            .clamp(1, 1000),
     };
+
+    let cache_key = format!(
+        "image_uploads|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{}",
+        filter.start_time,
+        filter.end_time,
+        filter.device_id,
+        filter.crop_type,
+        filter.upload_status,
+        filter.predicted_class,
+        filter.limit
+    );
+    if let Ok(mut cache) = query_cache.lock() {
+        if let Some(payload) = cache.get(cache_key.as_str()) {
+            respond_json_with_status(request, 200, &payload);
+            return;
+        }
+    }
 
     let rows = db
         .lock()
@@ -476,6 +609,9 @@ fn handle_image_upload_query(request: tiny_http::Request, query: &str, db: Arc<M
     match rows {
         Ok(items) => {
             let payload = serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string());
+            if let Ok(mut cache) = query_cache.lock() {
+                cache.insert(cache_key, payload.clone());
+            }
             respond_json_with_status(request, 200, &payload);
         }
         Err(err) => {
@@ -486,7 +622,7 @@ fn handle_image_upload_query(request: tiny_http::Request, query: &str, db: Arc<M
             .unwrap_or_else(|_| {
                 "{\"status\":\"error\",\"message\":\"database query failed\"}".to_string()
             });
-            respond_json_with_status(request, 200, &payload);
+            respond_json_with_status(request, 503, &payload);
         }
     }
 }
@@ -511,64 +647,118 @@ fn non_empty(raw: Option<String>) -> Option<String> {
     })
 }
 
-fn filter_telemetry_records_jsonl(
-    telemetry_store_path: &str,
-    filter: &SensorTelemetryQueryFilter,
-) -> Vec<SensorTelemetryQueryRow> {
-    let mut records = load_records(telemetry_store_path).unwrap_or_default();
-    records.retain(|record| match telemetry_record_matches_filter(record, filter) {
-        Ok(v) => v,
-        Err(_) => false,
-    });
-    records.sort_by(|a, b| b.ts.cmp(&a.ts));
-    records
+fn build_sensor_schema_payload(sensor_rules: &HashMap<String, SensorRule>) -> String {
+    let mut entries = sensor_rules.iter().collect::<Vec<_>>();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+
+    let sensors = entries
         .into_iter()
-        .take(filter.limit)
-        .map(|record| SensorTelemetryQueryRow {
-            ts: record.ts,
-            device_id: record.device_id,
-            sensor_id: record.sensor_id,
-            fields: record.fields,
+        .map(|(sensor_id, rule)| to_sensor_schema_item(sensor_id, rule))
+        .collect::<Vec<_>>();
+
+    serde_json::to_string(&SensorSchemaPayload { sensors }).unwrap_or_else(|_| {
+        "{\"sensors\":[],\"status\":\"error\",\"message\":\"schema serialize failed\"}".to_string()
+    })
+}
+
+fn to_sensor_schema_item(sensor_id: &str, rule: &SensorRule) -> SensorSchemaItem {
+    let mut fields = rule.field_types.iter().collect::<Vec<_>>();
+    fields.sort_by(|a, b| a.0.cmp(b.0));
+
+    let fields = fields
+        .into_iter()
+        .map(|(field, ty)| {
+            let required = rule.required_fields.iter().any(|x| x == field);
+            let (label, unit, threshold_low, threshold_high) = infer_field_display(field, *ty);
+            SensorFieldSchema {
+                field: field.clone(),
+                label: label.to_string(),
+                unit: unit.to_string(),
+                data_type: field_type_name(*ty).to_string(),
+                required,
+                threshold_low,
+                threshold_high,
+            }
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    SensorSchemaItem {
+        sensor_id: sensor_id.to_string(),
+        trend_metric: infer_trend_metric(sensor_id, &fields),
+        category_metric: infer_category_metric(sensor_id, &fields),
+        fields,
+    }
 }
 
-fn telemetry_record_matches_filter(
-    record: &TelemetryRecord,
-    filter: &SensorTelemetryQueryFilter,
-) -> Result<bool, String> {
-    if let Some(device_id) = filter.device_id.as_deref() {
-        if record.device_id != device_id {
-            return Ok(false);
-        }
+fn field_type_name(value: FieldType) -> &'static str {
+    match value {
+        FieldType::String => "string",
+        FieldType::Bool => "bool",
+        FieldType::U8 => "u8",
+        FieldType::U16 => "u16",
+        FieldType::U32 => "u32",
+        FieldType::I32 => "i32",
+        FieldType::F32 => "f32",
+        FieldType::F64 => "f64",
     }
-    if let Some(sensor_id) = filter.sensor_id.as_deref() {
-        if record.sensor_id != sensor_id {
-            return Ok(false);
-        }
-    }
-    if filter.start_time.is_none() && filter.end_time.is_none() {
-        return Ok(true);
-    }
-    let parsed = DateTime::parse_from_rfc3339(record.ts.as_str())
-        .map_err(|e| format!("invalid telemetry ts format in JSONL: {e}"))?
-        .with_timezone(&Utc);
-    if let Some(start) = filter.start_time {
-        if parsed < start {
-            return Ok(false);
-        }
-    }
-    if let Some(end) = filter.end_time {
-        if parsed >= end {
-            return Ok(false);
-        }
-    }
-    Ok(true)
 }
 
-fn to_inference_record(upload_id: &str, ai: AiInferenceOutput) -> ImageInferenceDbRecord {
+fn infer_field_display(
+    field: &str,
+    _field_type: FieldType,
+) -> (&'static str, &'static str, Option<f64>, Option<f64>) {
+    match field {
+        "vwc" => ("土壤湿度", "%", Some(20.0), Some(70.0)),
+        "temp_c" => ("温度", "℃", Some(0.0), Some(45.0)),
+        "ec" => ("电导率", "μS/cm", Some(0.0), Some(5000.0)),
+        "hum" => ("空气湿度", "%", Some(30.0), Some(85.0)),
+        "voltage" => ("电压", "V", Some(0.0), Some(5.0)),
+        "raw" => ("原始值", "", None, None),
+        "ain0" => ("AIN0", "", None, None),
+        "ain1" => ("AIN1", "", None, None),
+        "ain2" => ("AIN2", "", None, None),
+        "ain3" => ("AIN3", "", None, None),
+        "slave_id" => ("从站ID", "", None, None),
+        "protocol" => ("协议", "", None, None),
+        "pin" => ("引脚", "", None, None),
+        "addr" => ("地址", "", None, None),
+        _ => ("字段", "", None, None),
+    }
+}
+
+fn infer_trend_metric(sensor_id: &str, fields: &[SensorFieldSchema]) -> Option<String> {
+    if sensor_id == "soil_modbus_02" {
+        return Some("ec".to_string());
+    }
+    for candidate in ["temp_c", "hum", "vwc", "ec", "voltage", "raw"] {
+        if fields.iter().any(|f| f.field == candidate) {
+            return Some(candidate.to_string());
+        }
+    }
+    fields
+        .iter()
+        .find(|f| f.data_type != "string" && f.data_type != "bool")
+        .map(|f| f.field.clone())
+}
+
+fn infer_category_metric(sensor_id: &str, fields: &[SensorFieldSchema]) -> Option<String> {
+    if sensor_id == "soil_modbus_02" && fields.iter().any(|f| f.field == "slave_id") {
+        return Some("slave_id".to_string());
+    }
+    if fields.iter().any(|f| f.field == "protocol") {
+        return Some("protocol".to_string());
+    }
+    None
+}
+
+fn to_inference_record(
+    upload_id: &str,
+    captured_at: DateTime<Utc>,
+    ai: AiInferenceOutput,
+) -> ImageInferenceDbRecord {
     ImageInferenceDbRecord {
         upload_id: upload_id.to_string(),
+        captured_at,
         predicted_class: ai.predicted_class,
         confidence: ai.confidence,
         model_version: ai.model_version,
@@ -662,6 +852,10 @@ fn respond_json_with_status(request: tiny_http::Request, code: u16, payload: &st
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use crate::model::{FieldType, SensorRule};
+
     use super::parse_query;
 
     #[test]
@@ -675,5 +869,25 @@ mod tests {
             params.get("location").map(String::as_str),
             Some("test plot")
         );
+    }
+
+    #[test]
+    fn build_sensor_schema_payload_contains_fields() {
+        let mut rules = HashMap::new();
+        let mut field_types = HashMap::new();
+        field_types.insert("temp_c".to_string(), FieldType::F32);
+        field_types.insert("hum".to_string(), FieldType::F32);
+        rules.insert(
+            "dht22".to_string(),
+            SensorRule {
+                ack: "ack:dht22".to_string(),
+                required_fields: vec!["temp_c".to_string()],
+                field_types,
+            },
+        );
+        let payload = super::build_sensor_schema_payload(&rules);
+        assert!(payload.contains("\"sensor_id\":\"dht22\""));
+        assert!(payload.contains("\"field\":\"temp_c\""));
+        assert!(payload.contains("\"required\":true"));
     }
 }

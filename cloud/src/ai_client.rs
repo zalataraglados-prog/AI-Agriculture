@@ -111,12 +111,7 @@ fn parse_ai_response(text: &str, elapsed_ms: i32) -> Result<AiInferenceOutput, S
     }
     let geometry_json = first.get("geometry").cloned().filter(|v| !v.is_null());
 
-    enrich_disease_metrics(
-        &predicted_class,
-        confidence,
-        &topk_json,
-        &mut metadata_json,
-    );
+    enrich_disease_metrics(&predicted_class, confidence, &topk_json, &mut metadata_json);
 
     let advice_code = metadata_json
         .get("advice_code")
@@ -147,12 +142,12 @@ fn enrich_disease_metrics(
 
     let healthy_prob_existing = obj.get("healthy_prob").and_then(|v| v.as_f64());
     let healthy_prob_topk = extract_healthy_prob_from_topk(topk_json);
-    let healthy_prob = healthy_prob_existing
-        .or(healthy_prob_topk)
-        .or_else(|| match (predicted_class.as_deref(), confidence) {
+    let healthy_prob = healthy_prob_existing.or(healthy_prob_topk).or_else(|| {
+        match (predicted_class.as_deref(), confidence) {
             (Some("HealthyLeaf"), Some(c)) => Some(c.clamp(0.0, 1.0)),
             _ => None,
-        });
+        }
+    });
 
     if let Some(v) = healthy_prob {
         obj.insert("healthy_prob".to_string(), Value::from(v.clamp(0.0, 1.0)));

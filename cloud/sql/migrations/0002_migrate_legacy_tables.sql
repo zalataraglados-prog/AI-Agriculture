@@ -60,6 +60,6 @@ BEGIN
             'stored' AS upload_status,
             NULL AS error_message
         FROM image_index ii
-        ON CONFLICT (upload_id) DO NOTHING;
+        ON CONFLICT DO NOTHING;
     END IF;
 END $$;
