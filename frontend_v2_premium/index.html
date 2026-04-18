@@ -27,29 +27,58 @@
       <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]"></div>
   </div>
 
-  <!-- Top Navigation -->
-  <header class="glass-panel sticky top-4 mx-4 md:mx-8 z-50 flex items-center justify-between px-6 py-4">
-      <div class="flex items-center gap-4">
+  <!-- Sidebar Navigation -->
+  <aside id="sidebar" class="fixed left-0 top-0 h-full z-[100] flex flex-col overflow-hidden">
+      <!-- Logo Area -->
+      <div class="p-6 mb-10">
           <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <i class="fa fa-leaf text-white text-xl"></i>
           </div>
-          <div>
-              <h1 class="text-xl font-bold text-white tracking-wide">AI-Agri <span class="text-emerald-400 font-light">Nexus</span></h1>
-              <p class="text-xs text-slate-400"><i class="fa fa-circle text-emerald-500 animate-pulse text-[8px] mr-1"></i>System Online</p>
-          </div>
       </div>
-      <div class="flex items-center gap-6">
-          <div class="hidden md:flex flex-col items-end">
-              <span id="ctxDevice" class="text-sm font-medium text-emerald-400">Node: ALL</span>
-              <span id="clock" class="text-xs text-slate-400 font-mono">00:00:00</span>
-          </div>
-          <button onclick="location.href='login.html'" class="w-10 h-10 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 transition-colors border border-white/5 flex items-center justify-center">
-              <i class="fa fa-power-off"></i>
-          </button>
-      </div>
-  </header>
 
-  <main class="relative z-10 px-4 md:px-8 mt-8 space-y-8">
+      <!-- Navigation Menu -->
+      <nav class="flex-1">
+          <div class="sidebar-item active" onclick="switchView('view-dashboard', this)">
+              <i class="fa fa-th-large text-xl w-6 text-center"></i>
+              <span class="nav-label font-medium uppercase tracking-widest text-xs">监控总线</span>
+          </div>
+          <div class="sidebar-item" onclick="switchView('view-charts', this)">
+              <i class="fa fa-line-chart text-xl w-6 text-center"></i>
+              <span class="nav-label font-medium uppercase tracking-widest text-xs">深度分析</span>
+          </div>
+          <div class="sidebar-item" onclick="switchView('view-health', this)">
+              <i class="fa fa-heartbeat text-xl w-6 text-center"></i>
+              <span class="nav-label font-medium uppercase tracking-widest text-xs">设备健康</span>
+          </div>
+      </nav>
+
+      <!-- Bottom Actions -->
+      <div class="p-4 border-t border-white/5 bg-black/20">
+          <div class="sidebar-item" onclick="location.href='login.html'">
+              <i class="fa fa-power-off text-xl w-6 text-center text-rose-500"></i>
+              <span class="nav-label font-medium uppercase tracking-widest text-xs text-rose-500">退出系统</span>
+          </div>
+      </div>
+  </aside>
+
+  <div id="main-content" class="min-h-screen">
+      <!-- Top Navigation (Now within main-content) -->
+      <header class="glass-panel sticky top-4 mx-4 md:mx-8 z-50 flex items-center justify-between px-6 py-4">
+          <div class="flex items-center gap-4">
+              <h1 class="text-xl font-bold text-white tracking-wide">AI-Agri <span class="text-emerald-400 font-light">Nexus</span></h1>
+              <p class="text-xs text-slate-400"><i class="fa fa-circle text-emerald-500 animate-pulse text-[8px] mr-1"></i>系统运行中</p>
+          </div>
+          <div class="flex items-center gap-6">
+              <div class="hidden md:flex flex-col items-end">
+                  <span id="ctxDevice" class="text-sm font-medium text-emerald-400">Node: GLOBAL</span>
+                  <span id="clock" class="text-xs text-slate-400 font-mono">00:00:00</span>
+              </div>
+          </div>
+      </header>
+
+      <div id="view-container" class="relative">
+          <!-- VIEW: Dashboard -->
+          <section id="view-dashboard" class="view-section active p-4 md:p-8 space-y-8">
       
       <!-- KPI Row -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -150,7 +179,27 @@
               </div>
           </div>
       </div>
-  </main>
+          </section>
+
+          <!-- VIEW: Charts (Placeholder) -->
+          <section id="view-charts" class="view-section p-4 md:p-8 space-y-8">
+              <div class="glass-panel p-20 text-center">
+                  <i class="fa fa-line-chart text-6xl text-emerald-500/20 mb-6 block"></i>
+                  <h2 class="text-2xl font-bold text-white mb-2">深度时序分析中心</h2>
+                  <p class="text-slate-400">该模块正在接入 BigData 处理引擎，届时将提供全维度的作物生长曲线预测。</p>
+              </div>
+          </section>
+
+          <!-- VIEW: Health (Placeholder) -->
+          <section id="view-health" class="view-section p-4 md:p-8 space-y-8">
+              <div class="glass-panel p-20 text-center border-rose-500/20">
+                  <i class="fa fa-heartbeat text-6xl text-rose-500/20 mb-6 block"></i>
+                  <h2 class="text-2xl font-bold text-white mb-2">设备健康状况全局图谱</h2>
+                  <p class="text-slate-400">拓扑完整性校验中... 预计在下一个迭代版本支持实时硬件诊断反馈。</p>
+              </div>
+          </section>
+      </div>
+  </div>
 
   <!-- Modal for Image Preview -->
   <div id="imageModal" class="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">

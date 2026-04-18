@@ -2,14 +2,70 @@
   .glass { @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-xl; }
   .glass-panel { @apply bg-slate-800/70 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl; }
   .input-focus { @apply focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none bg-white/5 border-white/20 text-white placeholder-gray-400; }
-  .nav-active { @apply bg-emerald-500 text-white shadow-lg shadow-emerald-500/20; }
+  .nav-active { @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10; }
   .text-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+:root {
+  --sidebar-w: 80px;
+  --sidebar-expanded-w: 240px;
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+#main-content {
+  margin-left: var(--sidebar-w);
+  transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sidebar {
+  width: var(--sidebar-w);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--glass-border);
+}
+
+#sidebar:hover {
+  width: var(--sidebar-expanded-w);
+}
+
+.nav-label {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+#sidebar:hover .nav-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar-item {
+  @apply flex items-center gap-4 px-6 py-4 cursor-pointer text-slate-400 transition-all duration-300 relative;
+}
+
+.sidebar-item:hover {
+  @apply text-white bg-white/5;
+}
+
+.sidebar-item.active {
+  @apply text-emerald-400 bg-emerald-500/5;
+}
+
+.sidebar-item.active::after {
+  content: '';
+  @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-500 rounded-r-full shadow-[0_0_15px_rgba(16,185,129,0.5)];
+}
+
+.view-section {
+  @apply opacity-0 translate-y-4 pointer-events-none transition-all duration-500 absolute inset-x-0 top-0;
+}
+
+.view-section.active {
+  @apply opacity-100 translate-y-0 pointer-events-auto relative;
+}
 
 /* OpenClaw Chat UI Styles */
 @keyframes chatSlideUp {

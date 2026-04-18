@@ -232,6 +232,25 @@ function fmtRate(v) {
 }
 
 // 4. Main Update Logic
+window.switchView = function(viewId, el) {
+    // 1. Update Navigation UI
+    document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+
+    // 2. Switch View Content
+    document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+
+    // 3. Accessibility/Focus
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // 4. Force Chart Resize if visible
+    if (viewId === 'view-dashboard') {
+        if(envChart) envChart.resize();
+        if(faultTrendChart) faultTrendChart.resize();
+    }
+}
+
 async function updateData() {
     try {
         const telUrl = apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 300 });
@@ -446,6 +465,10 @@ window.onload = async () => {
     await loadSchema();
     await updateData();
     setInterval(updateData, 15000);
+
+    // Initial view focus
+    if(envChart) envChart.resize();
+    if(faultTrendChart) faultTrendChart.resize();
 };
 
 // -----------------------------------------------------------------------------
