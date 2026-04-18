@@ -237,7 +237,7 @@ window.switchView = function(viewId, el) {
     document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
     el.classList.add('active');
 
-    // 2. Switch View Content
+    // 2. Switch View Content using .active class (display: block)
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
     
     const targetSection = document.getElementById(viewId);
