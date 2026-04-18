@@ -41,12 +41,6 @@ ALTER TABLE image_inference_results
     ADD CONSTRAINT image_inference_results_upload_id_captured_at_key
     UNIQUE (upload_id, captured_at);
 
-ALTER TABLE image_inference_results
-    ADD CONSTRAINT image_inference_results_upload_fk
-    FOREIGN KEY (upload_id, captured_at)
-    REFERENCES image_uploads(upload_id, captured_at)
-    ON DELETE CASCADE;
-
 ALTER TABLE sensor_telemetry
     DROP CONSTRAINT IF EXISTS sensor_telemetry_pkey;
 
@@ -68,6 +62,12 @@ SELECT create_hypertable(
     migrate_data => TRUE,
     chunk_time_interval => INTERVAL '2 hours'
 );
+
+ALTER TABLE image_inference_results
+    ADD CONSTRAINT image_inference_results_upload_fk
+    FOREIGN KEY (upload_id, captured_at)
+    REFERENCES image_uploads(upload_id, captured_at)
+    ON DELETE CASCADE;
 
 CREATE INDEX IF NOT EXISTS idx_sensor_tel_device_ts
     ON sensor_telemetry (device_id, ts DESC);
