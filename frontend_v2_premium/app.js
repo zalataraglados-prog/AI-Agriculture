@@ -239,13 +239,17 @@ window.switchView = function(viewId, el) {
 
     // 2. Switch View Content
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
+    
+    const targetSection = document.getElementById(viewId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
 
     // 3. Accessibility/Focus
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // 4. Force Chart Resize if visible
-    if (viewId === 'view-dashboard') {
+    // 4. Force Chart Resize if visible (Home/Dashboard view)
+    if (viewId === 'view-home') {
         if(envChart) envChart.resize();
         if(faultTrendChart) faultTrendChart.resize();
     }

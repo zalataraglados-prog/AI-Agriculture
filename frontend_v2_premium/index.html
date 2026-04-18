@@ -37,18 +37,18 @@
       </div>
 
       <!-- Navigation Menu -->
-      <nav class="flex-1">
-          <div class="sidebar-item active" onclick="switchView('view-dashboard', this)">
+      <nav class="flex-1 mt-4">
+          <div id="nav-home" class="sidebar-item active" onclick="switchView('view-home', this)">
               <i class="fa fa-th-large text-xl w-6 text-center"></i>
-              <span class="nav-label font-medium uppercase tracking-widest text-xs">监控总线</span>
+              <span class="nav-label font-bold tracking-widest text-sm">首页</span>
           </div>
-          <div class="sidebar-item" onclick="switchView('view-charts', this)">
+          <div id="nav-charts" class="sidebar-item" onclick="switchView('view-charts', this)">
               <i class="fa fa-line-chart text-xl w-6 text-center"></i>
-              <span class="nav-label font-medium uppercase tracking-widest text-xs">深度分析</span>
+              <span class="nav-label font-bold tracking-widest text-sm">图表</span>
           </div>
-          <div class="sidebar-item" onclick="switchView('view-health', this)">
+          <div id="nav-health" class="sidebar-item" onclick="switchView('view-health', this)">
               <i class="fa fa-heartbeat text-xl w-6 text-center"></i>
-              <span class="nav-label font-medium uppercase tracking-widest text-xs">设备健康</span>
+              <span class="nav-label font-bold tracking-widest text-sm">设备健康度</span>
           </div>
       </nav>
 
@@ -77,8 +77,8 @@
       </header>
 
       <div id="view-container" class="relative">
-          <!-- VIEW: Dashboard -->
-          <section id="view-dashboard" class="view-section active p-4 md:p-8 space-y-8">
+          <!-- VIEW: Home (Dashboard) -->
+          <section id="view-home" class="view-section active p-4 md:p-8 space-y-8">
       
       <!-- KPI Row -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
