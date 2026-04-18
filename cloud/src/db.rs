@@ -388,6 +388,27 @@ impl DbManager {
         Ok(out)
     }
 
+    pub(crate) fn get_saved_path_by_upload_id(
+        &mut self,
+        upload_id: &str,
+    ) -> Result<Option<String>, String> {
+        let stmt = self
+            .client
+            .prepare(
+                "SELECT saved_path
+                 FROM image_uploads
+                 WHERE upload_id = $1
+                 ORDER BY captured_at DESC
+                 LIMIT 1",
+            )
+            .map_err(|e| format!("failed to prepare image path query: {e}"))?;
+        let rows = self
+            .client
+            .query(&stmt, &[&upload_id])
+            .map_err(|e| format!("failed to query image path: {e}"))?;
+        Ok(rows.first().map(|row| row.get::<_, String>("saved_path")))
+    }
+
     pub(crate) fn query_sensor_telemetry(
         &mut self,
         filter: &SensorTelemetryQueryFilter,

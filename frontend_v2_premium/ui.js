@@ -160,7 +160,9 @@ window.UI = (() => {
                         : state === 'inferred'
                             ? { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', badge: 'INFERRED' }
                             : { bg: 'bg-white/5', text: 'text-slate-400', border: 'border-white/5', badge: 'STORED' };
-                const imgUrl = r.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(r.saved_path)}` : '';
+                const imgUrl = r.upload_id
+                    ? `/api/v1/image/file?upload_id=${encodeURIComponent(r.upload_id)}`
+                    : (r.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(r.saved_path)}` : '');
                 const safeUploadId = `${r.upload_id || ''}`.replace(/'/g, "\\'");
                 return `
                     <div class="p-4 border ${card.border} ${card.bg} rounded-xl mb-4">
@@ -230,7 +232,7 @@ window.UI = (() => {
         refresh: async () => {
             const hours = parseInt(document.getElementById('timeRangeSelect')?.value || '24', 10);
             const showImages = !!document.getElementById('toggleImages')?.checked;
-            const selectedSensors = Array.from(document.querySelectorAll('#sensorCheckboxes input:checked')).map((i) => i.value);
+            const selectedSensorsRaw = Array.from(document.querySelectorAll('#sensorCheckboxes input:checked')).map((i) => i.value);
 
             const history = await window.API.fetchHistory(Charts.selectedSector === 'GLOBAL' ? '' : Charts.selectedSector, hours, 1000);
             const container = document.getElementById('chartStack');
@@ -240,13 +242,29 @@ window.UI = (() => {
             Charts.chartInstances.clear();
             container.innerHTML = '';
 
+            const selectedSensors = selectedSensorsRaw.length
+                ? selectedSensorsRaw
+                : Array.from(new Set(history.map((r) => r.sensor_id).filter(Boolean)));
             selectedSensors.forEach((sid) => {
                 const sensorData = history.filter((r) => r.sensor_id === sid);
                 if (!sensorData.length) return;
                 const schema = window.API.getSchema().get(sid);
-                if (!schema) return;
+                const fieldsToRender = [];
+                if (schema?.fields?.size) {
+                    schema.fields.forEach((fieldSpec, fieldName) => fieldsToRender.push([fieldName, fieldSpec]));
+                } else {
+                    const sample = sensorData[0]?.fields || {};
+                    Object.keys(sample).forEach((fieldName) => {
+                        const n = Number(sample[fieldName]);
+                        if (!Number.isFinite(n)) return;
+                        fieldsToRender.push([
+                            fieldName,
+                            { label: fieldName, unit: '', data_type: 'number' },
+                        ]);
+                    });
+                }
 
-                schema.fields.forEach((fieldSpec, fieldName) => {
+                fieldsToRender.forEach(([fieldName, fieldSpec]) => {
                     if (!['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'].includes(`${fieldSpec.data_type}`.toLowerCase())) return;
                     const canvasId = `canvas-${sid}-${fieldName}`;
                     const vals = sensorData.map((r) => Number(r.fields[fieldName])).filter((v) => Number.isFinite(v));
@@ -320,7 +338,9 @@ window.UI = (() => {
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         ${recent
                             .map((item) => {
-                                const url = item.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(item.saved_path)}` : '';
+                                const url = item.upload_id
+                                    ? `/api/v1/image/file?upload_id=${encodeURIComponent(item.upload_id)}`
+                                    : (item.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(item.saved_path)}` : '');
                                 const safeUploadId = `${item.upload_id || ''}`.replace(/'/g, "\\'");
                                 return `
                                     <div class="aspect-square bg-white/5 rounded-lg border border-white/5 overflow-hidden relative cursor-pointer" onclick="UI.openImagePreview('${url}', '${safeUploadId}')">

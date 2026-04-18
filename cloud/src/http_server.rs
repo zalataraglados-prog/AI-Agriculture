@@ -233,7 +233,7 @@ fn handle_api(
             handle_chat_proxy(request, openclaw_url);
         }
         (Method::Get, "/api/v1/image/file") => {
-            handle_image_file_request(request, query, image_store_path);
+            handle_image_file_request(request, query, image_store_path, db);
         }
         (Method::Get, "/api/v1/image/uploads") => {
             handle_image_upload_query(request, query, db, query_cache);
@@ -481,16 +481,32 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
     respond_json_with_status(request, 503, &payload);
 }
 
-fn handle_image_file_request(request: tiny_http::Request, query: &str, image_store_path: &str) {
+fn handle_image_file_request(
+    request: tiny_http::Request,
+    query: &str,
+    image_store_path: &str,
+    db: Arc<Mutex<DbManager>>,
+) {
     let q = parse_query(query);
-    let Some(saved_path_raw) = q
-        .get("saved_path")
+    let saved_path_raw = q
+        .get("upload_id")
         .map(|v| v.trim())
         .filter(|v| !v.is_empty())
-    else {
+        .and_then(|upload_id| {
+            db.lock()
+                .ok()
+                .and_then(|mut guard| guard.get_saved_path_by_upload_id(upload_id).ok())
+                .flatten()
+        })
+        .or_else(|| {
+            q.get("saved_path")
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+        });
+    let Some(saved_path_raw) = saved_path_raw else {
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
             status: "error".to_string(),
-            message: "missing saved_path".to_string(),
+            message: "missing saved_path/upload_id".to_string(),
         })
         .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
         respond_json_with_status(request, 400, &payload);

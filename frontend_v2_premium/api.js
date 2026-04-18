@@ -107,6 +107,9 @@ window.API = (() => {
         sensorSchema.fields.forEach((spec, field) => {
             const value = fields[field];
             if (value === undefined || value === null || value === '') return;
+            const dataType = `${spec.data_type || ''}`.toLowerCase();
+            const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'];
+            if (!numericTypes.includes(dataType)) return;
             const num = Number(value);
             if (!Number.isFinite(num)) {
                 reasons.push(`NON_NUMERIC:${field}`);
