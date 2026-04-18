@@ -56,10 +56,12 @@ class RiceLeafClassifier(BasePredictor):
         checkpoint_path: str,
         labels_file: str = "models/rice_leaf_classifier/labels.json",
         config_file: str = "models/rice_leaf_classifier/config.yaml",
+        advice_file: str = "models/rice_leaf_classifier/advice_map.yaml",
         device: str = None
     ):
         self.class_names: List[str] = load_json(labels_file)
         self.config: Dict = load_config(config_file)
+        self.advice_map: Dict[str, str] = load_config(advice_file) if Path(advice_file).exists() else {}
         self.device = torch.device(
             device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
         )
@@ -106,8 +108,15 @@ class RiceLeafClassifier(BasePredictor):
 
             top_indices = np.argsort(probs)[::-1][:top_k]
 
+            predicted_class = self.class_names[top_indices[0]]
+            advice_code = self.advice_map.get(predicted_class)
+            
+            metadata = {}
+            if advice_code:
+                metadata["advice_code"] = advice_code
+
             result = {
-                "predicted_class": self.class_names[top_indices[0]],
+                "predicted_class": predicted_class,
                 "confidence": float(probs[top_indices[0]]),
                 "topk": [
                     {
@@ -117,7 +126,7 @@ class RiceLeafClassifier(BasePredictor):
                     for idx in top_indices
                 ],
                 "model_version": self._model_version,
-                "metadata": {},
+                "metadata": metadata,
                 "geometry": None,
             }
             logger.info("Prediction success: %s (%.2f%%)", result["predicted_class"], result["confidence"] * 100)
