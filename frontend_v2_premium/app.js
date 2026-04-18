@@ -295,18 +295,23 @@ window.toggleChat = function() {
     const chatIcon = document.getElementById('chatIcon');
     
     isChatOpen = !isChatOpen;
+
     if (isChatOpen) {
         chatWindow.classList.remove('hidden-chat');
         chatWindow.classList.add('show-chat');
         chatIcon.classList.remove('fa-commenting');
         chatIcon.classList.add('fa-times');
         chatBtn.classList.remove('pulse-glow');
-        setTimeout(() => document.getElementById('chatInput').focus(), 300);
+        setTimeout(() => {
+            const input = document.getElementById('chatInput');
+            if(input) input.focus();
+        }, 300);
     } else {
         chatWindow.classList.remove('show-chat');
         chatWindow.classList.add('hidden-chat');
         chatIcon.classList.remove('fa-times');
         chatIcon.classList.add('fa-commenting');
+        chatBtn.classList.add('pulse-glow');
     }
 }
 
