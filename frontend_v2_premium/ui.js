@@ -30,6 +30,10 @@ window.UI = (() => {
             if(envChart) envChart.resize();
             if(faultTrendChart) faultTrendChart.resize();
         }
+
+        if (viewId === 'view-charts') {
+            Charts.init();
+        }
     };
 
     const renderSensorGrid = (telemetry) => {
@@ -149,12 +153,149 @@ window.UI = (() => {
         }).join('');
     };
 
+    // --- Charts Logic Submodule ---
+    const Charts = {
+        chartInstances: new Map(),
+        selectedSector: 'sector-01-a',
+
+        init: async () => {
+            const sectors = window.API.getSectors();
+            const sectorList = document.getElementById('sectorList');
+            if (sectorList) {
+                sectorList.innerHTML = sectors.map(s => `
+                    <div class="sector-item ${s.id === Charts.selectedSector ? 'active' : ''}" onclick="UI.Charts.setSector('${s.id}', this)">
+                        <div class="w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}"></div>
+                        <span class="text-xs font-bold text-slate-200">${s.name}</span>
+                    </div>
+                `).join('');
+            }
+            await Charts.refresh();
+        },
+
+        setSector: (id, el) => {
+            Charts.selectedSector = id;
+            document.querySelectorAll('.sector-item').forEach(i => i.classList.remove('active'));
+            if(el) el.classList.add('active');
+            Charts.refresh();
+        },
+
+        refresh: async () => {
+            const hours = parseInt(document.getElementById('timeRangeSelect')?.value || '24');
+            const showImages = document.getElementById('toggleImages')?.checked;
+            const selectedSensors = Array.from(document.querySelectorAll('#sensorCheckboxes input:checked')).map(i => i.value);
+            
+            const history = await window.API.fetchHistory(Charts.selectedSector, hours);
+            const container = document.getElementById('chartStack');
+            if (!container) return;
+
+            // Clear old charts
+            Charts.chartInstances.forEach(c => c.destroy());
+            Charts.chartInstances.clear();
+            container.innerHTML = '';
+
+            // Render selected sensors
+            selectedSensors.forEach(sid => {
+                const sensorData = history.filter(r => r.sensor_id === sid);
+                const schema = window.API.getSchema().get(sid);
+                if (!schema) return;
+
+                schema.fields.forEach((fieldSpec, fieldName) => {
+                    if (fieldSpec.data_type !== 'number' && fieldSpec.data_type !== 'float') return;
+                    
+                    const cardId = `chart-card-${sid}-${fieldName}`;
+                    const canvasId = `canvas-${sid}-${fieldName}`;
+                    
+                    // Calculate Average
+                    const vals = sensorData.map(r => r.fields[fieldName]).filter(v => typeof v === 'number');
+                    const avg = vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(2) : '--';
+
+                    const card = document.createElement('div');
+                    card.className = 'chart-card';
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest">${sid} / ${fieldSpec.label}</h4>
+                                <p class="text-[10px] text-slate-500 mt-1">采集频率: 每 15 分钟一次</p>
+                            </div>
+                            <div class="avg-badge">
+                                <i class="fa fa-line-chart"></i>
+                                PERIOD AVG: ${avg} ${fieldSpec.unit}
+                            </div>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="${canvasId}"></canvas>
+                        </div>
+                    `;
+                    container.appendChild(card);
+
+                    const ctx = document.getElementById(canvasId).getContext('2d');
+                    const grad = ctx.createLinearGradient(0, 0, 0, 250);
+                    grad.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
+                    grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+
+                    const newChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: sensorData.map(r => Charts.formatTime(r.ts)),
+                            datasets: [{
+                                label: fieldSpec.label,
+                                data: sensorData.map(r => r.fields[fieldName]),
+                                borderColor: '#10b981',
+                                backgroundColor: grad,
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true,
+                                pointRadius: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 10 } } },
+                                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { font: { size: 10 } } }
+                            }
+                        }
+                    });
+                    Charts.chartInstances.set(cardId, newChart);
+                });
+            });
+
+            // Special: Vision Module
+            if (showImages) {
+                const visionCard = document.createElement('div');
+                visionCard.className = 'chart-card border-blue-500/20';
+                visionCard.innerHTML = `
+                    <h4 class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-4">作物生长视觉观测流 (Vision Log)</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="aspect-square bg-white/5 rounded-lg border border-white/5 overflow-hidden relative">
+                             <div class="absolute inset-0 flex items-center justify-center"><i class="fa fa-leaf text-2xl text-emerald-500/20"></i></div>
+                             <p class="absolute bottom-2 left-2 text-[8px] text-slate-500">T-04H</p>
+                        </div>
+                        <div class="aspect-square bg-white/5 rounded-lg border border-white/5 overflow-hidden relative">
+                             <div class="absolute inset-0 flex items-center justify-center"><i class="fa fa-leaf text-2xl text-emerald-500/20"></i></div>
+                             <p class="absolute bottom-2 left-2 text-[8px] text-slate-500">T-08H</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(visionCard);
+            }
+        },
+
+        formatTime: (ts) => {
+            const d = new Date(ts);
+            return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+    };
+
     return {
         formatDate,
         switchView,
         renderSensorGrid,
         renderDiagnosis,
         openSensorDetail,
+        Charts,
         setEnvChart: (c) => envChart = c,
         setFaultTrendChart: (c) => faultTrendChart = c
     };
