@@ -19,10 +19,12 @@
   </script>
   <link rel="stylesheet" type="text/tailwindcss" href="styles.css" />
 </head>
-<body class="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-  <div class="absolute inset-0 z-0 pointer-events-none">
-      <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-[100px]"></div>
-      <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]"></div>
+  <!-- 背景占位说明：您可以在下方 body 的 style 中将 background 改为您的本地图片路径，如：background-image: url('assets/login_bg.png') -->
+<body class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" 
+      style="background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%); background-size: cover;">
+  <div class="absolute inset-0 z-0 pointer-events-none bg-white/10 backdrop-blur-[2px]">
+      <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-white/20 rounded-full blur-[100px]"></div>
+      <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-300/20 rounded-full blur-[100px]"></div>
   </div>
 
   <div class="z-10 w-full max-w-md glass rounded-3xl p-8 relative shadow-2xl border border-white/10">

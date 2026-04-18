@@ -1,13 +1,13 @@
 // 1. Client Mock/Polyfill for Advice Codes
 const adviceAdapter = {
-    'HealthyLeaf': '植株状态极为卓越，叶脉清晰无病变。建议维持现有的水肥一体化网络调度，执行例行无人机遥感巡航。',
-    'Bacterial_Leaf_Blight': '病理特征呈现典型叶枯病。建议启动应急灌溉降温，并由植保无人机队按 1:500 比例喷洒叶枯唑广谱抗菌液。',
-    'Brown_Spot': '检测到褐斑真菌群落。当前土壤理化性质可能偏向缺钾，系统建议增加可溶性磷钾复合肥滴灌，辅以多菌灵气溶胶覆盖。',
-    'Leaf_Blast': '稻瘟病潜伏期确认！这是由于过去 48 小时局部高湿引发。系统已触发红黄预警，请立即装载三环唑进行饱和式空中打击。',
-    'Leaf_Scald': '出现叶尖枯死迹象。建议即刻调低相应地块的水位线进行渗排减湿，晚间安排苯醚甲环唑精准病灶点射。',
-    'Narrow_Brown_Leaf_Spot': '窄条褐斑蔓延中。该区块微气候通风不畅，请指令智能风机调整角度，同时预备丙环唑药液储备待命。',
-    'Neck_Blast': '【深红预警】高致病性穗颈瘟萌生危险。如遇抽穗期，此病害将导致全产毁灭。指令控制中心立即安排三环唑预防性全域覆盖。',
-    'Rice_Hispa': '虫害光谱特征吻合铁甲虫啃咬。建议立即启动捕虫灯雷达追踪，如虫口密度越过红线，即刻全覆盖喷洒低毒拟除虫菊酯。',
+    'HealthyLeaf': { txt: '植株状态极为卓越，叶脉清晰无病变。建议维持现有的水肥一体化网络调度，执行例行无人机遥感巡航。', img: 'assets/reference/HealthyLeaf.png' },
+    'Bacterial_Leaf_Blight': { txt: '病理特征呈现典型叶枯病。建议启动应急灌溉降温，并由植保无人机队按 1:500 比例喷洒叶枯唑广谱抗菌液。', img: 'assets/reference/Bacterial_Leaf_Blight.png' },
+    'Brown_Spot': { txt: '检测到褐斑真菌群落。当前土壤理化性质可能偏向缺钾，系统建议增加可溶性磷钾复合肥滴灌，辅以多菌灵气溶胶覆盖。', img: 'assets/reference/Brown_Spot.png' },
+    'Leaf_Blast': { txt: '稻瘟病潜伏期确认！这是由于过去 48 小时局部高湿引发。系统已触发红黄预警，请立即装载三环唑进行饱和式空中打击。', img: 'assets/reference/Leaf_Blast.png' },
+    'Leaf_Scald': { txt: '出现叶尖枯死迹象。建议即刻调低相应地块的水位线进行渗排减湿，晚间安排苯醚甲环唑精准病灶点射。', img: 'assets/reference/Leaf_Scald.png' },
+    'Narrow_Brown_Leaf_Spot': { txt: '窄条褐斑蔓延中。该区块微气候通风不畅，请指令智能风机调整角度，同时预备丙环唑药液储备待命。', img: 'assets/reference/Narrow_Brown_Leaf_Spot.png' },
+    'Neck_Blast': { txt: '【深红预警】高致病性穗颈瘟萌生危险。如遇抽穗期，此病害将导致全产毁灭。指令控制中心立即安排三环唑预防性全域覆盖。', img: 'assets/reference/Neck_Blast.png' },
+    'Rice_Hispa': { txt: '虫害光谱特征吻合铁甲虫啃咬。建议立即启动捕虫灯雷达追踪，如虫口密度越过红线，即刻全覆盖喷洒低毒拟除虫菊酯。', img: 'assets/reference/Rice_Hispa.png' },
 };
 
 const diseaseColors = {
@@ -154,7 +154,7 @@ async function updateData() {
                 const conf = confObj !== null ? (confObj * 100).toFixed(1) : 0;
                 
                 const theme = isComplete ? (diseaseColors[r.predicted_class] || diseaseColors['default']) : { bg: 'bg-white/5', text: 'text-slate-400', border: 'border-white/10', bar: 'bg-blue-500 animate-pulse', icon: 'fa-cogs' };
-                const adviceTxt = isComplete ? (adviceAdapter[r.predicted_class] || '未匹配标准治疗手册。核心阵列请求专家实地勘探。') : '特征图谱正在进入云端神经网络层提取，请稍候...';
+                const adviceObj = isComplete ? (adviceAdapter[r.predicted_class] || {txt: '未匹配标准治疗手册。核心阵列请求专家实地勘探。', img: ''}) : {txt: '特征图谱正在进入云端神经网络层提取，请稍候...', img: ''};
 
                 return `
                 <div class="p-5 border ${theme.border} ${theme.bg} rounded-xl relative overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:border-opacity-50 group">
@@ -189,9 +189,15 @@ async function updateData() {
                         </div>
                     </div>
                     
-                    <div class="relative z-10 p-3 bg-black/30 rounded-lg border border-white/5 shadow-inner backdrop-blur-sm">
-                        <p class="text-[10px] ${theme.text} opacity-90 uppercase tracking-widest mb-1 font-bold flex items-center gap-1.5"><i class="fa fa-stethoscope"></i>智脑策略生成</p>
-                        <p class="text-sm text-slate-200 leading-relaxed font-light">${adviceTxt}</p>
+                    <div class="relative z-10 p-4 bg-black/30 rounded-xl border border-white/5 shadow-inner backdrop-blur-md flex flex-col md:flex-row gap-4">
+                        <div class="flex-1">
+                            <p class="text-[10px] ${theme.text} opacity-90 uppercase tracking-widest mb-2 font-bold flex items-center gap-1.5"><i class="fa fa-stethoscope"></i>智脑策略生成</p>
+                            <p class="text-sm text-slate-200 leading-relaxed font-light">${adviceObj.txt}</p>
+                        </div>
+                        ${adviceObj.img ? `<div class="w-24 h-24 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-lg relative group/img cursor-pointer" title="请在此替换为您本地的病理图片素材">
+                            <img src="${adviceObj.img}" onerror="this.onerror=null;this.src='https://placehold.co/400x400/1e293b/34d399?text=请替换图片';" class="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500" alt="病症参考占位图" />
+                            <div class="absolute inset-0 bg-emerald-500/20 mix-blend-overlay"></div>
+                        </div>` : ''}
                     </div>
                 </div>`;
             }).join('');
