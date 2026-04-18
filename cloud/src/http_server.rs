@@ -399,7 +399,8 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
 
     let forward_url = format!("{}/api/v1/chat", openclaw_url.trim_end_matches('/'));
     let upstream = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(20))
+        // OpenClaw local agent turn can be slower than normal HTTP calls.
+        .timeout(Duration::from_secs(120))
         .build()
         .and_then(|client| client.post(forward_url).json(&req).send());
 
