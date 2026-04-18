@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>农业监测管理系统 - 登录</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { primary: '#10b981', secondary: '#0ea5e9', dark: '#0f172a' },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" type="text/tailwindcss" href="styles.css" />
+</head>
+<body class="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+  <div class="absolute inset-0 z-0 pointer-events-none">
+      <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-[100px]"></div>
+      <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]"></div>
+  </div>
+
+  <div class="z-10 w-full max-w-md glass rounded-3xl p-8 relative shadow-2xl border border-white/10">
+    <div class="text-center mb-10">
+      <div class="w-16 h-16 bg-gradient-to-tr from-emerald-400 to-blue-500 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
+        <i class="fa fa-leaf text-3xl text-white"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-white tracking-wide">AI 智慧农业枢纽</h1>
+      <p class="text-emerald-400/80 text-sm mt-2 tracking-widest uppercase">Intelligent Farm OS</p>
+    </div>
+
+    <div class="space-y-6">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1 ml-1 uppercase">授权账号</label>
+        <input id="username" type="text" class="w-full border rounded-xl px-4 py-3 input-focus" placeholder="请输入账号" autocomplete="off" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1 ml-1 uppercase">访问密码</label>
+        <input id="password" type="password" class="w-full border rounded-xl px-4 py-3 input-focus" placeholder="请输入密码" autocomplete="off" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1 ml-1 uppercase">目标网关绑定 (设备监听)</label>
+        <input id="deviceId" type="text" class="w-full border rounded-xl px-4 py-3 input-focus font-mono text-sm" placeholder="选填，默认监听全网段" autocomplete="off" />
+      </div>
+      <button id="loginBtn" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white py-3.5 rounded-xl font-bold tracking-wider shadow-lg shadow-emerald-500/25 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 text-sm">
+        <i class="fa fa-power-off mr-2"></i> 启动系统中枢
+      </button>
+      <p id="msg" class="text-sm text-rose-400 text-center h-4"></p>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>

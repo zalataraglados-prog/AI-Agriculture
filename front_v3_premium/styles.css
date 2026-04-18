@@ -1,0 +1,12 @@
+@layer utilities {
+  .glass { @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-xl; }
+  .glass-panel { @apply bg-slate-800/70 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl; }
+  .input-focus { @apply focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none bg-white/5 border-white/20 text-white placeholder-gray-400; }
+  .nav-active { @apply bg-emerald-500 text-white shadow-lg shadow-emerald-500/20; }
+  .text-glow { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
