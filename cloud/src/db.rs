@@ -73,7 +73,8 @@ pub(crate) struct ImageUploadQueryRow {
     pub(crate) file_size: i64,
     pub(crate) upload_status: String,
     pub(crate) predicted_class: Option<String>,
-    pub(crate) confidence: Option<f64>,
+    pub(crate) disease_rate: Option<f64>,
+    pub(crate) is_diseased: Option<bool>,
     pub(crate) model_version: Option<String>,
 }
 
@@ -292,7 +293,33 @@ impl DbManager {
                     iu.file_size,
                     iu.upload_status,
                     ir.predicted_class,
-                    ir.confidence,
+                    COALESCE(
+                        NULLIF(ir.metadata_json->>'disease_rate', '')::double precision,
+                        CASE
+                            WHEN ir.metadata_json ? 'healthy_prob'
+                                THEN 1.0 - NULLIF(ir.metadata_json->>'healthy_prob', '')::double precision
+                            ELSE NULL
+                        END
+                    ) AS disease_rate,
+                    CASE
+                        WHEN COALESCE(
+                            NULLIF(ir.metadata_json->>'disease_rate', '')::double precision,
+                            CASE
+                                WHEN ir.metadata_json ? 'healthy_prob'
+                                    THEN 1.0 - NULLIF(ir.metadata_json->>'healthy_prob', '')::double precision
+                                ELSE NULL
+                            END
+                        ) IS NULL THEN NULL
+                        WHEN COALESCE(
+                            NULLIF(ir.metadata_json->>'disease_rate', '')::double precision,
+                            CASE
+                                WHEN ir.metadata_json ? 'healthy_prob'
+                                    THEN 1.0 - NULLIF(ir.metadata_json->>'healthy_prob', '')::double precision
+                                ELSE NULL
+                            END
+                        ) >= 0.5 THEN TRUE
+                        ELSE FALSE
+                    END AS is_diseased,
                     ir.model_version
                 FROM image_uploads iu
                 LEFT JOIN image_inference_results ir ON ir.upload_id = iu.upload_id
@@ -342,7 +369,8 @@ impl DbManager {
                 file_size: row.get("file_size"),
                 upload_status: row.get("upload_status"),
                 predicted_class: row.get("predicted_class"),
-                confidence: row.get("confidence"),
+                disease_rate: row.get("disease_rate"),
+                is_diseased: row.get("is_diseased"),
                 model_version: row.get("model_version"),
             });
         }
@@ -405,3 +433,4 @@ impl DbManager {
         Ok(out)
     }
 }
+

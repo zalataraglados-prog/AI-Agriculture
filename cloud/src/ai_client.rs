@@ -102,11 +102,21 @@ fn parse_ai_response(text: &str, elapsed_ms: i32) -> Result<AiInferenceOutput, S
         .get("topk")
         .cloned()
         .unwrap_or_else(|| Value::Array(Vec::new()));
-    let metadata_json = first
+    let mut metadata_json = first
         .get("metadata")
         .cloned()
         .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+    if !metadata_json.is_object() {
+        metadata_json = Value::Object(serde_json::Map::new());
+    }
     let geometry_json = first.get("geometry").cloned().filter(|v| !v.is_null());
+
+    enrich_disease_metrics(
+        &predicted_class,
+        confidence,
+        &topk_json,
+        &mut metadata_json,
+    );
 
     let advice_code = metadata_json
         .get("advice_code")
@@ -123,6 +133,57 @@ fn parse_ai_response(text: &str, elapsed_ms: i32) -> Result<AiInferenceOutput, S
         latency_ms: Some(elapsed_ms),
         advice_code,
     })
+}
+
+fn enrich_disease_metrics(
+    predicted_class: &Option<String>,
+    confidence: Option<f64>,
+    topk_json: &Value,
+    metadata_json: &mut Value,
+) {
+    let Some(obj) = metadata_json.as_object_mut() else {
+        return;
+    };
+
+    let healthy_prob_existing = obj.get("healthy_prob").and_then(|v| v.as_f64());
+    let healthy_prob_topk = extract_healthy_prob_from_topk(topk_json);
+    let healthy_prob = healthy_prob_existing
+        .or(healthy_prob_topk)
+        .or_else(|| match (predicted_class.as_deref(), confidence) {
+            (Some("HealthyLeaf"), Some(c)) => Some(c.clamp(0.0, 1.0)),
+            _ => None,
+        });
+
+    if let Some(v) = healthy_prob {
+        obj.insert("healthy_prob".to_string(), Value::from(v.clamp(0.0, 1.0)));
+    }
+
+    let disease_rate_existing = obj.get("disease_rate").and_then(|v| v.as_f64());
+    let disease_rate = disease_rate_existing
+        .or_else(|| healthy_prob.map(|p| (1.0 - p).clamp(0.0, 1.0)))
+        .or_else(|| match (predicted_class.as_deref(), confidence) {
+            (Some("HealthyLeaf"), Some(c)) => Some((1.0 - c).clamp(0.0, 1.0)),
+            (Some(_), Some(c)) => Some(c.clamp(0.0, 1.0)),
+            _ => None,
+        });
+    if let Some(v) = disease_rate {
+        obj.insert("disease_rate".to_string(), Value::from(v.clamp(0.0, 1.0)));
+    }
+}
+
+fn extract_healthy_prob_from_topk(topk_json: &Value) -> Option<f64> {
+    topk_json
+        .as_array()
+        .and_then(|items| {
+            items.iter().find_map(|item| {
+                let label = item.get("label").and_then(|v| v.as_str())?;
+                if label != "HealthyLeaf" {
+                    return None;
+                }
+                item.get("score").and_then(|v| v.as_f64())
+            })
+        })
+        .map(|v| v.clamp(0.0, 1.0))
 }
 
 fn trim_for_log(text: &str) -> String {
