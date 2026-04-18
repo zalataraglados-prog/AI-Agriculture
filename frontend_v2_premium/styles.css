@@ -338,3 +338,35 @@
 @keyframes pulse-ring {
   100% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
 }
+
+.markdown-body p {
+  margin: 0 0 0.35rem 0;
+}
+
+.markdown-body .md-heading {
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.markdown-body .md-list {
+  margin: 0.25rem 0 0.35rem 1rem;
+  list-style: disc;
+}
+
+.markdown-body .md-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+  padding: 0 0.25rem;
+  color: #93c5fd;
+}
+
+.markdown-body .md-pre {
+  margin: 0.35rem 0;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  overflow-x: auto;
+}

@@ -79,10 +79,9 @@ async function updateAppLoop(deviceId) {
             window.API.fetchJson(imgUrl).catch(() => [])
         ]);
 
-        // Render Data via UI Module
+        window.API.setTelemetry(telemetry);
+        window.UI.setImageUploads(imageUploads);
         window.UI.renderSensorGrid(telemetry);
-        
-        // Render Diagnosis (Keep logic here for now or move to UI later if it grows)
         renderDiagnosis(imageUploads);
 
     } catch (e) {
@@ -103,5 +102,10 @@ window.openModal = () => {
 };
 window.closeModal = () => {
     const m = document.getElementById('imageModal');
+    const fallback = document.getElementById('modalImageFallback');
+    if (fallback) {
+        fallback.classList.add('hidden');
+        fallback.classList.remove('flex');
+    }
     if (m) m.classList.add('opacity-0', 'pointer-events-none');
 };

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -230,6 +231,9 @@ fn handle_api(
         }
         (Method::Post, "/api/v1/chat") => {
             handle_chat_proxy(request, openclaw_url);
+        }
+        (Method::Get, "/api/v1/image/file") => {
+            handle_image_file_request(request, query, image_store_path);
         }
         (Method::Get, "/api/v1/image/uploads") => {
             handle_image_upload_query(request, query, db, query_cache);
@@ -475,6 +479,121 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
     })
     .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream bad response\"}".to_string());
     respond_json_with_status(request, 503, &payload);
+}
+
+fn handle_image_file_request(request: tiny_http::Request, query: &str, image_store_path: &str) {
+    let q = parse_query(query);
+    let Some(saved_path_raw) = q
+        .get("saved_path")
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+    else {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: "missing saved_path".to_string(),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+        respond_json_with_status(request, 400, &payload);
+        return;
+    };
+
+    let cwd = match std::env::current_dir() {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("cannot resolve working dir: {err}"),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"server error\"}".to_string());
+            respond_json_with_status(request, 500, &payload);
+            return;
+        }
+    };
+
+    let store_root = {
+        let root = PathBuf::from(image_store_path);
+        if root.is_absolute() {
+            root
+        } else {
+            cwd.join(root)
+        }
+    };
+    let store_root = match fs::canonicalize(store_root) {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("image store path not available: {err}"),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"server error\"}".to_string());
+            respond_json_with_status(request, 500, &payload);
+            return;
+        }
+    };
+
+    let candidate = {
+        let p = PathBuf::from(saved_path_raw);
+        if p.is_absolute() {
+            p
+        } else {
+            cwd.join(p)
+        }
+    };
+    let candidate = match fs::canonicalize(candidate) {
+        Ok(v) => v,
+        Err(_) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: "file not found".to_string(),
+            })
+            .unwrap_or_else(|_| {
+                "{\"status\":\"error\",\"message\":\"file not found\"}".to_string()
+            });
+            respond_json_with_status(request, 404, &payload);
+            return;
+        }
+    };
+
+    if !candidate.starts_with(&store_root) {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: "saved_path out of allowed image_store_path".to_string(),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"forbidden\"}".to_string());
+        respond_json_with_status(request, 403, &payload);
+        return;
+    }
+
+    let bytes = match fs::read(&candidate) {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("failed to read file: {err}"),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"server error\"}".to_string());
+            respond_json_with_status(request, 500, &payload);
+            return;
+        }
+    };
+
+    let content_type = match candidate
+        .extension()
+        .and_then(|v| v.to_str())
+        .map(|v| v.to_ascii_lowercase())
+    {
+        Some(ext) if ext == "png" => "image/png",
+        Some(ext) if ext == "jpg" || ext == "jpeg" => "image/jpeg",
+        _ => "application/octet-stream",
+    };
+
+    let response = Response::from_data(bytes).with_header(
+        Header::from_bytes("Content-Type", content_type).unwrap_or_else(|_| {
+            Header::from_bytes("Content-Type", "application/octet-stream")
+                .expect("static content-type header")
+        }),
+    );
+    let _ = request.respond(response);
 }
 
 fn handle_image_upload(

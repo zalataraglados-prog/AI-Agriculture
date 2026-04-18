@@ -1,10 +1,68 @@
 ﻿/**
- * Chat & Agent Module
- * Handles interaction with the OpenClaw Agri-AI.
+ * Chat & Agent module.
  */
-
 window.CHAT = (() => {
     let isAiTyping = false;
+
+    const escapeHtml = (text) => `${text || ''}`
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const renderInlineMarkdown = (text) => {
+        let out = escapeHtml(text);
+        out = out.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
+        out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        return out;
+    };
+
+    const renderMarkdown = (raw) => {
+        const source = `${raw || ''}`;
+        const parts = source.split(/```/);
+        const html = parts
+            .map((part, idx) => {
+                if (idx % 2 === 1) {
+                    return `<pre class="md-pre"><code>${escapeHtml(part.trim())}</code></pre>`;
+                }
+
+                const lines = part.split(/\r?\n/);
+                let inList = false;
+                const buffer = [];
+                lines.forEach((line) => {
+                    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
+                    if (bullet) {
+                        if (!inList) {
+                            inList = true;
+                            buffer.push('<ul class="md-list">');
+                        }
+                        buffer.push(`<li>${renderInlineMarkdown(bullet[1])}</li>`);
+                        return;
+                    }
+                    if (inList) {
+                        buffer.push('</ul>');
+                        inList = false;
+                    }
+                    if (!line.trim()) {
+                        buffer.push('<br>');
+                        return;
+                    }
+                    const heading = line.match(/^\s{0,3}#{1,6}\s+(.+)$/);
+                    if (heading) {
+                        buffer.push(`<p class="md-heading">${renderInlineMarkdown(heading[1])}</p>`);
+                        return;
+                    }
+                    buffer.push(`<p>${renderInlineMarkdown(line)}</p>`);
+                });
+                if (inList) buffer.push('</ul>');
+                return buffer.join('');
+            })
+            .join('');
+
+        return html || '<p>-</p>';
+    };
 
     const appendChatMsg = (text, sender) => {
         const chatMessages = document.getElementById('chatMessages');
@@ -15,14 +73,14 @@ window.CHAT = (() => {
             msgDiv.className = 'flex w-full mt-2 space-x-3 max-w-xs ml-auto justify-end';
             msgDiv.innerHTML = `
                 <div class="p-3 bg-emerald-600/30 rounded-xl msg-user leading-relaxed break-words border border-emerald-500/20">
-                    ${text}
+                    ${escapeHtml(text).replace(/\n/g, '<br>')}
                 </div>
             `;
         } else if (sender === 'ai') {
             msgDiv.className = 'flex w-full mt-2 space-x-3 max-w-xs';
             msgDiv.innerHTML = `
-                <div class="p-3 bg-slate-800/80 rounded-xl msg-ai leading-relaxed border border-white/5">
-                    ${text}
+                <div class="p-3 bg-slate-800/80 rounded-xl msg-ai leading-relaxed border border-white/5 markdown-body">
+                    ${renderMarkdown(text)}
                 </div>
             `;
         } else if (sender === 'loading') {
@@ -63,7 +121,7 @@ window.CHAT = (() => {
         try {
             data = await response.json();
         } catch (_err) {
-            // ignore parse failure and fallback below
+            // no-op
         }
 
         if (!response.ok) {

@@ -6,6 +6,7 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -71,6 +72,76 @@ def systemctl_state(service: str) -> str:
     return p.stdout.strip() if p.returncode == 0 else p.stdout.strip() or p.stderr.strip() or "unknown"
 
 
+def _read_cpu_usage_pct(sample_sec: float = 0.2) -> float | None:
+    def read_ticks() -> tuple[int, int] | None:
+        try:
+            with open("/proc/stat", "r", encoding="utf-8") as f:
+                line = f.readline().strip()
+        except OSError:
+            return None
+        parts = line.split()
+        if len(parts) < 5 or parts[0] != "cpu":
+            return None
+        values = [int(x) for x in parts[1:]]
+        idle = values[3] + (values[4] if len(values) > 4 else 0)
+        total = sum(values)
+        return total, idle
+
+    p1 = read_ticks()
+    if p1 is None:
+        return None
+    time.sleep(sample_sec)
+    p2 = read_ticks()
+    if p2 is None:
+        return None
+    total_delta = p2[0] - p1[0]
+    idle_delta = p2[1] - p1[1]
+    if total_delta <= 0:
+        return None
+    return max(0.0, min(100.0, 100.0 * (1.0 - idle_delta / total_delta)))
+
+
+def _read_mem_swap_bytes() -> dict[str, int] | None:
+    data: dict[str, int] = {}
+    try:
+        with open("/proc/meminfo", "r", encoding="utf-8") as f:
+            for line in f:
+                if ":" not in line:
+                    continue
+                key, val = line.split(":", 1)
+                token = val.strip().split()
+                if not token:
+                    continue
+                kb = int(token[0])
+                data[key.strip()] = kb * 1024
+    except (OSError, ValueError):
+        return None
+
+    required = ["MemTotal", "MemAvailable", "SwapTotal", "SwapFree"]
+    if any(k not in data for k in required):
+        return None
+    mem_total = data["MemTotal"]
+    mem_avail = data["MemAvailable"]
+    swap_total = data["SwapTotal"]
+    swap_free = data["SwapFree"]
+    return {
+        "mem_total": mem_total,
+        "mem_used": max(0, mem_total - mem_avail),
+        "swap_total": swap_total,
+        "swap_used": max(0, swap_total - swap_free),
+    }
+
+
+def _fmt_bytes(num: int) -> str:
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    value = float(num)
+    idx = 0
+    while value >= 1024.0 and idx < len(units) - 1:
+        value /= 1024.0
+        idx += 1
+    return f"{value:.1f}{units[idx]}"
+
+
 def cmd_server(_args: argparse.Namespace) -> int:
     cloud = systemctl_state(SERVICE_CLOUD)
     adapter = systemctl_state(SERVICE_ADAPTER)
@@ -83,6 +154,40 @@ def cmd_server(_args: argparse.Namespace) -> int:
 
     print(f"cloud_service={cloud}")
     print(f"chat_adapter_service={adapter}")
+    cpu = _read_cpu_usage_pct()
+    mem = _read_mem_swap_bytes()
+    disk_root = shutil.disk_usage("/")
+    disk_data = shutil.disk_usage(DEFAULT_INSTALL_ROOT if Path(DEFAULT_INSTALL_ROOT).exists() else "/")
+    load = run(["cat", "/proc/loadavg"])
+    load_avg = load.stdout.strip().split()[0:3] if load.returncode == 0 else []
+    print(
+        "cpu_usage="
+        + (f"{cpu:.1f}%" if cpu is not None else "unknown")
+        + (f" load_avg={'/'.join(load_avg)}" if load_avg else "")
+    )
+    if mem is None:
+        print("memory=unknown swap=unknown")
+    else:
+        mem_total = mem["mem_total"]
+        mem_used = mem["mem_used"]
+        swap_total = mem["swap_total"]
+        swap_used = mem["swap_used"]
+        mem_pct = (mem_used / mem_total * 100.0) if mem_total > 0 else 0.0
+        swap_pct = (swap_used / swap_total * 100.0) if swap_total > 0 else 0.0
+        print(
+            f"memory={_fmt_bytes(mem_used)}/{_fmt_bytes(mem_total)} ({mem_pct:.1f}%) "
+            f"swap={_fmt_bytes(swap_used)}/{_fmt_bytes(swap_total)} ({swap_pct:.1f}%)"
+        )
+    print(
+        "disk_root="
+        f"{_fmt_bytes(disk_root.used)}/{_fmt_bytes(disk_root.total)} "
+        f"({disk_root.used / disk_root.total * 100.0:.1f}%)"
+    )
+    print(
+        "disk_cloud="
+        f"{_fmt_bytes(disk_data.used)}/{_fmt_bytes(disk_data.total)} "
+        f"({disk_data.used / disk_data.total * 100.0:.1f}%)"
+    )
     print("ports=")
     if lines:
         for line in lines:
@@ -272,10 +377,27 @@ def cmd_refresh_token(args: argparse.Namespace) -> int:
 
 
 def cmd_ls_port(_args: argparse.Namespace) -> int:
-    tcp = run(["ss", "-lntup"])
-    udp = run(["ss", "-lnup"])
-    print_block("tcp", "\n".join([l for l in tcp.stdout.splitlines() if any(f":{p}" in l for p in PORTS)]))
-    print_block("udp", "\n".join([l for l in udp.stdout.splitlines() if any(f":{p}" in l for p in PORTS)]))
+    tcp = run(["ss", "-lntupH"])
+    udp = run(["ss", "-lnupH"])
+    entries: dict[tuple[str, int], str] = {}
+
+    def collect(proto: str, text: str) -> None:
+        for line in text.splitlines():
+            m = re.search(r":(\d+)\b", line)
+            if not m:
+                continue
+            port = int(m.group(1))
+            if port not in PORTS:
+                continue
+            entries.setdefault((proto, port), line.strip())
+
+    collect("tcp", tcp.stdout)
+    collect("udp", udp.stdout)
+
+    tcp_lines = [entries[k] for k in sorted(entries) if k[0] == "tcp"]
+    udp_lines = [entries[k] for k in sorted(entries) if k[0] == "udp"]
+    print_block("tcp", "\n".join(tcp_lines))
+    print_block("udp", "\n".join(udp_lines))
     return 0
 
 

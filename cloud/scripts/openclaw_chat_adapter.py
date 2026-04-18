@@ -9,9 +9,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+SYSTEM_HINT = (
+    "You are operating on the cloud host as root-level operator. "
+    "Prefer AI-ag whitelist commands for status checks. "
+    "Do not confuse gateway registration with sensor telemetry registration: "
+    "gateway/device registration is at device level, sensor_id is telemetry payload dimension."
+)
 
 
 class ChatHandler(BaseHTTPRequestHandler):
@@ -52,7 +60,7 @@ class ChatHandler(BaseHTTPRequestHandler):
             self._write_json(HTTPStatus.BAD_REQUEST, {"status": "error", "message": "message must not be empty"})
             return
 
-        prompt = message
+        prompt = f"[system]\\n{SYSTEM_HINT}\\n\\n[user]\\n{message}"
         if context:
             try:
                 prompt += "\n\n[context]\n" + json.dumps(context, ensure_ascii=False)
@@ -71,7 +79,17 @@ class ChatHandler(BaseHTTPRequestHandler):
         ]
 
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
+            env = dict(os.environ)
+            env.setdefault("HOME", "/root")
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=180,
+                check=False,
+                cwd="/opt/ai-agriculture/cloud",
+                env=env,
+            )
         except subprocess.TimeoutExpired:
             self._write_json(HTTPStatus.GATEWAY_TIMEOUT, {"status": "error", "message": "openclaw request timeout"})
             return
