@@ -282,3 +282,118 @@ window.onload = () => {
     updateData();
     setInterval(updateData, 8000);
 };
+
+// -----------------------------------------------------------------------------
+// OpenClaw Chat Assistant Integration (Frontend Prototype)
+// -----------------------------------------------------------------------------
+let isChatOpen = false;
+let isAiTyping = false;
+
+window.toggleChat = function() {
+    const chatBtn = document.getElementById('chatToggleBtn');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatIcon = document.getElementById('chatIcon');
+    
+    isChatOpen = !isChatOpen;
+    if (isChatOpen) {
+        chatWindow.classList.remove('hidden-chat');
+        chatWindow.classList.add('show-chat');
+        chatIcon.classList.remove('fa-commenting');
+        chatIcon.classList.add('fa-times');
+        chatBtn.classList.remove('pulse-glow');
+        setTimeout(() => document.getElementById('chatInput').focus(), 300);
+    } else {
+        chatWindow.classList.remove('show-chat');
+        chatWindow.classList.add('hidden-chat');
+        chatIcon.classList.remove('fa-times');
+        chatIcon.classList.add('fa-commenting');
+    }
+}
+
+window.appendChatMsg = function(text, sender) {
+    const chatMessages = document.getElementById('chatMessages');
+    const msgDiv = document.createElement('div');
+    
+    if (sender === 'user') {
+        msgDiv.className = 'flex w-full mt-2 space-x-3 max-w-xs ml-auto justify-end';
+        msgDiv.innerHTML = `
+            <div class="p-3 text-sm rounded-xl msg-user leading-relaxed break-words">
+                ${text}
+            </div>
+        `;
+    } else if (sender === 'ai') {
+        msgDiv.className = 'flex w-full mt-2 space-x-3 max-w-xs';
+        msgDiv.innerHTML = `
+            <div class="flex-shrink-0 h-8 w-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                 <i class="fa fa-paw text-emerald-400 text-xs"></i>
+            </div>
+            <div class="p-3 text-sm rounded-xl msg-ai leading-relaxed">
+                ${text}
+            </div>
+        `;
+    } else if (sender === 'loading') {
+        msgDiv.id = 'ai-typing-indicator';
+        msgDiv.className = 'flex w-full mt-2 space-x-3 max-w-xs';
+        msgDiv.innerHTML = `
+            <div class="flex-shrink-0 h-8 w-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                 <i class="fa fa-paw text-emerald-400 text-xs"></i>
+            </div>
+            <div class="p-3 text-sm rounded-xl msg-ai flex items-center gap-2">
+                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"></div>
+                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            </div>
+        `;
+    }
+    
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+window.removeChatLoading = function() {
+    const loading = document.getElementById('ai-typing-indicator');
+    if (loading) loading.remove();
+}
+
+window.handleChatSubmit = async function(e) {
+    e.preventDefault();
+    if (isAiTyping) return;
+
+    const inputMsg = document.getElementById('chatInput').value.trim();
+    if (!inputMsg) return;
+
+    // 1. Render User Message
+    window.appendChatMsg(inputMsg, 'user');
+    document.getElementById('chatInput').value = '';
+    
+    // 2. Show Loading Ring
+    isAiTyping = true;
+    window.appendChatMsg('', 'loading');
+
+    // 3. Call Mock API
+    const reply = await window.sendMessageToOpenClaw(inputMsg);
+    
+    // 4. Render AI Reply
+    window.removeChatLoading();
+    window.appendChatMsg(reply, 'ai');
+    isAiTyping = false;
+}
+
+/**
+ * 这是一个 API 存根 (Stub)，用于解耦前后端。
+ * 当 OpenClaw 后端服务准备就绪时，只需将此函数内部的代码替换为真正的 fetch('/api/v1/chat_proxy', ...) 即可。
+ */
+window.sendMessageToOpenClaw = async function(message) {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // 模拟 AI 响应逻辑
+    if (message.includes('湿度') || message.includes('水')) {
+        return `当前平均土壤湿度为 ${document.getElementById('valAvgVwc').innerText}。根据模型分析，暂时处于良好区间。不过下午阳光较强，建议开启 3 号阀门滴灌 10 分钟。`;
+    }
+    if (message.includes('病') || message.includes('稻瘟')) {
+        return `我在监控流中注意到了光谱异常。结合智脑策略，如果确诊为稻瘟病潜伏期，请务必立即装载三环唑进行全覆盖。需要我自动下发无人机指令吗？`;
+    }
+    
+    return `收到您的指令：“${message}”。我是 OpenClaw 的前端 UI 原型。目前真正的我还在云端沉睡，等后端工程师把我唤醒后，我就能真的帮您种田了！`;
+}

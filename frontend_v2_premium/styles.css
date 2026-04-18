@@ -10,3 +10,47 @@
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+/* OpenClaw Chat UI Styles */
+@keyframes chatSlideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.chat-popup {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: bottom right;
+}
+
+.chat-popup.hidden-chat {
+  opacity: 0;
+  transform: translateY(20px) scale(0.9);
+  pointer-events: none;
+}
+
+.chat-popup.show-chat {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.msg-ai {
+  animation: chatSlideUp 0.3s ease-out forwards;
+  @apply bg-slate-800/80 text-slate-200 border border-emerald-500/20 shadow-lg relative left-0;
+  border-bottom-left-radius: 4px;
+}
+
+.msg-user {
+  animation: chatSlideUp 0.3s ease-out forwards;
+  @apply bg-emerald-600/90 text-white shadow-lg relative right-0 shadow-emerald-600/30;
+  border-bottom-right-radius: 4px;
+}
+
+.pulse-glow {
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-ring 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes pulse-ring {
+  100% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+}
