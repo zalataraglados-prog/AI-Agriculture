@@ -298,6 +298,9 @@ def cmd_check_database(args: argparse.Namespace) -> int:
     if not dsn:
         print("database_url missing in config")
         return 1
+    if shutil.which("psql") is None:
+        print("check failed: psql not found in PATH")
+        return 2
 
     sql = (
         "SELECT hypertable_name, num_chunks FROM timescaledb_information.hypertables ORDER BY hypertable_name;"
@@ -377,7 +380,7 @@ def cmd_refresh_token(args: argparse.Namespace) -> int:
 
 
 def cmd_ls_port(_args: argparse.Namespace) -> int:
-    tcp = run(["ss", "-lntupH"])
+    tcp = run(["ss", "-lntpH"])
     udp = run(["ss", "-lnupH"])
     entries: dict[tuple[str, int], str] = {}
 
