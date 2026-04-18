@@ -171,6 +171,16 @@ Query API:
 - cloud forwards the request to `${openclaw_url}/api/v1/chat` and normalizes response to:
   - `{ "reply": "..." }`
 
+If your OpenClaw runtime does not expose `POST /api/v1/chat`, install and run the lightweight adapter:
+
+```bash
+chmod +x scripts/install_openclaw_chat_adapter.sh
+./scripts/install_openclaw_chat_adapter.sh
+```
+
+It starts `openclaw-chat-adapter` on `127.0.0.1:3000` and bridges chat requests to:
+`openclaw agent --local --agent main --message ... --json`.
+
 ## Database layout
 
 - Migrations run in order: `0001` + `0002` + `0003`.

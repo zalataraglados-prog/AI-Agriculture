@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Chat & Agent Module
  * Handles interaction with the OpenClaw Agri-AI.
  */
@@ -36,7 +36,7 @@ window.CHAT = (() => {
                 </div>
             `;
         }
-        
+
         chatMessages.appendChild(msgDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     };
@@ -47,15 +47,35 @@ window.CHAT = (() => {
     };
 
     const sendMessageToOpenClaw = async (msg) => {
-        // Mock API call - in production, this would call /api/v1/chat
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const lower = msg.toLowerCase();
-                if(lower.includes('status') || lower.includes('状态')) resolve("当前所有网关链路探测结果为 [HEALTHY]。Sector 01-A 的 RICE_FIELD 饱和度正常，建议维持现有灌溉频率。");
-                else if(lower.includes('sensor') || lower.includes('传感器')) resolve("您的传感器底座目前有 4 个活跃节点。其中 SOIL_MODBUS_02 反馈的肥力区间正常。");
-                else resolve("收到指令。我已经准备好对该地块执行深度分析或环境调节。您可以继续询问。");
-            }, 1000);
+        const response = await fetch('/api/v1/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: msg,
+                context: {
+                    source: 'frontend_v2_premium',
+                    ts: new Date().toISOString(),
+                },
+            }),
         });
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (_err) {
+            // ignore parse failure and fallback below
+        }
+
+        if (!response.ok) {
+            const message = data?.message || `chat request failed (${response.status})`;
+            throw new Error(message);
+        }
+
+        if (!data?.reply || typeof data.reply !== 'string') {
+            throw new Error('chat response missing reply');
+        }
+
+        return data.reply;
     };
 
     const handleSubmit = async (e) => {
@@ -68,18 +88,23 @@ window.CHAT = (() => {
 
         appendChatMsg(msg, 'user');
         input.value = '';
-        
+
         isAiTyping = true;
         appendChatMsg('', 'loading');
 
-        const reply = await sendMessageToOpenClaw(msg);
-        
-        removeChatLoading();
-        appendChatMsg(reply, 'ai');
-        isAiTyping = false;
+        try {
+            const reply = await sendMessageToOpenClaw(msg);
+            removeChatLoading();
+            appendChatMsg(reply, 'ai');
+        } catch (err) {
+            removeChatLoading();
+            appendChatMsg(`AI service unavailable: ${err.message}`, 'ai');
+        } finally {
+            isAiTyping = false;
+        }
     };
 
     return {
-        handleSubmit
+        handleSubmit,
     };
 })();
