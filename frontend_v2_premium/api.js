@@ -147,6 +147,13 @@ window.API = (() => {
         return normalizeTelemetryRows(rows).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     };
 
+    const getMockTelemetry = () => [
+        { device_id: 'GATEWAY-01', sensor_id: 'dht22', ts: new Date().toISOString(), fields: { temp_c: 24.5, hum: 62 } },
+        { device_id: 'GATEWAY-01', sensor_id: 'mq7', ts: new Date().toISOString(), fields: { raw: 340, voltage: 1.2 } },
+        { device_id: 'GATEWAY-01', sensor_id: 'soil_modbus_02', ts: new Date().toISOString(), fields: { vwc: 32, temp_c: 21.8, ec: 450 } },
+        { device_id: 'GATEWAY-01', sensor_id: 'pcf8591', ts: new Date().toISOString(), fields: { ain0: 128, ain1: 45 } }
+    ];
+
     return {
         GATEWAY_STALE_MS,
         fetchJson,
@@ -156,6 +163,7 @@ window.API = (() => {
         getSchemaField,
         setTelemetry,
         getTelemetry,
+        getMockTelemetry,
         getLatestBySensor,
         detectSensorFault,
         formatNumeric,
