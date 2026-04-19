@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Chat & Agent module.
  */
 window.CHAT = (() => {
@@ -138,31 +138,36 @@ window.CHAT = (() => {
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
-        if (isAiTyping) return;
+        if (window.UI.AI.isTyping) return;
 
         const input = document.getElementById('chatInput');
         const msg = input.value.trim();
         if (!msg) return;
 
-        appendChatMsg(msg, 'user');
+        window.UI.AI.addMessage('user', msg);
         input.value = '';
 
-        isAiTyping = true;
-        appendChatMsg('', 'loading');
+        window.UI.AI.isTyping = true;
+        window.UI.AI.showLoading();
 
         try {
-            const reply = await sendMessageToOpenClaw(msg);
-            removeChatLoading();
-            appendChatMsg(reply, 'ai');
+            // Stack current custom instructions from sidebar config if any
+            const fullPrompt = `${window.UI.AI.customInstruction}\n\nClient Input: ${msg}`;
+            const reply = await sendMessageToOpenClaw(fullPrompt);
+            window.UI.AI.hideLoading();
+            window.UI.AI.addMessage('ai', reply);
         } catch (err) {
-            removeChatLoading();
-            appendChatMsg(`AI service unavailable: ${err.message}`, 'ai');
+            window.UI.AI.hideLoading();
+            window.UI.AI.addMessage('ai', `服务暂时离线: ${err.message}`);
         } finally {
-            isAiTyping = false;
+            window.UI.AI.isTyping = false;
         }
     };
 
     return {
         handleSubmit,
+        sendMessageToOpenClaw,
+        renderMarkdown,
+        escapeHtml
     };
 })();

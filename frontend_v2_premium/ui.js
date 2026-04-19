@@ -58,6 +58,10 @@ window.UI = (() => {
         if (viewId === 'view-health') {
             Health.update();
         }
+
+        if (viewId === 'view-ai') {
+            AI.init();
+        }
     };
 
     const renderSensorGrid = (telemetry) => {
@@ -605,5 +609,152 @@ window.UI = (() => {
         setImageUploads: (items) => {
             latestImageUploads = Array.isArray(items) ? items : [];
         },
+        // --- AI Workspace Logic (Issue #50) ---
+        AI: {
+            history: JSON.parse(localStorage.getItem('agri_ai_history') || '[]'),
+            customInstruction: localStorage.getItem('agri_ai_custom_instruction') || '',
+            tokenCount: parseInt(localStorage.getItem('agri_ai_token_count') || '0'),
+            isTyping: false,
+
+            init: () => {
+                UI.AI.renderHistory();
+                UI.AI.renderMessages('aiMainMessages');
+                UI.AI.renderMessages('chatMessages');
+                UI.AI.updateTokenUI();
+                const customEl = document.getElementById('aiCustomInstruction');
+                if (customEl) customEl.value = UI.AI.customInstruction;
+            },
+
+            saveConfig: () => {
+                const customEl = document.getElementById('aiCustomInstruction');
+                if (customEl) {
+                    UI.AI.customInstruction = customEl.value;
+                    localStorage.setItem('agri_ai_custom_instruction', UI.AI.customInstruction);
+                }
+            },
+
+            updateTokenUI: () => {
+                const countEl = document.getElementById('tokenCount');
+                const barEl = document.getElementById('tokenBar');
+                if (countEl) countEl.textContent = UI.AI.tokenCount.toLocaleString();
+                if (barEl) {
+                    const percent = Math.min((UI.AI.tokenCount / 500000) * 100, 100);
+                    barEl.style.width = `${percent}%`;
+                }
+                localStorage.setItem('agri_ai_token_count', UI.AI.tokenCount);
+            },
+
+            renderHistory: () => {
+                const container = document.getElementById('aiHistoryList');
+                if (!container) return;
+                
+                // Show last 10 unique sessions (mocked by date)
+                container.innerHTML = `
+                    <div class="ai-history-item active">
+                        <div class="flex items-center gap-2">
+                            <i class="fa fa-comments-o text-xs opacity-50"></i>
+                            <span class="text-[11px] font-bold truncate">当前活跃会话</span>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderMessages: (containerId) => {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                container.innerHTML = UI.AI.history.map(m => {
+                    const isUser = m.role === 'user';
+                    const themeClass = containerId === 'aiMainMessages' ? (isUser ? 'msg-user' : 'msg-ai') : (isUser ? 'bg-emerald-600/30' : 'bg-slate-800/80');
+                    const bubbleClass = containerId === 'aiMainMessages' ? 'msg-bubble shadow-xl' : 'p-3 rounded-xl border border-white/5';
+                    const outerClass = isUser ? 'flex w-full mt-2 space-x-3 ml-auto justify-end' : 'flex w-full mt-2 space-x-3';
+                    
+                    return `
+                        <div class="${outerClass}">
+                            <div class="${bubbleClass} ${themeClass} leading-relaxed">
+                                ${isUser ? window.CHAT.escapeHtml(m.content).replace(/\n/g, '<br>') : window.CHAT.renderMarkdown(m.content)}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                container.scrollTop = container.scrollHeight;
+            },
+
+            addMessage: (role, content) => {
+                UI.AI.history.push({ role, content, ts: new Date().toISOString() });
+                // Limit history to last 50 messages
+                if (UI.AI.history.length > 50) UI.AI.history.shift();
+                localStorage.setItem('agri_ai_history', JSON.stringify(UI.AI.history));
+                
+                // Estimation for tokens (char count * 1.5 roughly)
+                UI.AI.tokenCount += Math.ceil(content.length * 1.5);
+                UI.AI.updateTokenUI();
+
+                UI.AI.renderMessages('aiMainMessages');
+                UI.AI.renderMessages('chatMessages');
+            },
+
+            clearHistory: () => {
+                if (!confirm('确定要清除所有聊天记录吗？')) return;
+                UI.AI.history = [];
+                localStorage.removeItem('agri_ai_history');
+                UI.AI.renderMessages('aiMainMessages');
+                UI.AI.renderMessages('chatMessages');
+            },
+
+            handleMainSubmit: async (e) => {
+                if (e) e.preventDefault();
+                if (UI.AI.isTyping) return;
+
+                const input = document.getElementById('aiMainInput');
+                const msg = input.value.trim();
+                if (!msg) return;
+
+                UI.AI.addMessage('user', msg);
+                input.value = '';
+
+                UI.AI.isTyping = true;
+                UI.AI.showLoading();
+
+                try {
+                    // Instruction Stacking
+                    const fullPrompt = `${UI.AI.customInstruction}\n\nClient Input: ${msg}`;
+                    const reply = await window.CHAT.sendMessageToOpenClaw(fullPrompt);
+                    UI.AI.hideLoading();
+                    UI.AI.addMessage('ai', reply);
+                } catch (err) {
+                    UI.AI.hideLoading();
+                    UI.AI.addMessage('ai', `服务暂时离线: ${err.message}`);
+                } finally {
+                    UI.AI.isTyping = false;
+                }
+            },
+
+            showLoading: () => {
+                ['aiMainMessages', 'chatMessages'].forEach(id => {
+                    const container = document.getElementById(id);
+                    if (!container) return;
+                    const loader = document.createElement('div');
+                    loader.id = `loader-${id}`;
+                    loader.className = 'flex w-full mt-2 space-x-3';
+                    loader.innerHTML = `
+                        <div class="p-3 bg-slate-800/80 rounded-xl msg-ai flex items-center gap-2 border border-white/5">
+                            <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce"></div>
+                            <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        </div>
+                    `;
+                    container.appendChild(loader);
+                    container.scrollTop = container.scrollHeight;
+                });
+            },
+
+            hideLoading: () => {
+                ['loader-aiMainMessages', 'loader-chatMessages'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.remove();
+                });
+            }
+        }
     };
 })();

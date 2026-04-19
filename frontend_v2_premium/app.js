@@ -22,6 +22,7 @@ window.onload = async () => {
 
     // 3. Load Schema & Initial Data
     await window.API.loadSchema();
+    window.UI.AI.init();
     await updateAppLoop(deviceId);
 
     // 4. Start Interval
