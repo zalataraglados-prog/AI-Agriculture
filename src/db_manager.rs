@@ -94,7 +94,7 @@ impl DbManager {
         while current_start < req.end_time {
             let current_end = std::cmp::min(current_start + Duration::hours(2), req.end_time);
 
-            let query = if let Some(dev_id) = &req.device_id {
+            let query = if let Some(_dev_id) = &req.device_id {
                 "SELECT time, device_id, value, status, region_code FROM sensor_data
                  WHERE time >= $1 AND time < $2 AND device_id = $3
                  ORDER BY time ASC"
@@ -143,7 +143,7 @@ impl DbManager {
         while current_start < req.end_time {
             let current_end = std::cmp::min(current_start + Duration::hours(2), req.end_time);
 
-            let query = if let Some(dev_id) = &req.device_id {
+            let query = if let Some(_dev_id) = &req.device_id {
                 "SELECT file_path, capture_time, object_stamp, region_code, device_id FROM image_index
                  WHERE capture_time >= $1 AND capture_time < $2 AND device_id = $3
                  ORDER BY capture_time ASC"

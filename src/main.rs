@@ -12,7 +12,7 @@ fn main() {
     let processor = CustomGatewayProcessor::new();
     let dsn = std::env::var("DATABASE_URL").unwrap_or_else(|_| "host=localhost user=postgres dbname=CICSIC port=5432".to_string());
 
-    let mut manager = match DbManager::new(dsn) {
+    let mut manager = match DbManager::new(&dsn) {
         Ok(w) => w,
         Err(e) => {
             eprintln!("[ERROR] 数据库连接失败: {}", e);
