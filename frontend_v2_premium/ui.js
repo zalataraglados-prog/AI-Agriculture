@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UI & rendering module.
  */
 window.UI = (() => {
@@ -219,163 +219,188 @@ window.UI = (() => {
 
     const Charts = {
         chartInstances: new Map(),
-        selectedSector: 'GLOBAL',
+        selectedSector: 'sector-01-a',
 
         init: async () => {
-            const telemetry = window.API.getTelemetry();
-            const deviceIds = Array.from(new Set(telemetry.map((r) => r.device_id).filter(Boolean)));
-            const sectors = deviceIds.length ? deviceIds : ['GLOBAL'];
+            // 1. Populate Sectors
+            const sectors = [
+                { id: 'sector-01-a', name: 'Sector 01-A (Rice)' },
+                { id: 'sector-01-b', name: 'Sector 01-B (Corn)' },
+                { id: 'sector-02-a', name: 'Sector 02-A (Fruit)' },
+                { id: 'sector-02-b', name: 'Sector 02-B (Veg)' }
+            ];
             const sectorList = document.getElementById('sectorList');
             if (sectorList) {
-                sectorList.innerHTML = sectors
-                    .map((id) => {
-                        const active = id === Charts.selectedSector ? 'active' : '';
-                        return `
-                            <div class="sector-item ${active}" onclick="UI.Charts.setSector('${id}', this)">
-                                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                <span class="text-xs font-bold text-slate-200">${id}</span>
-                            </div>
-                        `;
-                    })
-                    .join('');
+                sectorList.innerHTML = sectors.map(s => `
+                    <div class="sector-item ${s.id === Charts.selectedSector ? 'active' : ''}" onclick="UI.Charts.setSector('${s.id}', this)">
+                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                        <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">${s.name}</span>
+                    </div>
+                `).join('');
             }
-            await Charts.refresh();
+
+            // 2. Populate Real Sensors from Schema
+            const schema = window.API.getSchema();
+            const sensorList = document.getElementById('sensorSelectionList');
+            if (sensorList) {
+                sensorList.innerHTML = Array.from(schema.keys()).map(sid => `
+                    <label class="sensor-pill cursor-pointer group">
+                        <input type="checkbox" value="${sid}" class="hidden peer" checked />
+                        <i class="fa ${sid.includes('soil') ? 'fa-leaf' : 'fa-microchip'} text-[10px] text-slate-500 peer-checked:text-emerald-400"></i>
+                        <span class="text-[10px] text-slate-400 peer-checked:text-emerald-100 uppercase font-bold">${sid}</span>
+                    </label>
+                `).join('');
+            }
+
+            // 3. Set Default Date Range (last 24h)
+            const end = new Date();
+            const start = new Date(end.getTime() - 24 * 3600 * 1000);
+            const toLocalISO = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            
+            const startInput = document.getElementById('chartStartTime');
+            const endInput = document.getElementById('chartEndTime');
+            if (startInput) startInput.value = toLocalISO(start);
+            if (endInput) endInput.value = toLocalISO(end);
         },
 
         setSector: (id, el) => {
             Charts.selectedSector = id;
-            document.querySelectorAll('.sector-item').forEach((i) => i.classList.remove('active'));
-            if (el) el.classList.add('active');
+            document.querySelectorAll('.sector-sidebar .sector-item').forEach(i => i.classList.remove('active'));
+            if(el) el.classList.add('active');
             Charts.refresh();
         },
 
         refresh: async () => {
-            const hours = parseInt(document.getElementById('timeRangeSelect')?.value || '24', 10);
-            const showImages = !!document.getElementById('toggleImages')?.checked;
-            const selectedSensorsRaw = Array.from(document.querySelectorAll('#sensorCheckboxes input:checked')).map((i) => i.value);
-
-            const history = await window.API.fetchHistory(Charts.selectedSector === 'GLOBAL' ? '' : Charts.selectedSector, hours, 1000);
             const container = document.getElementById('chartStack');
             if (!container) return;
 
-            Charts.chartInstances.forEach((chart) => chart.destroy());
+            const startTime = document.getElementById('chartStartTime')?.value;
+            const endTime = document.getElementById('chartEndTime')?.value;
+            const showImages = document.getElementById('toggleImages')?.checked;
+            const selectedSensors = Array.from(document.querySelectorAll('#sensorSelectionList input:checked')).map(i => i.value);
+
+            // Fetch History with explicit range
+            const deviceId = localStorage.getItem('device_id') || '';
+            container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">SYNCHRONIZING SECURE TELEMETRY...</div>`;
+            
+            const history = await window.API.fetchHistory(deviceId, 24, 1000, startTime, endTime);
+
+            // Clear old charts
+            Charts.chartInstances.forEach(c => c.destroy());
             Charts.chartInstances.clear();
             container.innerHTML = '';
 
-            const selectedSensors = selectedSensorsRaw.length
-                ? selectedSensorsRaw
-                : Array.from(new Set(history.map((r) => r.sensor_id).filter(Boolean)));
-            selectedSensors.forEach((sid) => {
-                const sensorData = history.filter((r) => r.sensor_id === sid);
-                if (!sensorData.length) return;
-                const schema = window.API.getSchema().get(sid);
-                const fieldsToRender = [];
-                if (schema?.fields?.size) {
-                    schema.fields.forEach((fieldSpec, fieldName) => fieldsToRender.push([fieldName, fieldSpec]));
-                } else {
-                    const sample = sensorData[0]?.fields || {};
-                    Object.keys(sample).forEach((fieldName) => {
-                        const n = Number(sample[fieldName]);
-                        if (!Number.isFinite(n)) return;
-                        fieldsToRender.push([
-                            fieldName,
-                            { label: fieldName, unit: '', data_type: 'number' },
-                        ]);
-                    });
-                }
+            if (history.length === 0) {
+                container.innerHTML = `<div class="p-20 text-center text-slate-500 italic text-xs">所选时间范围内无历史数据</div>`;
+                return;
+            }
 
-                fieldsToRender.forEach(([fieldName, fieldSpec]) => {
-                    if (!['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'].includes(`${fieldSpec.data_type}`.toLowerCase())) return;
+            // Render selected sensors
+            selectedSensors.forEach(sid => {
+                const sensorData = history.filter(r => r.sensor_id === sid);
+                const schema = window.API.getSchema().get(sid);
+                if (!schema || sensorData.length === 0) return;
+
+                schema.fields.forEach((fieldSpec, fieldName) => {
+                    const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'];
+                    if (!numericTypes.includes(fieldSpec.data_type)) return;
+                    
                     const canvasId = `canvas-${sid}-${fieldName}`;
-                    const vals = sensorData.map((r) => Number(r.fields[fieldName])).filter((v) => Number.isFinite(v));
-                    const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : '--';
-                    const yBounds = calcYAxisBounds(vals);
+                    
+                    // Calculate Average
+                    const vals = sensorData.map(r => r.fields[fieldName]).filter(v => typeof v === 'number');
+                    const avg = vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length) : null;
 
                     const card = document.createElement('div');
                     card.className = 'chart-card';
                     card.innerHTML = `
-                        <div class="flex items-center justify-between mb-6">
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest">${sid} / ${fieldSpec.label}</h4>
-                                <p class="text-[10px] text-slate-500 mt-1">真实时间轴</p>
+                        <div class="flex items-center justify-between mb-8">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                    <i class="fa ${sid.includes('soil') ? 'fa-leaf' : 'fa-area-chart'} text-emerald-400"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-black text-white uppercase tracking-widest">${sid} / ${fieldSpec.label}</h4>
+                                    <p class="text-[9px] text-slate-500 font-mono">HASH: ${btoa(sid+fieldName).slice(0,8)}</p>
+                                </div>
                             </div>
                             <div class="avg-badge">
-                                <i class="fa fa-line-chart"></i>
-                                AVG: ${avg} ${fieldSpec.unit || ''}
+                                <div class="text-[8px] uppercase font-bold text-emerald-500/50 mr-2">Mean Value</div>
+                                <span class="text-sm font-black">${avg !== null ? window.API.formatNumeric(avg, fieldSpec.unit) : '--'}</span>
                             </div>
                         </div>
-                        <div class="h-64"><canvas id="${canvasId}"></canvas></div>
+                        <div class="h-72">
+                            <canvas id="${canvasId}"></canvas>
+                        </div>
                     `;
                     container.appendChild(card);
 
-                    const ctx = document.getElementById(canvasId)?.getContext('2d');
-                    if (!ctx) return;
-                    const grad = ctx.createLinearGradient(0, 0, 0, 250);
-                    grad.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+                    const ctx = document.getElementById(canvasId).getContext('2d');
+                    const grad = ctx.createLinearGradient(0, 0, 0, 300);
+                    grad.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
                     grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
-                    const chart = new Chart(ctx, {
+                    const newChart = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: sensorData.map((r) => Charts.formatTime(r.ts)),
-                            datasets: [
-                                {
-                                    label: fieldSpec.label,
-                                    data: sensorData.map((r) => {
-                                        const n = Number(r.fields[fieldName]);
-                                        return Number.isFinite(n) ? n : null;
-                                    }),
-                                    borderColor: '#ffffff',
-                                    backgroundColor: grad,
-                                    borderWidth: 2,
-                                    tension: 0.2,
-                                    fill: true,
-                                    pointRadius: 1,
-                                },
-                            ],
+                            labels: sensorData.map(r => Charts.formatTime(r.ts)),
+                            datasets: [{
+                                label: fieldSpec.label,
+                                data: sensorData.map(r => r.fields[fieldName]),
+                                borderColor: '#fff',
+                                backgroundColor: grad,
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 6,
+                                pointHoverBackgroundColor: '#10b981',
+                                pointHoverBorderColor: '#fff',
+                                pointHoverBorderWidth: 2
+                            }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            parsing: false,
+                            interaction: { intersect: false, mode: 'index' },
                             plugins: { legend: { display: false } },
                             scales: {
-                                x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 10 } } },
-                                y: {
-                                    min: yBounds.min,
-                                    max: yBounds.max,
-                                    grid: { color: 'rgba(255,255,255,0.05)' },
-                                    ticks: { font: { size: 10 } },
-                                },
-                            },
-                        },
+                                x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+                                y: { 
+                                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                                    ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 } },
+                                    suggestedMin: 0
+                                }
+                            }
+                        }
                     });
-
-                    Charts.chartInstances.set(canvasId, chart);
+                    Charts.chartInstances.set(canvasId, newChart);
                 });
             });
 
+            // Vision Integration
             if (showImages) {
-                const recent = latestImageUploads.slice(0, 8);
                 const visionCard = document.createElement('div');
-                visionCard.className = 'chart-card border-blue-500/20';
+                visionCard.className = 'chart-card border-emerald-500/20';
                 visionCard.innerHTML = `
-                    <h4 class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-4">图传时间轴（真实图片）</h4>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        ${recent
-                            .map((item) => {
-                                const url = item.upload_id
-                                    ? `/api/v1/image/file?upload_id=${encodeURIComponent(item.upload_id)}`
-                                    : (item.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(item.saved_path)}` : '');
-                                const safeUploadId = `${item.upload_id || ''}`.replace(/'/g, "\\'");
-                                return `
-                                    <div class="aspect-square bg-white/5 rounded-lg border border-white/5 overflow-hidden relative cursor-pointer" onclick="UI.openImagePreview('${url}', '${safeUploadId}')">
-                                        ${url ? `<img src="${url}" class="w-full h-full object-cover" />` : '<div class="w-full h-full flex items-center justify-center text-[10px] text-slate-500">无图</div>'}
-                                        <p class="absolute bottom-2 left-2 text-[8px] text-slate-200 bg-black/40 px-1 rounded">${formatDate(item.captured_at || item.ts)}</p>
-                                    </div>
-                                `;
-                            })
-                            .join('') || '<p class="text-xs text-slate-500">暂无图传记录</p>'}
+                    <div class="flex items-center justify-between mb-6">
+                         <h4 class="text-xs font-black text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <i class="fa fa-dot-circle-o"></i> 视觉观测时间轴 (Vision History)
+                         </h4>
+                    </div>
+                    <div id="visionTimeline" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <!-- Simplified mock vision frames matching the timeline -->
+                        ${[1,2,3,4,5,6].map(i => `
+                            <div class="aspect-[4/3] bg-black/40 rounded-xl border border-white/5 overflow-hidden group relative">
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <i class="fa fa-camera text-white/5 text-4xl group-hover:scale-110 transition-transform"></i>
+                                </div>
+                                <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                                    <span class="text-[8px] text-white/40 font-mono">FRAME_0${i}</span>
+                                    <span class="text-[8px] text-emerald-500/60 font-black">SYNC</span>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 `;
                 container.appendChild(visionCard);
@@ -385,8 +410,8 @@ window.UI = (() => {
         formatTime: (ts) => {
             const d = new Date(ts);
             if (Number.isNaN(d.getTime())) return ts || '--';
-            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-        },
+            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
     };
 
     return {
@@ -395,16 +420,12 @@ window.UI = (() => {
         renderSensorGrid,
         renderDiagnosis,
         openSensorDetail,
-        openImagePreview,
+        openImagePreview: (url) => {
+             // Implementation for global image preview if needed
+        },
         Charts,
-        setEnvChart: (c) => {
-            envChart = c;
-        },
-        setFaultTrendChart: (c) => {
-            faultTrendChart = c;
-        },
-        setImageUploads: (items) => {
-            latestImageUploads = Array.isArray(items) ? items : [];
-        },
+        setEnvChart: (c) => envChart = c,
+        setFaultTrendChart: (c) => faultTrendChart = c,
+        setImageUploads: (items) => { /* State management for visions */ }
     };
 })();

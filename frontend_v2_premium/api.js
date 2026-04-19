@@ -133,9 +133,10 @@ window.API = (() => {
         return `${num.toFixed(digits)}${suffix}`;
     };
 
-    const fetchHistory = async (deviceId, hours = 24, limit = 1000) => {
-        const end = new Date();
-        const start = new Date(end.getTime() - hours * 3600 * 1000);
+    const fetchHistory = async (deviceId, hours = 24, limit = 1000, explicitStart = null, explicitEnd = null) => {
+        const end = explicitEnd ? new Date(explicitEnd) : new Date();
+        const start = explicitStart ? new Date(explicitStart) : new Date(end.getTime() - hours * 3600 * 1000);
+        
         const url = apiUrl('/api/v1/telemetry', {
             device_id: deviceId,
             start_time: start.toISOString(),
