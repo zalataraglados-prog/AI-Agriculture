@@ -317,6 +317,60 @@
     color: #34d399;
 }
 
+/* Health View Component Styles */
+.status-card {
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-card:hover {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.status-card.health-ok { border-left: 4px solid #10b981; }
+.status-card.health-warning { border-left: 4px solid #f59e0b; }
+.status-card.health-critical { border-left: 4px solid #f43f5e; }
+
+.health-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-ok { background: #10b981; box-shadow: 0 0 10px #10b981; animation: pulse-green 2s infinite; }
+.dot-warning { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; animation: pulse-orange 2s infinite; }
+.dot-critical { background: #f43f5e; box-shadow: 0 0 10px #f43f5e; animation: pulse-red 2s infinite; }
+
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes pulse-orange {
+    0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+
+.health-column::-webkit-scrollbar { width: 3px; }
+.health-column::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+
 /* OpenClaw Chat UI Styles */
 @keyframes chatSlideUp {
   from { opacity: 0; transform: translateY(20px) scale(0.95); }

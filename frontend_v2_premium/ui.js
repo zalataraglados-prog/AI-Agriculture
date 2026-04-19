@@ -54,6 +54,10 @@ window.UI = (() => {
         if (viewId === 'view-charts') {
             Charts.init();
         }
+
+        if (viewId === 'view-health') {
+            Health.update();
+        }
     };
 
     const renderSensorGrid = (telemetry) => {
@@ -414,18 +418,117 @@ window.UI = (() => {
         }
     };
 
+    // --- Health Monitoring Submodule ---
+    const Health = {
+        update: () => {
+            Health.renderServers();
+            Health.renderGateways();
+            Health.renderSensors();
+        },
+
+        renderServers: () => {
+            const container = document.getElementById('healthServerList');
+            if (!container) return;
+
+            const servers = [
+                { name: 'Telemetry Gateway (Rust)', status: 'ok', detail: 'Edge-Cloud 实时链路' },
+                { name: 'AI Inference Hub (FastAPI)', status: 'ok', detail: '视觉语义分析引擎' },
+                { name: 'Data Persistence (Postgres)', status: 'ok', detail: '时序数据库集群' },
+                { name: 'Storage CDN (Object)', status: 'warning', detail: '多媒体分发链路同步滞后' }
+            ];
+
+            container.innerHTML = servers.map(s => `
+                <div class="status-card health-${s.status} mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-white">${s.name}</span>
+                        <div class="health-dot dot-${s.status}"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 italic">${s.detail}</p>
+                </div>
+            `).join('');
+        },
+
+        renderGateways: () => {
+            const container = document.getElementById('healthGatewayList');
+            if (!container) return;
+
+            const telemetry = window.API.getTelemetry();
+            const deviceIds = Array.from(new Set(telemetry.map(r => r.device_id).filter(id => id)));
+            
+            if (deviceIds.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-slate-600 text-[10px] italic">未发现在线网关节点</div>';
+                return;
+            }
+
+            container.innerHTML = deviceIds.map(id => {
+                const latest = telemetry.find(r => r.device_id === id);
+                const stale = (Date.now() - new Date(latest.ts).getTime()) > window.API.GATEWAY_STALE_MS;
+                const status = stale ? 'critical' : 'ok';
+                const statusLabel = stale ? 'OFFLINE / TIMEOUT' : 'CONNECTED / ACTIVE';
+
+                return `
+                <div class="status-card health-${status} mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-black text-amber-400 font-mono">${id}</span>
+                        <div class="health-dot dot-${status}"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-[9px] font-bold">
+                        <span class="${stale ? 'text-rose-500' : 'text-emerald-500'}">${statusLabel}</span>
+                        <span class="text-slate-500 font-mono">${Charts.formatTime(latest.ts)}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        },
+
+        renderSensors: () => {
+            const container = document.getElementById('healthSensorList');
+            if (!container) return;
+
+            const telemetry = window.API.getTelemetry();
+            const schema = window.API.getSchema();
+            
+            const sensorIds = Array.from(schema.keys());
+            if (sensorIds.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-slate-600 text-[10px] italic">等待传感器 Schema 同步...</div>';
+                return;
+            }
+
+            container.innerHTML = sensorIds.map(sid => {
+                const latest = telemetry.find(r => r.sensor_id === sid);
+                const { isFault, reasons } = window.API.detectSensorFault(latest);
+                const status = !latest ? 'warning' : (isFault ? 'critical' : 'ok');
+                const reasonText = reasons.length > 0 ? reasons.join(', ') : (latest ? 'Operational' : 'Waiting for data');
+
+                return `
+                <div class="status-card health-${status} mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-white uppercase">${sid}</span>
+                        <div class="health-dot dot-${status}"></div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <p class="text-[9px] text-slate-400 font-medium">${reasonText}</p>
+                        <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden mt-1">
+                            <div class="h-full ${status === 'ok' ? 'bg-emerald-500' : (status === 'warning' ? 'bg-amber-500' : 'bg-rose-500')} w-[${status === 'ok' ? '100%' : '100%'}]"></div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    };
+
     return {
         formatDate,
         switchView,
         renderSensorGrid,
         renderDiagnosis,
         openSensorDetail,
-        openImagePreview: (url) => {
-             // Implementation for global image preview if needed
-        },
+        openImagePreview,
         Charts,
+        Health,
         setEnvChart: (c) => envChart = c,
         setFaultTrendChart: (c) => faultTrendChart = c,
-        setImageUploads: (items) => { /* State management for visions */ }
+        setImageUploads: (items) => {
+            latestImageUploads = Array.isArray(items) ? items : [];
+        },
     };
 })();
