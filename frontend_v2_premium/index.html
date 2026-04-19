@@ -227,11 +227,23 @@
                               </div>
                           </div>
 
-                          <!-- Sensor Selection -->
-                          <div class="flex-1 flex flex-col px-6">
-                              <label class="text-[8px] text-slate-500 uppercase tracking-widest mb-2 font-bold">关联传感器 (Real-time Mesh)</label>
-                              <div id="sensorSelectionList" class="flex gap-4 overflow-x-auto pb-1 no-scrollbar">
-                                  <!-- Dynamic Checkboxes -->
+                          <!-- Sensor Selection (Popover Style) -->
+                          <div class="flex-1 px-6 flex items-center justify-center relative">
+                              <button id="sensorSelectBtn" onclick="UI.Charts.togglePopover(event)" class="group px-6 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all flex items-center gap-3">
+                                  <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                  <span class="text-[10px] text-slate-300 font-black uppercase tracking-widest">配置节点传感器 / SENSORS</span>
+                                  <i class="fa fa-chevron-up text-[10px] text-slate-500 group-hover:text-emerald-400 transition-transform"></i>
+                              </button>
+
+                              <!-- THE POPOVER -->
+                              <div id="sensorPopover" class="absolute bottom-16 left-1/2 -translate-x-1/2 w-[400px] bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] opacity-0 pointer-events-none transform translate-y-4 transition-all duration-300 z-50">
+                                  <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
+                                      <h4 class="text-[10px] font-black text-emerald-400 uppercase tracking-widest">节点传感器网格</h4>
+                                      <span class="text-[8px] text-slate-500 font-mono">MESH_TOPOLOGY</span>
+                                  </div>
+                                  <div id="sensorSelectionList" class="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 no-scrollbar">
+                                      <!-- Dynamic Content -->
+                                  </div>
                               </div>
                           </div>
 
