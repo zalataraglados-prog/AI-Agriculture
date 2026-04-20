@@ -88,7 +88,7 @@ impl SerialEsp32Source {
 
         let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
         read_exact_with_deadline(&mut *self.serial, &mut frame, Duration::from_millis(900))?;
-        let (vwc_raw, temp_raw, ec_raw) = parse_modbus_response_frame(&frame)?;
+        let (temp_raw, vwc_raw, ec_raw) = parse_modbus_response_frame(&frame)?;
 
         let mut fields = BTreeMap::new();
         fields.insert("vwc".to_string(), format!("{:.1}", (vwc_raw as f32) / 10.0));
@@ -214,7 +214,7 @@ pub fn discover_on_port(
         let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
         match read_exact_with_deadline(&mut *serial, &mut frame, Duration::from_millis(650)) {
             Ok(()) => {
-                if let Ok((vwc_raw, temp_raw, ec_raw)) = parse_modbus_response_frame(&frame) {
+                if let Ok((temp_raw, vwc_raw, ec_raw)) = parse_modbus_response_frame(&frame) {
                     found.managed_protocol_detected = true;
                     found.known_sensors.insert(MODBUS_SENSOR_ID.to_string());
                     if found.sample_lines.is_empty() {
@@ -291,10 +291,11 @@ fn parse_modbus_response_frame(frame: &[u8]) -> Result<(u16, u16, u16), String> 
         ));
     }
 
-    let vwc_raw = u16::from_be_bytes([frame[3], frame[4]]);
-    let temp_raw = u16::from_be_bytes([frame[5], frame[6]]);
+    // Soil sensor register order is: temperature, VWC, EC.
+    let temp_raw = u16::from_be_bytes([frame[3], frame[4]]);
+    let vwc_raw = u16::from_be_bytes([frame[5], frame[6]]);
     let ec_raw = u16::from_be_bytes([frame[7], frame[8]]);
-    Ok((vwc_raw, temp_raw, ec_raw))
+    Ok((temp_raw, vwc_raw, ec_raw))
 }
 
 fn modbus_crc16(data: &[u8]) -> u16 {

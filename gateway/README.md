@@ -38,8 +38,8 @@ cargo run -- run \
 Default payload fields:
 
 - `sensor_id=soil_modbus_02`
-- `vwc` = register[1] / 10
-- `temp_c` = register[2] / 10
+- `temp_c` = register[1] / 10
+- `vwc` = register[2] / 10
 - `ec` = register[3]
 
 ## TOML Config
@@ -64,7 +64,7 @@ ack_timeout_ms = 3000
 baud_list = [115200, 57600, 9600, 74880]
 image_dir = "sample_images"
 image_upload_url = "http://8.134.32.223:8088/api/v1/image/upload"
-image_interval_ms = 30000
+image_interval_ms = 300000
 ```
 
 Recommended Modbus-only config:
@@ -106,7 +106,7 @@ mbpoll -m rtu -a 2 -b 9600 -P none -r 1 -c 3 -1 /dev/ttyUSB0
 - `--baud-list <csv>`: baud candidates for Modbus probe (default `9600`)
 - `--image-dir <dir>`: enable simulated image upload from this directory (recursive scan jpg/jpeg/png)
 - `--image-upload-url <url>`: override cloud image upload API (default derive from `--target` as `http://<host>:8088/api/v1/image/upload`)
-- `--image-interval-ms <ms>`: image upload interval (default `30000`)
+- `--image-interval-ms <ms>`: image upload interval (default `300000`)
 
 Image simulator can also be configured by environment variables:
 - `GATEWAY_IMAGE_DIR`
