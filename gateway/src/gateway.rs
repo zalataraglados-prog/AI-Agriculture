@@ -958,10 +958,20 @@ pub(crate) fn send_internal_success_probe(
 
 #[cfg(test)]
 mod tests {
-    use super::{derive_image_upload_url, ImageCyclePicker};
-    use std::collections::HashSet;
+    use super::{
+        derive_image_upload_url, try_upload_cycle_image, DiscoveredDevice, ImageCyclePicker,
+        ImageUploadContext, SharedContext,
+    };
+    use crate::config::RunConfig;
+    use crate::persist::GatewayProfile;
+    use std::collections::{BTreeMap, HashSet};
     use std::fs;
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::net::TcpListener;
     use std::path::PathBuf;
+    use std::sync::{mpsc, Arc, Mutex};
+    use std::thread;
+    use std::time::Duration;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn make_temp_dir() -> PathBuf {
@@ -1008,6 +1018,97 @@ mod tests {
         }
         assert_eq!(second_round.len(), 3);
 
+        fs::remove_dir_all(root).ok();
+    }
+
+    fn contains_subslice(haystack: &[u8], needle: &[u8]) -> bool {
+        if needle.is_empty() {
+            return true;
+        }
+        haystack.windows(needle.len()).any(|w| w == needle)
+    }
+
+    #[test]
+    fn image_upload_multipart_keeps_original_bytes() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+        let addr = listener.local_addr().expect("local addr");
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept");
+            let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
+            let mut content_length = 0usize;
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).expect("read header line");
+                if line == "\r\n" {
+                    break;
+                }
+                if let Some((name, value)) = line.split_once(':') {
+                    if name.eq_ignore_ascii_case("Content-Length") {
+                        content_length = value.trim().parse::<usize>().expect("content length");
+                    }
+                }
+            }
+            let mut body = vec![0_u8; content_length];
+            reader.read_exact(&mut body).expect("read body");
+            tx.send(body).expect("send captured body");
+            let mut writer = stream;
+            let resp = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 20\r\n\r\n{\"status\":\"success\"}";
+            writer.write_all(resp).expect("write response");
+            writer.flush().expect("flush");
+        });
+
+        let root = make_temp_dir();
+        let image_bytes: Vec<u8> = (0..=255).collect();
+        let image_path = root.join("sample.jpg");
+        fs::write(&image_path, &image_bytes).expect("write image");
+
+        let mut picker = ImageCyclePicker::from_dir(&root).expect("create picker");
+        let ctx = ImageUploadContext {
+            image_dir: root.clone(),
+            upload_url: format!("http://{}/api/v1/image/upload", addr),
+            upload_interval: Duration::from_secs(300),
+        };
+        let device = DiscoveredDevice {
+            port: "test-port".to_string(),
+            baud: 9600,
+            sensors: vec!["soil_modbus_02".to_string()],
+            feature_mapping: BTreeMap::new(),
+            device_id: "dev_test_image_integrity".to_string(),
+        };
+        let shared = SharedContext {
+            run_cfg: RunConfig {
+                config_path: None,
+                target_override: None,
+                state_dir: "state".to_string(),
+                scan_interval: Duration::from_secs(1),
+                scan_window: Duration::from_millis(500),
+                ack_timeout: Duration::from_millis(500),
+                baud_list: vec![9600],
+                image_dir: Some(root.display().to_string()),
+                image_upload_url: Some(ctx.upload_url.clone()),
+                image_upload_interval: Duration::from_secs(300),
+            },
+            state_dir: PathBuf::from("state"),
+            profile: Arc::new(Mutex::new(GatewayProfile {
+                cloud_target: "127.0.0.1:9000".to_string(),
+                farm_location: "lab".to_string(),
+                crop_type: "rice".to_string(),
+                farm_note: "integrity_test".to_string(),
+                last_token: None,
+                device_key: None,
+            })),
+            prompt_lock: Arc::new(Mutex::new(())),
+        };
+
+        try_upload_cycle_image(&ctx, &mut picker, &device, &shared).expect("upload should succeed");
+        let captured = rx.recv_timeout(Duration::from_secs(3)).expect("captured request body");
+        assert!(
+            contains_subslice(&captured, &image_bytes),
+            "multipart body should contain original image bytes unchanged"
+        );
+
+        server.join().expect("server thread");
         fs::remove_dir_all(root).ok();
     }
 }
