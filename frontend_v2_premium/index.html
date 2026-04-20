@@ -163,7 +163,10 @@
                                   <h3 class="text-sm font-bold text-white tracking-wider">Agri-AI <span class="font-light text-emerald-300">OpenClaw</span></h3>
                                   <p class="text-[10px] text-emerald-400/70">在线协助中</p>
                               </div>
-                              <div class="ml-auto">
+                              <div class="ml-auto flex items-center gap-2">
+                                  <button onclick="UI.AI.createNewSession()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition-all flex items-center justify-center border border-white/5" title="新建会话">
+                                      <i class="fa fa-plus"></i>
+                                  </button>
                                   <button onclick="UI.switchView('view-ai')" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition-all flex items-center justify-center border border-white/5" title="全屏视窗">
                                       <i class="fa fa-expand"></i>
                                   </button>
