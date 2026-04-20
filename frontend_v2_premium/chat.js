@@ -152,7 +152,8 @@ window.CHAT = (() => {
 
         try {
             // Stack current custom instructions from sidebar config if any
-            const fullPrompt = `${window.UI.AI.customInstruction}\n\nClient Input: ${msg}`;
+            const stack = window.UI.AI.instructionList.join('\n');
+            const fullPrompt = stack ? `${stack}\n\nClient Input: ${msg}` : msg;
             const reply = await sendMessageToOpenClaw(fullPrompt);
             window.UI.AI.hideLoading();
             window.UI.AI.addMessage('ai', reply);

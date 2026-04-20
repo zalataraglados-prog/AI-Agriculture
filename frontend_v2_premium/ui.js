@@ -609,61 +609,106 @@ window.UI = (() => {
         setImageUploads: (items) => {
             latestImageUploads = Array.isArray(items) ? items : [];
         },
-        // --- AI Workspace Logic (Issue #50) ---
+        // --- AI Workspace Logic (Multi-session & Instruction Polish for Issue #50) ---
         AI: {
-            history: JSON.parse(localStorage.getItem('agri_ai_history') || '[]'),
-            customInstruction: localStorage.getItem('agri_ai_custom_instruction') || '',
+            sessions: [],
+            currentSessionId: null,
+            instructionList: JSON.parse(localStorage.getItem('agri_ai_instructions') || '[]'),
             tokenCount: parseInt(localStorage.getItem('agri_ai_token_count') || '0'),
             isTyping: false,
 
             init: () => {
+                // 1. Migration for legacy single-history format
+                const legacyHistory = localStorage.getItem('agri_ai_history');
+                const storedSessions = localStorage.getItem('agri_ai_sessions');
+                
+                if (storedSessions) {
+                    UI.AI.sessions = JSON.parse(storedSessions);
+                    UI.AI.currentSessionId = localStorage.getItem('agri_ai_current_session_id');
+                } else if (legacyHistory) {
+                    // Create first session from legacy data
+                    const firstSession = {
+                        id: Date.now().toString(),
+                        title: '历史会话 (已迁移)',
+                        messages: JSON.parse(legacyHistory)
+                    };
+                    UI.AI.sessions = [firstSession];
+                    UI.AI.currentSessionId = firstSession.id;
+                    localStorage.removeItem('agri_ai_history');
+                }
+
+                // If still no sessions, create a default one
+                if (!UI.AI.sessions.length) {
+                    UI.AI.createNewSession('新会话');
+                } else if (!UI.AI.currentSessionId) {
+                    UI.AI.currentSessionId = UI.AI.sessions[0].id;
+                }
+
                 UI.AI.renderHistory();
-                UI.AI.renderMessages('aiMainMessages');
-                UI.AI.renderMessages('chatMessages');
+                UI.AI.renderInstructions();
+                UI.AI.loadCurrentSession();
                 UI.AI.updateTokenUI();
-                const customEl = document.getElementById('aiCustomInstruction');
-                if (customEl) customEl.value = UI.AI.customInstruction;
             },
 
-            saveConfig: () => {
-                const customEl = document.getElementById('aiCustomInstruction');
-                if (customEl) {
-                    UI.AI.customInstruction = customEl.value;
-                    localStorage.setItem('agri_ai_custom_instruction', UI.AI.customInstruction);
-                }
+            saveAll: () => {
+                localStorage.setItem('agri_ai_sessions', JSON.stringify(UI.AI.sessions));
+                localStorage.setItem('agri_ai_current_session_id', UI.AI.currentSessionId);
+                localStorage.setItem('agri_ai_instructions', JSON.stringify(UI.AI.instructionList));
             },
 
-            updateTokenUI: () => {
-                const countEl = document.getElementById('tokenCount');
-                const barEl = document.getElementById('tokenBar');
-                if (countEl) countEl.textContent = UI.AI.tokenCount.toLocaleString();
-                if (barEl) {
-                    const percent = Math.min((UI.AI.tokenCount / 500000) * 100, 100);
-                    barEl.style.width = `${percent}%`;
-                }
-                localStorage.setItem('agri_ai_token_count', UI.AI.tokenCount);
+            createNewSession: (title = '') => {
+                const id = Date.now().toString();
+                const session = {
+                    id: id,
+                    title: title || `对话 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`,
+                    messages: []
+                };
+                UI.AI.sessions.unshift(session);
+                UI.AI.currentSessionId = id;
+                UI.AI.saveAll();
+                UI.AI.renderHistory();
+                UI.AI.loadCurrentSession();
+            },
+
+            switchSession: (id) => {
+                UI.AI.currentSessionId = id;
+                UI.AI.saveAll();
+                UI.AI.renderHistory();
+                UI.AI.loadCurrentSession();
+            },
+
+            loadCurrentSession: () => {
+                const session = UI.AI.sessions.find(s => s.id === UI.AI.currentSessionId);
+                if (!session) return;
+                
+                UI.AI.renderMessagesByList('aiMainMessages', session.messages);
+                UI.AI.renderMessagesByList('chatMessages', session.messages);
             },
 
             renderHistory: () => {
                 const container = document.getElementById('aiHistoryList');
                 if (!container) return;
                 
-                // Show last 10 unique sessions (mocked by date)
-                container.innerHTML = `
-                    <div class="ai-history-item active">
-                        <div class="flex items-center gap-2">
-                            <i class="fa fa-comments-o text-xs opacity-50"></i>
-                            <span class="text-[11px] font-bold truncate">当前活跃会话</span>
+                container.innerHTML = UI.AI.sessions.map(s => `
+                    <div class="ai-history-item ${s.id === UI.AI.currentSessionId ? 'active' : ''}" onclick="UI.AI.switchSession('${s.id}')">
+                        <div class="flex items-center justify-between w-full">
+                            <div class="flex items-center gap-2 overflow-hidden">
+                                <i class="fa fa-comment-o text-xs opacity-50"></i>
+                                <span class="text-[11px] font-bold truncate">${s.title}</span>
+                            </div>
+                            <button onclick="event.stopPropagation(); UI.AI.deleteSession('${s.id}')" class="text-[10px] text-slate-600 hover:text-rose-500 transition-colors">
+                                <i class="fa fa-trash-o"></i>
+                            </button>
                         </div>
                     </div>
-                `;
+                `).join('');
             },
 
-            renderMessages: (containerId) => {
+            renderMessagesByList: (containerId, messages) => {
                 const container = document.getElementById(containerId);
                 if (!container) return;
                 
-                container.innerHTML = UI.AI.history.map(m => {
+                container.innerHTML = messages.map(m => {
                     const isUser = m.role === 'user';
                     const themeClass = containerId === 'aiMainMessages' ? (isUser ? 'msg-user' : 'msg-ai') : (isUser ? 'bg-emerald-600/30' : 'bg-slate-800/80');
                     const bubbleClass = containerId === 'aiMainMessages' ? 'msg-bubble shadow-xl' : 'p-3 rounded-xl border border-white/5';
@@ -681,25 +726,102 @@ window.UI = (() => {
             },
 
             addMessage: (role, content) => {
-                UI.AI.history.push({ role, content, ts: new Date().toISOString() });
-                // Limit history to last 50 messages
-                if (UI.AI.history.length > 50) UI.AI.history.shift();
-                localStorage.setItem('agri_ai_history', JSON.stringify(UI.AI.history));
+                const session = UI.AI.sessions.find(s => s.id === UI.AI.currentSessionId);
+                if (!session) return;
                 
-                // Estimation for tokens (char count * 1.5 roughly)
+                session.messages.push({ role, content, ts: new Date().toISOString() });
+                
+                // Update session title if it's the first message
+                if (session.messages.length === 1 && role === 'user') {
+                    session.title = content.length > 15 ? content.substring(0, 15) + '...' : content;
+                    UI.AI.renderHistory();
+                }
+
+                UI.AI.saveAll();
                 UI.AI.tokenCount += Math.ceil(content.length * 1.5);
                 UI.AI.updateTokenUI();
 
-                UI.AI.renderMessages('aiMainMessages');
-                UI.AI.renderMessages('chatMessages');
+                UI.AI.renderMessagesByList('aiMainMessages', session.messages);
+                UI.AI.renderMessagesByList('chatMessages', session.messages);
+            },
+
+            deleteSession: (id) => {
+                if (!confirm('确定要删除此会话吗？')) return;
+                UI.AI.sessions = UI.AI.sessions.filter(s => s.id !== id);
+                if (UI.AI.currentSessionId === id) {
+                    UI.AI.currentSessionId = UI.AI.sessions.length ? UI.AI.sessions[0].id : null;
+                }
+                if (!UI.AI.sessions.length) UI.AI.createNewSession('新会话');
+                UI.AI.saveAll();
+                UI.AI.switchSession(UI.AI.currentSessionId);
             },
 
             clearHistory: () => {
-                if (!confirm('确定要清除所有聊天记录吗？')) return;
-                UI.AI.history = [];
-                localStorage.removeItem('agri_ai_history');
-                UI.AI.renderMessages('aiMainMessages');
-                UI.AI.renderMessages('chatMessages');
+                if (!confirm('这将永久清除所有会话记录，确定吗？')) return;
+                UI.AI.sessions = [];
+                UI.AI.currentSessionId = null;
+                UI.AI.createNewSession('新会话');
+            },
+
+            // --- Instruction Management ---
+            renderInstructions: () => {
+                const container = document.getElementById('aiInstructionList');
+                if (!container) return;
+                
+                if (!UI.AI.instructionList.length) {
+                    container.innerHTML = '<p class="text-[10px] text-slate-600 italic p-2">暂无自定义指令</p>';
+                    return;
+                }
+
+                container.innerHTML = UI.AI.instructionList.map((instr, idx) => `
+                    <div class="instruction-item flex items-start gap-2 group">
+                        <span class="flex-1 text-[11px] text-slate-400 line-clamp-2 leading-tight">${instr}</span>
+                        <button onclick="UI.AI.removeInstruction(${idx})" class="remove-btn text-[10px] text-rose-500/50 hover:text-rose-500">
+                            <i class="fa fa-times-circle"></i>
+                        </button>
+                    </div>
+                `).join('');
+            },
+
+            addInstruction: () => {
+                const input = document.getElementById('aiInstrInput');
+                const text = input.value.trim();
+                if (!text) return;
+                
+                UI.AI.instructionList.push(text);
+                input.value = '';
+                UI.AI.saveAll();
+                UI.AI.renderInstructions();
+            },
+
+            removeInstruction: (idx) => {
+                UI.AI.instructionList.splice(idx, 1);
+                UI.AI.saveAll();
+                UI.AI.renderInstructions();
+            },
+
+            // --- Skill Preview Modal ---
+            showSkillPreview: async () => {
+                const modal = document.getElementById('aiSkillModal');
+                const content = document.getElementById('aiSkillMarkdown');
+                if (!modal || !content) return;
+                
+                modal.classList.add('show-modal');
+                content.innerHTML = '<p class="animate-pulse">Loading protocol...</p>';
+                
+                try {
+                    const response = await fetch('AI-ag-agent-skill.md');
+                    if (!response.ok) throw new Error('File not found');
+                    const text = await response.text();
+                    content.innerHTML = window.CHAT.renderMarkdown(text);
+                } catch (err) {
+                    content.innerHTML = `<p class="text-rose-400">无法加载协议文件: ${err.message}. <br> 请确保根目录下存在 AI-ag-agent-skill.md</p>`;
+                }
+            },
+
+            hideSkillPreview: () => {
+                const modal = document.getElementById('aiSkillModal');
+                if (modal) modal.classList.remove('show-modal');
             },
 
             handleMainSubmit: async (e) => {
@@ -717,8 +839,9 @@ window.UI = (() => {
                 UI.AI.showLoading();
 
                 try {
-                    // Instruction Stacking
-                    const fullPrompt = `${UI.AI.customInstruction}\n\nClient Input: ${msg}`;
+                    // Combine all active instructions
+                    const stack = UI.AI.instructionList.join('\n');
+                    const fullPrompt = stack ? `${stack}\n\nClient Input: ${msg}` : msg;
                     const reply = await window.CHAT.sendMessageToOpenClaw(fullPrompt);
                     UI.AI.hideLoading();
                     UI.AI.addMessage('ai', reply);
@@ -728,6 +851,17 @@ window.UI = (() => {
                 } finally {
                     UI.AI.isTyping = false;
                 }
+            },
+
+            updateTokenUI: () => {
+                const countEl = document.getElementById('tokenCount');
+                const barEl = document.getElementById('tokenBar');
+                if (countEl) countEl.textContent = UI.AI.tokenCount.toLocaleString();
+                if (barEl) {
+                    const percent = Math.min((UI.AI.tokenCount / 500000) * 100, 100);
+                    barEl.style.width = `${percent}%`;
+                }
+                localStorage.setItem('agri_ai_token_count', UI.AI.tokenCount);
             },
 
             showLoading: () => {

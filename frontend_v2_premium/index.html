@@ -239,10 +239,15 @@
           <section id="view-ai" class="view-section p-4 md:p-8">
               <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 h-[calc(100vh-140px)]">
                   <!-- AI Sidebar: History -->
-                  <div class="glass-panel flex flex-col overflow-hidden col-span-1">
-                      <div class="p-6 border-b border-white/10 flex items-center justify-between">
-                          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">会话历史</h3>
-                          <button onclick="UI.AI.clearHistory()" class="text-[10px] text-rose-500 hover:text-rose-400 transition-colors uppercase font-bold tracking-widest">清除记录</button>
+                  <div class="glass-panel flex flex-col overflow-hidden col-span-1 border-r border-white/5">
+                      <div class="p-6 border-b border-white/10 flex flex-col gap-4">
+                          <button onclick="UI.AI.createNewSession()" class="w-full py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 font-bold text-xs hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-2 group">
+                              <i class="fa fa-plus group-hover:rotate-90 transition-transform"></i> 新建会话
+                          </button>
+                          <div class="flex items-center justify-between">
+                              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">会话历史</h3>
+                              <button onclick="UI.AI.clearHistory()" class="text-[10px] text-rose-500 hover:text-rose-400 transition-colors uppercase font-bold tracking-widest">清除全部</button>
+                          </div>
                       </div>
                       <div id="aiHistoryList" class="flex-1 overflow-y-auto p-2 space-y-1">
                           <!-- History Items -->
@@ -273,24 +278,33 @@
   
                   <!-- AI Right: Instructions & Usage -->
                   <div class="space-y-6 col-span-1">
-                      <!-- Base Skill (Read-only) -->
-                      <div class="glass-panel p-6">
-                          <h4 class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-4">Base Agent Skill (Fixed)</h4>
+                      <!-- Base Skill (Read-only Preview) -->
+                      <div class="glass-panel p-6 cursor-pointer hover:bg-white/5 transition-all group" onclick="UI.AI.showSkillPreview()">
+                          <div class="flex items-center justify-between mb-4">
+                              <h4 class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Base Agent Skill (Fixed)</h4>
+                              <i class="fa fa-external-link text-[10px] text-slate-500 group-hover:text-emerald-400 transition-colors"></i>
+                          </div>
                           <div class="p-3 bg-black/40 rounded-xl border border-white/5">
                               <div class="flex items-center gap-2 mb-2 text-xs text-slate-300">
                                   <i class="fa fa-lock text-slate-500"></i>
                                   <span>AI-ag Agent Skill (协作版)</span>
                               </div>
                               <p class="text-[10px] text-slate-500 leading-relaxed italic">
-                                  包含服务巡检、日志定位、数据库检查、网关管理等核心权限集。不可修改。
+                                  包含服务巡检、日志定位、数据库检查、网关管理等核心权限集。点击查看完整协议。
                               </p>
                           </div>
                       </div>
   
-                      <!-- Custom Instructions -->
-                      <div class="glass-panel p-6">
+                      <!-- Custom Instructions (Itemized List) -->
+                      <div class="glass-panel p-6 flex flex-col max-h-[300px]">
                           <h4 class="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-4">增强指令集 (User Override)</h4>
-                          <textarea id="aiCustomInstruction" onchange="UI.AI.saveConfig()" class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-slate-300 h-24 focus:outline-none focus:border-amber-500/50" placeholder="例如：每次分析后打印 JSON 格式数据..."></textarea>
+                          <div class="flex gap-2 mb-4">
+                              <input type="text" id="aiInstrInput" class="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-amber-500/50" placeholder="添加新指令..." />
+                              <button onclick="UI.AI.addInstruction()" class="w-8 h-8 bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30 transition-all flex items-center justify-center"><i class="fa fa-plus text-xs"></i></button>
+                          </div>
+                          <div id="aiInstructionList" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                              <!-- Instruction items will be injected here -->
+                          </div>
                       </div>
   
                       <!-- Resource Usage -->
@@ -445,6 +459,29 @@
                   <!-- Data Injected via UI.openSensorDetail -->
               </div>
           </section>
+      </div>
+  </div>
+
+  <!-- Modal for Base Skill Preview -->
+  <div id="aiSkillModal" class="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
+      <div class="glass-panel max-w-2xl w-full mx-4 shadow-[0_0_50px_rgba(16,185,129,0.2)] border border-emerald-500/30 overflow-hidden transform scale-95 transition-transform duration-300" id="aiSkillModalContent">
+          <div class="flex justify-between items-center p-6 border-b border-white/10 bg-black/20">
+              <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                      <i class="fa fa-shield text-emerald-400 text-xs"></i>
+                  </div>
+                  <h3 class="text-sm font-bold text-white tracking-widest uppercase">AI-ag Agent Skill 核心协议</h3>
+              </div>
+              <button onclick="UI.AI.hideSkillPreview()" class="text-slate-400 hover:text-white transition-colors w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 flex items-center justify-center"><i class="fa fa-times"></i></button>
+          </div>
+          <div class="p-8 bg-black/40 max-h-[70vh] overflow-y-auto">
+              <div id="aiSkillMarkdown" class="prose prose-invert prose-emerald max-w-none text-xs leading-relaxed text-slate-400">
+                  <!-- Markdown content loaded from skill file -->
+              </div>
+          </div>
+          <div class="p-6 border-t border-white/5 bg-black/20 flex justify-end">
+              <span class="text-[10px] text-slate-500 uppercase font-mono bg-white/5 px-3 py-1 rounded-full"><i class="fa fa-info-circle"></i> 只读模式协议文件</span>
+          </div>
       </div>
   </div>
 
