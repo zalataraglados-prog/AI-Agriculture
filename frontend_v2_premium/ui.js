@@ -657,6 +657,13 @@ window.UI = (() => {
             },
 
             createNewSession: (title = '') => {
+                // Prevent creating multiple empty sessions
+                const current = UI.AI.sessions.find(s => s.id === UI.AI.currentSessionId);
+                if (current && current.messages.length === 0) {
+                    alert('已经是最新会话');
+                    return;
+                }
+
                 const id = Date.now().toString();
                 const session = {
                     id: id,
