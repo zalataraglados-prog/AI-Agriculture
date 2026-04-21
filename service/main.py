@@ -101,9 +101,12 @@ app = FastAPI(
 )
 
 # CORS — allow the Rust cloud backend to call this service
+cors_origins_env = os.environ.get("CORS_ORIGINS", "*")
+allow_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # restrict in production
+    allow_origins=allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

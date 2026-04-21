@@ -21,7 +21,7 @@ pub(crate) const DEFAULT_AI_PREDICT_URL: &str = "http://127.0.0.1:8000/api/v1/pr
 pub(crate) const DEFAULT_OPENCLAW_URL: &str = "http://127.0.0.1:3000";
 
 pub(crate) fn default_bind() -> String {
-    DEFAULT_BIND.to_string()
+    std::env::var("CLOUD_BIND_ADDR").unwrap_or_else(|_| DEFAULT_BIND.to_string())
 }
 
 pub(crate) fn default_ack_mismatch() -> String {
@@ -57,9 +57,9 @@ pub(crate) fn default_image_db_error_store_path() -> String {
 }
 
 pub(crate) fn default_ai_predict_url() -> String {
-    DEFAULT_AI_PREDICT_URL.to_string()
+    std::env::var("AI_PREDICT_URL").unwrap_or_else(|_| DEFAULT_AI_PREDICT_URL.to_string())
 }
 
 pub(crate) fn default_openclaw_url() -> String {
-    DEFAULT_OPENCLAW_URL.to_string()
+    std::env::var("OPENCLAW_URL").unwrap_or_else(|_| DEFAULT_OPENCLAW_URL.to_string())
 }
