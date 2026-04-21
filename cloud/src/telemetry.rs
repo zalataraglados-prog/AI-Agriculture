@@ -70,6 +70,9 @@ pub(crate) fn typed_fields_for_record(
         .map(|rule| &rule.field_types);
 
     for (key, raw) in raw_fields {
+        if key == "device_id" || key == "token" {
+            continue;
+        }
         let value = type_map
             .and_then(|fields| fields.get(key))
             .map(|field_type| parse_typed_value(raw, *field_type))
