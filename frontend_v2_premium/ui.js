@@ -459,8 +459,17 @@ window.UI = (() => {
             const showImages = document.getElementById('toggleImages')?.checked;
             const selectedSensors = Array.from(document.querySelectorAll('#sensorSelectionList input:checked')).map(i => i.value);
 
+            // Map selected crop/location to actual device ID
+            let deviceId = '';
+            if (Charts._devicesData && Charts._devicesData.devices) {
+                const matchedDevice = Charts._devicesData.devices.find(d => d.crop_type === Charts.selectedCrop && d.location === Charts.selectedLocation);
+                if (matchedDevice) {
+                    deviceId = matchedDevice.device_id;
+                }
+            }
+            if (!deviceId) deviceId = localStorage.getItem('device_id') || 'GATEWAY-01';
+
             // Fetch History with explicit range
-            const deviceId = localStorage.getItem('device_id') || '';
             container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">SYNCHRONIZING SECURE TELEMETRY...</div>`;
             
             let history = [];
@@ -475,7 +484,7 @@ window.UI = (() => {
 
             // Mock fallback if API failed (local dev)
             if (history.length === 0) {
-                history = window.API.getMockTelemetry();
+                history = window.API.generateTimeRangeMockTelemetry(deviceId, startTime, endTime, selectedSensors.length ? selectedSensors : undefined);
             }
 
             // Clear old charts
