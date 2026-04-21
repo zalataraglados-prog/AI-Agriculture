@@ -15,8 +15,9 @@
 
 ```bash
 cd cloud
-cargo run -- --config config/sensors.toml --bind 0.0.0.0:9000 --timeout-ms 0
+cargo run -- --config config/sensors.toml --bind ${CLOUD_BIND_ADDR:-0.0.0.0:9000} --timeout-ms 0
 ```
+*(注：可通过配置 `CLOUD_BIND_ADDR` 环境变量或 `sensors.toml` 更改端口与IP。网关侧及串口波特率配置详见网关子仓文档。)*
 
 ### 3. 本地配置冒烟测试（脚本）
 
