@@ -149,9 +149,8 @@ window.API = (() => {
 
     const getMockTelemetry = () => [
         { device_id: 'GATEWAY-01', sensor_id: 'dht22', ts: new Date().toISOString(), fields: { temp_c: 24.5, hum: 62 } },
-        { device_id: 'GATEWAY-01', sensor_id: 'mq7', ts: new Date().toISOString(), fields: { raw: 340, voltage: 1.2 } },
         { device_id: 'GATEWAY-01', sensor_id: 'soil_modbus_02', ts: new Date().toISOString(), fields: { vwc: 32, temp_c: 21.8, ec: 450 } },
-        { device_id: 'GATEWAY-01', sensor_id: 'pcf8591', ts: new Date().toISOString(), fields: { ain0: 128, ain1: 45 } }
+        { device_id: 'GATEWAY-01', sensor_id: 'adc', ts: new Date().toISOString(), fields: { pin: 34, raw: 512, voltage: 0.41 } }
     ];
 
     return {

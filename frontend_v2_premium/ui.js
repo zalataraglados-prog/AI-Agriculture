@@ -258,7 +258,7 @@ window.UI = (() => {
                 let sids = Array.from(schema.keys());
                 if (sids.length === 0) {
                     // Mock fallback for local preview
-                    sids = ['dht22', 'mq7', 'soil_modbus_02', 'pcf8591'];
+                    sids = ['dht22', 'adc', 'soil_modbus_02'];
                 }
                 sensorList.innerHTML = sids.map(sid => `
                     <label class="sensor-pill cursor-pointer group">
