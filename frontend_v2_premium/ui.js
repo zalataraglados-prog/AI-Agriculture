@@ -506,7 +506,14 @@ window.UI = (() => {
                 if (!schema && sensorData.length > 0) {
                     const fields = new Map();
                     Object.keys(sensorData[0].fields).forEach(f => {
-                        fields.set(f, { label: f, unit: '', data_type: 'number' });
+                        let unit = '';
+                        // Simple heuristic for mock units
+                        if (f.includes('temp')) unit = '℃';
+                        else if (f.includes('hum') || f === 'vwc') unit = '%';
+                        else if (f === 'ec') unit = 'μS/cm';
+                        else if (f === 'voltage') unit = 'V';
+                        
+                        fields.set(f, { label: f, unit: unit, data_type: 'number' });
                     });
                     schema = { fields };
                 }
