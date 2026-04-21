@@ -97,17 +97,9 @@ pub(crate) struct SensorTelemetryQueryRow {
 }
 
 impl DbManager {
-    pub(crate) fn connect_and_migrate(_database_url: &str) -> Result<Self, String> {
-        // 彻底避开字符串解析，直接在代码里写死参数（或手动解析）
-        let mut config = postgres::Config::new();
-        config.host("127.0.0.1");
-        config.port(55432);
-        config.user("postgres");
-        config.dbname("CICSIC");
-        
-        println!("[DEBUG] Using explicit config: host=127.0.0.1 port=55432 user=postgres dbname=CICSIC");
-        
-        let mut client = config.connect(NoTls)
+    pub(crate) fn connect_and_migrate(database_url: &str) -> Result<Self, String> {
+        println!("[DEBUG] Attempting to connect to DB with: '{}'", database_url);
+        let mut client = Client::connect(database_url, NoTls)
             .map_err(|e| {
                 eprintln!("[ERROR_DETAIL] {:?}", e);
                 format!("failed to connect postgres: {e}")
