@@ -622,7 +622,24 @@ window.UI = (() => {
         formatTime: (ts) => {
             const d = new Date(ts);
             if (Number.isNaN(d.getTime())) return ts || '--';
-            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+            // Check duration to decide format
+            const startTime = document.getElementById('chartStartTime')?.value;
+            const endTime = document.getElementById('chartEndTime')?.value;
+            let showDate = false;
+
+            if (startTime && endTime) {
+                const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+                if (durationMs > 26 * 3600 * 1000) { // More than 26h (buffer for timezone/DST)
+                    showDate = true;
+                }
+            }
+
+            const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            if (showDate) {
+                return `${d.getMonth() + 1}-${d.getDate()} ${hhmm}`;
+            }
+            return hhmm;
         }
     };
 
