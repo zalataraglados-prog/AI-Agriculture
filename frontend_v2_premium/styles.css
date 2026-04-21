@@ -237,6 +237,41 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
+.sector-locations {
+    padding-left: 1.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.sector-locations.hidden {
+    display: none;
+}
+
+.sector-sub-item {
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    border-left: 2px solid transparent;
+}
+
+.sector-sub-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-left-color: rgba(96, 165, 250, 0.3);
+}
+
+.sector-sub-item.active {
+    background: rgba(96, 165, 250, 0.1);
+    border-left-color: rgba(96, 165, 250, 0.6);
+}
+
+.sector-sub-item.active span {
+    color: #93c5fd;
+}
+
 .charts-main {
     position: relative;
     display: flex;

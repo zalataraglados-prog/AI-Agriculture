@@ -229,26 +229,134 @@ window.UI = (() => {
         if (typeof window.openModal === 'function') window.openModal();
     };
 
-    const Charts = {
-        chartInstances: new Map(),
-        selectedSector: 'sector-01-a',
+    // --- Home Positioning Submodule ---
+    const HomePositioning = {
+        selectedCropType: null,
+        selectedLocation: null,
+        devicesData: null,
 
         init: async () => {
-            // 1. Populate Sectors
-            const sectors = [
-                { id: 'sector-01-a', name: 'Sector 01-A (Rice)' },
-                { id: 'sector-01-b', name: 'Sector 01-B (Corn)' },
-                { id: 'sector-02-a', name: 'Sector 02-A (Fruit)' },
-                { id: 'sector-02-b', name: 'Sector 02-B (Veg)' }
-            ];
+            const data = await window.API.fetchDevices();
+            HomePositioning.devicesData = data;
+            HomePositioning.populateDropdown('crop', data.cropTypes);
+            HomePositioning.populateDropdown('location', data.locations);
+            if (data.cropTypes.length > 0) HomePositioning.selectCrop(data.cropTypes[0]);
+            if (data.locations.length > 0) HomePositioning.selectLocation(null);
+            HomePositioning.updateSummary();
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#cropTypeBtn') && !e.target.closest('#cropTypeDropdown')) {
+                    document.getElementById('cropTypeDropdown')?.classList.add('hidden');
+                }
+                if (!e.target.closest('#locationBtn') && !e.target.closest('#locationDropdown')) {
+                    document.getElementById('locationDropdown')?.classList.add('hidden');
+                }
+            });
+        },
+
+        populateDropdown: (type, items) => {
+            const containerId = type === 'crop' ? 'cropTypeOptions' : 'locationOptions';
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            let html = '';
+            if (type === 'location') {
+                html += `<div class="px-4 py-2.5 text-[11px] text-slate-300 hover:bg-emerald-500/10 cursor-pointer flex items-center gap-2 transition-colors" onclick="UI.HomePositioning.selectLocation(null)">
+                    <i class="fa fa-globe text-blue-400 text-[10px]"></i>
+                    <span class="font-bold uppercase tracking-wider">全部位置</span>
+                </div>`;
+            }
+            items.forEach(item => {
+                const icon = type === 'crop' ? 'fa-leaf text-emerald-400' : 'fa-map-pin text-blue-400';
+                const fn = type === 'crop' ? 'selectCrop' : 'selectLocation';
+                html += `<div class="px-4 py-2.5 text-[11px] text-slate-300 hover:bg-emerald-500/10 cursor-pointer flex items-center gap-2 transition-colors" onclick="UI.HomePositioning.${fn}('${item}')">
+                    <i class="fa ${icon} text-[10px]"></i>
+                    <span class="font-bold uppercase tracking-wider">${item}</span>
+                </div>`;
+            });
+            container.innerHTML = html;
+        },
+
+        toggleDropdown: (type) => {
+            const dropdownId = type === 'crop' ? 'cropTypeDropdown' : 'locationDropdown';
+            const otherId = type === 'crop' ? 'locationDropdown' : 'cropTypeDropdown';
+            document.getElementById(otherId)?.classList.add('hidden');
+            document.getElementById(dropdownId)?.classList.toggle('hidden');
+        },
+
+        selectCrop: (cropType) => {
+            HomePositioning.selectedCropType = cropType;
+            const label = document.getElementById('cropTypeBtnLabel');
+            if (label) label.textContent = cropType || '作物种类选择';
+            document.getElementById('cropTypeDropdown')?.classList.add('hidden');
+            HomePositioning.updateSummary();
+        },
+
+        selectLocation: (location) => {
+            HomePositioning.selectedLocation = location;
+            const label = document.getElementById('locationBtnLabel');
+            if (label) label.textContent = location || '全部位置';
+            document.getElementById('locationDropdown')?.classList.add('hidden');
+            HomePositioning.updateSummary();
+        },
+
+        updateSummary: () => {
+            const el = document.getElementById('positioningSummary');
+            if (!el) return;
+            const crop = HomePositioning.selectedCropType || '--';
+            const loc = HomePositioning.selectedLocation || '全部位置';
+            el.textContent = `ACTIVE > ${crop} / ${loc}`;
+        }
+    };
+
+    const Charts = {
+        chartInstances: new Map(),
+        selectedCrop: null,
+        selectedLocation: null,
+        _devicesData: null,
+
+        init: async () => {
+            // 1. Populate Crop Sectors from API
+            const data = await window.API.fetchDevices();
+            Charts._devicesData = data;
+
+            // Build crop -> locations map
+            const cropLocMap = {};
+            data.devices.forEach(d => {
+                if (!d.crop_type) return;
+                if (!cropLocMap[d.crop_type]) cropLocMap[d.crop_type] = new Set();
+                if (d.location) cropLocMap[d.crop_type].add(d.location);
+            });
+
             const sectorList = document.getElementById('sectorList');
             if (sectorList) {
-                sectorList.innerHTML = sectors.map(s => `
-                    <div class="sector-item ${s.id === Charts.selectedSector ? 'active' : ''}" onclick="UI.Charts.setSector('${s.id}', this)">
-                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                        <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">${s.name}</span>
-                    </div>
-                `).join('');
+                const cropTypes = Object.keys(cropLocMap);
+                if (cropTypes.length > 0 && !Charts.selectedCrop) {
+                    Charts.selectedCrop = cropTypes[0];
+                    const locs = [...cropLocMap[cropTypes[0]]];
+                    if (locs.length > 0) Charts.selectedLocation = locs[0];
+                }
+                sectorList.innerHTML = cropTypes.map(crop => {
+                    const locs = [...cropLocMap[crop]];
+                    const isActive = crop === Charts.selectedCrop;
+                    return `
+                        <div class="sector-crop-group">
+                            <div class="sector-item ${isActive ? 'active' : ''}" onclick="UI.Charts.toggleCropLocations('${crop}', this)">
+                                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex-1">${crop}</span>
+                                <i class="fa fa-chevron-${isActive ? 'up' : 'down'} text-[8px] text-slate-500"></i>
+                            </div>
+                            <div class="sector-locations ${isActive ? '' : 'hidden'}" id="crop-locs-${crop}">
+                                ${locs.map(loc => `
+                                    <div class="sector-sub-item ${Charts.selectedCrop === crop && Charts.selectedLocation === loc ? 'active' : ''}" onclick="UI.Charts.selectCropLocation('${crop}', '${loc}', this, event)">
+                                        <i class="fa fa-map-pin text-[8px] text-blue-400/60"></i>
+                                        <span class="text-[10px] text-slate-400 font-bold tracking-wider">${loc}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             }
 
             // 2. Populate Real Sensors from Schema
@@ -309,10 +417,29 @@ window.UI = (() => {
             }
         },
 
-        setSector: (id, el) => {
-            Charts.selectedSector = id;
+        toggleCropLocations: (crop, el) => {
+            const locsDiv = document.getElementById(`crop-locs-${crop}`);
+            const chevron = el?.querySelector('.fa-chevron-down, .fa-chevron-up');
+            if (locsDiv) {
+                const isHidden = locsDiv.classList.toggle('hidden');
+                if (chevron) {
+                    chevron.classList.toggle('fa-chevron-down', isHidden);
+                    chevron.classList.toggle('fa-chevron-up', !isHidden);
+                }
+            }
+        },
+
+        selectCropLocation: (crop, location, el, event) => {
+            if (event) event.stopPropagation();
+            Charts.selectedCrop = crop;
+            Charts.selectedLocation = location;
+            // Update active states
             document.querySelectorAll('.sector-sidebar .sector-item').forEach(i => i.classList.remove('active'));
-            if(el) el.classList.add('active');
+            document.querySelectorAll('.sector-sidebar .sector-sub-item').forEach(i => i.classList.remove('active'));
+            // Highlight parent crop
+            const parentGroup = el?.closest('.sector-crop-group');
+            if (parentGroup) parentGroup.querySelector('.sector-item')?.classList.add('active');
+            if (el) el.classList.add('active');
             Charts.refresh();
         },
 
@@ -602,6 +729,7 @@ window.UI = (() => {
         renderDiagnosis,
         openSensorDetail,
         openImagePreview,
+        HomePositioning,
         Charts,
         Health,
         setEnvChart: (c) => envChart = c,
