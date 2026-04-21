@@ -9,7 +9,7 @@ registry_path = "state/registry.json"
 image_store_path = "state/image_uploads"
 image_index_path = "state/image_index.jsonl"
 image_db_error_store_path = "state/image_upload_errors.jsonl"
-database_url = "postgres://postgres@127.0.0.1:55432/ai_agriculture"
+database_url = "host=127.0.0.1 user=postgres port=55432 dbname=ai_agriculture"
 ai_predict_url = "http://127.0.0.1:8000/api/v1/predict"
 openclaw_url = "http://127.0.0.1:3000"
 
