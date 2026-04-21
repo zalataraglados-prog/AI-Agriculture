@@ -62,6 +62,7 @@ fn main() {
                 cfg.ai_predict_url.clone(),
                 cfg.openclaw_url.clone(),
                 cfg.sensor_rules.clone(),
+                cfg.registry_path.clone(),
                 db.clone(),
             );
 

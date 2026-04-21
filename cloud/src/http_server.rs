@@ -21,7 +21,7 @@ use crate::image_upload::{
     parse_captured_at_utc, parse_multipart_file, parse_tag, save_image_file,
     ImageUploadErrorResponse, ImageUploadOkResponse,
 };
-use crate::model::{FieldType, SensorRule};
+use crate::model::{DeviceRegistryFile, FieldType, SensorRule};
 use crate::time_util::now_rfc3339;
 
 const QUERY_CACHE_TTL_SECONDS: u64 = 15;
@@ -102,6 +102,21 @@ struct SensorFieldSchema {
     threshold_high: Option<f64>,
 }
 
+#[derive(Debug, Serialize)]
+struct DeviceSummary {
+    device_id: String,
+    location: String,
+    crop_type: String,
+    farm_note: String,
+    sensors: Vec<String>,
+    registered_at_epoch_sec: u64,
+}
+
+#[derive(Debug, Serialize)]
+struct DevicesPayload {
+    devices: Vec<DeviceSummary>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct ChatProxyRequest {
     message: String,
@@ -122,6 +137,7 @@ pub fn start_http_server(
     ai_predict_url: String,
     openclaw_url: String,
     sensor_rules: HashMap<String, SensorRule>,
+    registry_path: String,
     db: Arc<Mutex<DbManager>>,
 ) {
     let server = Server::http(bind_addr).expect("Failed to start HTTP server");
@@ -154,6 +170,7 @@ pub fn start_http_server(
                     &ai_predict_url,
                     &openclaw_url,
                     &sensor_schema_payload,
+                    &registry_path,
                     db.clone(),
                     query_cache.clone(),
                 );
@@ -205,6 +222,7 @@ fn handle_api(
     ai_predict_url: &str,
     openclaw_url: &str,
     sensor_schema_payload: &str,
+    registry_path: &str,
     db: Arc<Mutex<DbManager>>,
     query_cache: Arc<Mutex<QueryCache>>,
 ) {
@@ -240,6 +258,9 @@ fn handle_api(
         }
         (Method::Get, "/api/v1/sensor/schema") => {
             respond_json_with_status(request, 200, sensor_schema_payload);
+        }
+        (Method::Get, "/api/v1/devices") => {
+            handle_devices_query(request, registry_path);
         }
         (Method::Get, "/api/v1/telemetry") | (Method::Get, "/api/telemetry") => {
             handle_telemetry_query(request, query, db, query_cache);
@@ -912,6 +933,33 @@ fn non_empty(raw: Option<String>) -> Option<String> {
             Some(trimmed.to_string())
         }
     })
+}
+
+fn handle_devices_query(request: tiny_http::Request, registry_path: &str) {
+    let devices: Vec<DeviceSummary> = fs::read_to_string(registry_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<DeviceRegistryFile>(&content).ok())
+        .map(|file| {
+            let mut list: Vec<DeviceSummary> = file
+                .devices
+                .into_values()
+                .map(|d| DeviceSummary {
+                    device_id: d.device_id,
+                    location: d.location,
+                    crop_type: d.crop_type,
+                    farm_note: d.farm_note,
+                    sensors: d.sensors,
+                    registered_at_epoch_sec: d.registered_at_epoch_sec,
+                })
+                .collect();
+            list.sort_by(|a, b| a.device_id.cmp(&b.device_id));
+            list
+        })
+        .unwrap_or_default();
+
+    let payload = serde_json::to_string(&DevicesPayload { devices })
+        .unwrap_or_else(|_| r#"{"devices":[]}"#.to_string());
+    respond_json_with_status(request, 200, &payload);
 }
 
 fn build_sensor_schema_payload(sensor_rules: &HashMap<String, SensorRule>) -> String {
