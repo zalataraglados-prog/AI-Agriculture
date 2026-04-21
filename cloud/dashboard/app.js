@@ -1,10 +1,16 @@
-﻿const params = new URLSearchParams(location.search);
+const params = new URLSearchParams(location.search);
 const deviceId = (params.get('device_id') || localStorage.getItem('device_id') || '').trim();
 if (deviceId) localStorage.setItem('device_id', deviceId);
 document.getElementById('ctxDevice').textContent = `设备: ${deviceId || 'all'}`;
 
-const GATEWAY_STALE_MS = 5 * 60 * 1000;
-const DISEASE_THRESHOLD = 0.5;
+const appConfig = {
+  gatewayStaleMs: window.GATEWAY_STALE_MS || 5 * 60 * 1000,
+  diseaseThreshold: window.DISEASE_THRESHOLD || 0.5,
+  refreshIntervalMs: window.REFRESH_INTERVAL_MS || 15000,
+  telemetryLimit: window.TELEMETRY_LIMIT || 300,
+  imageLimit: window.IMAGE_LIMIT || 50,
+  soilSensorId: window.SOIL_SENSOR_ID || 'soil_modbus_02',
+};
 
 let fertilityChart;
 let faultTrendChart;
@@ -150,7 +156,7 @@ function gatewayFaultDevices(latestMap, nowMs) {
       out.add(deviceId);
       return;
     }
-    if (nowMs - item.tsMs > GATEWAY_STALE_MS) out.add(deviceId);
+    if (nowMs - item.tsMs > appConfig.gatewayStaleMs) out.add(deviceId);
   });
   return out;
 }
@@ -170,7 +176,7 @@ function sensorFaultDevices(latestMap) {
 
 function fertilitySeries(telemetry) {
   const rows = telemetry
-    .filter(r => r.sensor_id === 'soil_modbus_02')
+    .filter(r => r.sensor_id === appConfig.soilSensorId)
     .map(r => ({ tsMs: Date.parse(r.ts || ''), ts: r.ts, ec: asNumber(r?.fields?.ec) }))
     .filter(x => Number.isFinite(x.tsMs) && x.ec !== null)
     .sort((a, b) => a.tsMs - b.tsMs);
@@ -204,12 +210,12 @@ function faultTrendSeries(telemetry, nowMs) {
   byDevice.forEach(list => {
     const points = list.filter(Number.isFinite).sort((a, b) => a - b);
     for (let i = 1; i < points.length; i += 1) {
-      if (points[i] - points[i - 1] > GATEWAY_STALE_MS) {
+      if (points[i] - points[i - 1] > appConfig.gatewayStaleMs) {
         const key = bucketKey(points[i]);
         gatewayBuckets.set(key, (gatewayBuckets.get(key) || 0) + 1);
       }
     }
-    if (points.length && nowMs - points[points.length - 1] > GATEWAY_STALE_MS) {
+    if (points.length && nowMs - points[points.length - 1] > appConfig.gatewayStaleMs) {
       const key = bucketKey(nowMs);
       gatewayBuckets.set(key, (gatewayBuckets.get(key) || 0) + 1);
     }
@@ -232,8 +238,8 @@ function fmtRate(value) {
 }
 
 async function loadData() {
-  const telemetryUrl = apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 300 });
-  const imageUrl = apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: 50 });
+  const telemetryUrl = apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: appConfig.telemetryLimit });
+  const imageUrl = apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: appConfig.imageLimit });
   const [telemetry, imageUploads] = await Promise.all([
     fetchJson(telemetryUrl).catch(() => []),
     fetchJson(imageUrl).catch(() => [])
@@ -312,7 +318,7 @@ async function loadData() {
       const diseaseRate = fmtRate(row.disease_rate);
       const diseased = typeof row.is_diseased === 'boolean'
         ? row.is_diseased
-        : (diseaseRate !== null ? diseaseRate >= DISEASE_THRESHOLD : null);
+        : (diseaseRate !== null ? diseaseRate >= appConfig.diseaseThreshold : null);
       const faultText = isLinkFault ? '是' : '否';
       const faultCls = isLinkFault ? 'text-red-700 bg-red-50' : 'text-green-700 bg-green-50';
       const diseaseText = diseaseRate === null
@@ -377,5 +383,5 @@ window.onload = async () => {
 
   await loadSchema();
   await loadData();
-  setInterval(loadData, 15000);
+  setInterval(loadData, appConfig.refreshIntervalMs);
 };

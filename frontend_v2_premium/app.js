@@ -26,8 +26,11 @@ window.onload = async () => {
     window.UI.AI.init();
     await updateAppLoop(deviceId);
 
+    const config = window.APP_CONFIG || {};
+    const refreshInterval = config.REFRESH_INTERVAL_MS || 15000;
+
     // 4. Start Interval
-    setInterval(() => updateAppLoop(deviceId), 15000);
+    setInterval(() => updateAppLoop(deviceId), refreshInterval);
 
     // Initial Resize
     window.UI.switchView('view-home');
@@ -72,9 +75,9 @@ async function initCharts() {
 }
 
 async function updateAppLoop(deviceId) {
-    try {
-        const telUrl = window.API.apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 300 });
-        const imgUrl = window.API.apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: 50 });
+        const config = window.APP_CONFIG || {};
+        const telUrl = window.API.apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: config.TELEMETRY_LIMIT || 300 });
+        const imgUrl = window.API.apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: config.IMAGE_LIMIT || 50 });
         
         const [telemetry, imageUploads] = await Promise.all([
             window.API.fetchJson(telUrl).catch(() => []),
