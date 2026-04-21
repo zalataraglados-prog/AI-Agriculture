@@ -147,6 +147,28 @@ window.API = (() => {
         return normalizeTelemetryRows(rows).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     };
 
+    const MOCK_DEVICES = [
+        { device_id: 'GATEWAY-01', location: 'field-a', crop_type: 'rice', farm_note: '', sensors: ['dht22', 'soil_modbus_02'], registered_at_epoch_sec: 0 },
+        { device_id: 'GATEWAY-02', location: 'field-b', crop_type: 'rice', farm_note: '', sensors: ['dht22', 'adc'], registered_at_epoch_sec: 0 },
+        { device_id: 'GATEWAY-03', location: 'greenhouse-01', crop_type: 'tomato', farm_note: '', sensors: ['dht22'], registered_at_epoch_sec: 0 },
+    ];
+
+    const fetchDevices = async () => {
+        let devices = [];
+        try {
+            const data = await fetchJson(apiUrl('/api/v1/devices'));
+            if (Array.isArray(data?.devices) && data.devices.length > 0) {
+                devices = data.devices;
+            }
+        } catch (e) {
+            console.warn('[API] fetchDevices failed, using mock:', e);
+        }
+        if (devices.length === 0) devices = MOCK_DEVICES;
+        const cropTypes = [...new Set(devices.map(d => d.crop_type).filter(Boolean))];
+        const locations = [...new Set(devices.map(d => d.location).filter(Boolean))];
+        return { devices, cropTypes, locations };
+    };
+
     const getMockTelemetry = () => [
         { device_id: 'GATEWAY-01', sensor_id: 'dht22', ts: new Date().toISOString(), fields: { temp_c: 24.5, hum: 62 } },
         { device_id: 'GATEWAY-01', sensor_id: 'soil_modbus_02', ts: new Date().toISOString(), fields: { vwc: 32, temp_c: 21.8, ec: 450 } },
@@ -167,5 +189,6 @@ window.API = (() => {
         detectSensorFault,
         formatNumeric,
         fetchHistory,
+        fetchDevices,
     };
 })();
