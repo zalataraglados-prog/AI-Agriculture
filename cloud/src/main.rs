@@ -122,9 +122,9 @@ mod tests {
         let mut exact_rules = HashMap::new();
         exact_rules.insert("success".to_string(), "ack:success".to_string());
 
-        let mut mq7_types = HashMap::new();
-        mq7_types.insert("raw".to_string(), FieldType::U16);
-        mq7_types.insert("voltage".to_string(), FieldType::F32);
+        let mut dht22_types = HashMap::new();
+        dht22_types.insert("temp_c".to_string(), FieldType::F32);
+        dht22_types.insert("hum".to_string(), FieldType::F32);
         let mut soil_modbus_types = HashMap::new();
         soil_modbus_types.insert("vwc".to_string(), FieldType::F32);
         soil_modbus_types.insert("temp_c".to_string(), FieldType::F32);
@@ -134,11 +134,11 @@ mod tests {
 
         let mut sensor_rules = HashMap::new();
         sensor_rules.insert(
-            "mq7".to_string(),
+            "dht22".to_string(),
             SensorRule {
-                ack: "ack:mq7".to_string(),
-                required_fields: vec!["raw".to_string(), "voltage".to_string()],
-                field_types: mq7_types,
+                ack: "ack:dht22".to_string(),
+                required_fields: vec!["temp_c".to_string(), "hum".to_string()],
+                field_types: dht22_types,
             },
         );
         sensor_rules.insert(
@@ -173,18 +173,18 @@ mod tests {
 
     #[test]
     fn parse_sensor_payload_ok() {
-        let (sensor, fields) = parse_sensor_kv_payload("mq7:device_id=dev01,raw=206,voltage=0.166")
+        let (sensor, fields) = parse_sensor_kv_payload("dht22:device_id=dev01,temp_c=28.0,hum=48.9")
             .expect("should parse");
-        assert_eq!(sensor, "mq7");
-        assert_eq!(fields.get("raw"), Some(&"206".to_string()));
-        assert_eq!(fields.get("voltage"), Some(&"0.166".to_string()));
+        assert_eq!(sensor, "dht22");
+        assert_eq!(fields.get("temp_c"), Some(&"28.0".to_string()));
+        assert_eq!(fields.get("hum"), Some(&"48.9".to_string()));
         assert_eq!(fields.get("device_id"), Some(&"dev01".to_string()));
     }
 
     #[test]
     fn parse_sensor_payload_err() {
-        assert!(parse_sensor_kv_payload("mq7").is_err());
-        assert!(parse_sensor_kv_payload("mq7:bad").is_err());
+        assert!(parse_sensor_kv_payload("dht22").is_err());
+        assert!(parse_sensor_kv_payload("dht22:bad").is_err());
     }
 
     #[test]
@@ -198,15 +198,15 @@ mod tests {
     #[test]
     fn evaluate_sensor_success() {
         let cfg = test_runtime();
-        let result = evaluate_payload("mq7:device_id=dev01,raw=206,voltage=0.166", &cfg);
+        let result = evaluate_payload("dht22:device_id=dev01,temp_c=28.0,hum=48.9", &cfg);
         assert!(result.matched);
-        assert_eq!(result.ack, "ack:mq7");
+        assert_eq!(result.ack, "ack:dht22");
     }
 
     #[test]
     fn evaluate_sensor_type_mismatch() {
         let cfg = test_runtime();
-        let result = evaluate_payload("mq7:device_id=dev01,raw=abc,voltage=0.166", &cfg);
+        let result = evaluate_payload("dht22:device_id=dev01,temp_c=abc,hum=48.9", &cfg);
         assert!(!result.matched);
         assert_eq!(result.ack, "ack:error");
     }
@@ -256,12 +256,12 @@ payload = "success"
 ack = "ack:success"
 
 [[sensors]]
-id = "mq7"
-required_fields = ["raw", "voltage"]
+id = "dht22"
+required_fields = ["temp_c", "hum"]
 
 [sensors.field_types]
-raw = "u16"
-voltage = "f32"
+temp_c = "f32"
+hum = "f32"
 "#;
 
         let file_cfg = parse_config_file(content).expect("valid toml");
@@ -284,10 +284,10 @@ voltage = "f32"
             cfg.exact_rules.get("success"),
             Some(&"ack:success".to_string())
         );
-        assert!(cfg.sensor_rules.contains_key("mq7"));
+        assert!(cfg.sensor_rules.contains_key("dht22"));
         assert_eq!(
-            cfg.sensor_rules.get("mq7").map(|r| r.ack.as_str()),
-            Some("ack:mq7")
+            cfg.sensor_rules.get("dht22").map(|r| r.ack.as_str()),
+            Some("ack:dht22")
         );
     }
 
@@ -295,10 +295,10 @@ voltage = "f32"
     fn build_runtime_config_duplicate_sensor_id_error() {
         let content = r#"
 [[sensors]]
-id = "mq7"
+id = "dht22"
 
 [[sensors]]
-id = "mq7"
+id = "dht22"
 "#;
 
         let file_cfg = parse_config_file(content).expect("valid toml");

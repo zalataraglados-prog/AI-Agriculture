@@ -18,15 +18,6 @@ payload = "success"
 ack = "ack:success"
 
 [[sensors]]
-id = "mq7"
-ack = "ack:mq7"
-required_fields = ["raw", "voltage"]
-
-[sensors.field_types]
-raw = "u16"
-voltage = "f32"
-
-[[sensors]]
 id = "dht22"
 ack = "ack:dht22"
 required_fields = ["temp_c", "hum"]
@@ -44,18 +35,6 @@ required_fields = ["pin", "raw", "voltage"]
 pin = "u8"
 raw = "u16"
 voltage = "f32"
-
-[[sensors]]
-id = "pcf8591"
-ack = "ack:pcf8591"
-required_fields = ["addr", "ain0", "ain1", "ain2", "ain3"]
-
-[sensors.field_types]
-addr = "string"
-ain0 = "u8"
-ain1 = "u8"
-ain2 = "u8"
-ain3 = "u8"
 
 [[sensors]]
 id = "soil_modbus_02"
