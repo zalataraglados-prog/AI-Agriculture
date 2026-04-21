@@ -98,6 +98,7 @@ pub(crate) struct SensorTelemetryQueryRow {
 
 impl DbManager {
     pub(crate) fn connect_and_migrate(database_url: &str) -> Result<Self, String> {
+        println!("[DEBUG] Attempting to connect to DB with: '{}'", database_url);
         let mut client = Client::connect(database_url, NoTls)
             .map_err(|e| format!("failed to connect postgres: {e}"))?;
 
