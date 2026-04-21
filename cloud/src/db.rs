@@ -108,7 +108,10 @@ impl DbManager {
         println!("[DEBUG] Using explicit config: host=127.0.0.1 port=55432 user=postgres dbname=CICSIC");
         
         let mut client = config.connect(NoTls)
-            .map_err(|e| format!("failed to connect postgres: {e}"))?;
+            .map_err(|e| {
+                eprintln!("[ERROR_DETAIL] {:?}", e);
+                format!("failed to connect postgres: {e}")
+            })?;
 
         client
             .batch_execute(include_str!(
