@@ -887,6 +887,18 @@ window.UI = (() => {
                 const container = document.getElementById(containerId);
                 if (!container) return;
                 
+                if (messages.length === 0 && containerId === 'chatMessages') {
+                    container.innerHTML = `
+                        <!-- AI Greeting -->
+                        <div class="flex w-full mt-2 space-x-3 max-w-xs">
+                            <div class="p-3 bg-slate-800/80 rounded-xl msg-ai leading-relaxed border border-white/5">
+                                您好，我已经准备好协助您管理该田块。您可以询问关于云端状态或设备遥控的任何问题。
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
                 container.innerHTML = messages.map(m => {
                     const isUser = m.role === 'user';
                     const themeClass = containerId === 'aiMainMessages' ? (isUser ? 'msg-user' : 'msg-ai') : (isUser ? 'bg-emerald-600/30' : 'bg-slate-800/80');
