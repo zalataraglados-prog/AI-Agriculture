@@ -532,7 +532,7 @@ window.UI = (() => {
                                     <i class="fa ${sid.includes('soil') ? 'fa-leaf' : 'fa-area-chart'} text-emerald-400"></i>
                                 </div>
                                 <div>
-                                    <h4 class="text-xs font-black text-white uppercase tracking-widest">${sid} / ${fieldSpec.label}</h4>
+                                    <h4 class="text-xs font-black text-white uppercase tracking-widest">${sid} / ${fieldSpec.label} ${fieldSpec.unit ? `(${fieldSpec.unit})` : ''}</h4>
                                     <p class="text-[9px] text-slate-500 font-mono">HASH: ${btoa(sid+fieldName).slice(0,8)}</p>
                                 </div>
                             </div>
@@ -577,7 +577,15 @@ window.UI = (() => {
                             interaction: { intersect: false, mode: 'index' },
                             plugins: { 
                                 legend: { display: false },
-                                tooltip: { displayColors: false }
+                                tooltip: { 
+                                    displayColors: false,
+                                    callbacks: {
+                                        label: (context) => {
+                                            const val = context.parsed.y;
+                                            return `${fieldSpec.label}: ${val} ${fieldSpec.unit || ''}`;
+                                        }
+                                    }
+                                }
                             },
                             scales: {
                                 x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
