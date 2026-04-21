@@ -575,7 +575,10 @@ window.UI = (() => {
                             responsive: true,
                             maintainAspectRatio: false,
                             interaction: { intersect: false, mode: 'index' },
-                            plugins: { legend: { display: false } },
+                            plugins: { 
+                                legend: { display: false },
+                                tooltip: { displayColors: false }
+                            },
                             scales: {
                                 x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
                                 y: { 
