@@ -14,9 +14,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # container_name has been removed to avoid conflicts when starting multiple instances
+    container_name: smart-farm-ai-engine
     ports:
-      - "${AI_ENGINE_PORT:-8000}:8000"
+      - "8000:8000"
     volumes:
       # Mount model weights directory (read-only).
       # Place your best_model.pth inside models/rice_leaf_classifier/

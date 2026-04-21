@@ -80,9 +80,8 @@ window.UI = (() => {
                 const latest = data.find((r) => r.sensor_id === sid);
                 const schema = window.API.getSchema().get(sid);
                 const { isFault } = window.API.detectSensorFault(latest);
-                const configIcons = window.APP_CONFIG?.SENSOR_ICONS || {};
                 const statusColor = isFault ? 'text-rose-400' : 'text-emerald-400';
-                const icon = configIcons[sid] || (sid.includes('soil') ? 'fa-leaf' : sid.includes('mq') ? 'fa-cloud' : 'fa-microchip');
+                const icon = sid.includes('soil') ? 'fa-leaf' : sid.includes('mq') ? 'fa-cloud' : 'fa-microchip';
                 const fieldPreview = Object.entries(latest?.fields || {})
                     .slice(0, 2)
                     .map(([field, value]) => {
@@ -176,11 +175,10 @@ window.UI = (() => {
         let data = Array.isArray(imageUploads) ? imageUploads : [];
         if (!data.length) {
             // Mock fallback
-            const stubs = window.APP_CONFIG?.MOCK_DIAGNOSES || [
+            data = [
                 { ts: new Date().toISOString(), predicted_class: 'Healthy (Rice)', disease_rate: 0.02, upload_status: 'inferred' },
                 { ts: new Date(Date.now() - 3600000).toISOString(), predicted_class: 'Blast Detected', disease_rate: 0.88, upload_status: 'inferred' }
             ];
-            data = stubs;
         }
         latestImageUploads = data;
 
@@ -368,7 +366,7 @@ window.UI = (() => {
                 let sids = Array.from(schema.keys());
                 if (sids.length === 0) {
                     // Mock fallback for local preview
-                    sids = window.APP_CONFIG?.MOCK_SENSORS || ['dht22', 'adc', 'soil_modbus_02'];
+                    sids = ['dht22', 'adc', 'soil_modbus_02'];
                 }
                 sensorList.innerHTML = sids.map(sid => `
                     <label class="sensor-pill cursor-pointer group">
@@ -538,7 +536,7 @@ window.UI = (() => {
                         <div class="flex items-center justify-between mb-8">
                             <div class="flex items-center gap-4">
                                 <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                                    <i class="fa ${configIcons[sid] || (sid.includes('soil') ? 'fa-leaf' : 'fa-area-chart')} text-emerald-400"></i>
+                                    <i class="fa ${sid.includes('soil') ? 'fa-leaf' : 'fa-area-chart'} text-emerald-400"></i>
                                 </div>
                                 <div>
                                     <h4 class="text-xs font-black text-white uppercase tracking-widest">${sid} / ${fieldSpec.label} ${fieldSpec.unit ? `(${fieldSpec.unit})` : ''}</h4>
@@ -702,8 +700,8 @@ window.UI = (() => {
             
             if (deviceIds.length === 0) {
                 // Mock fallback for preview
-                deviceIds = window.APP_CONFIG?.MOCK_GATEWAYS || ['GATEWAY-PRIME-01', 'GATEWAY-NODE-02'];
-                telemetry = window.APP_CONFIG?.MOCK_TELEMETRY_FALLBACK || [
+                deviceIds = ['GATEWAY-PRIME-01', 'GATEWAY-NODE-02'];
+                telemetry = [
                     { device_id: 'GATEWAY-PRIME-01', ts: new Date().toISOString() },
                     { device_id: 'GATEWAY-NODE-02', ts: new Date(Date.now() - 3600000).toISOString() }
                 ];

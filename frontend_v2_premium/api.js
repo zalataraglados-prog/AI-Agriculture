@@ -3,9 +3,8 @@
  */
 
 window.API = (() => {
-    const config = window.APP_CONFIG || {};
-    const GATEWAY_STALE_MS = config.GATEWAY_STALE_MS || 5 * 60 * 1000;
-    const DEFAULT_LIMIT = config.TELEMETRY_LIMIT || 300;
+    const GATEWAY_STALE_MS = 5 * 60 * 1000;
+    const DEFAULT_LIMIT = 300;
     const schemaBySensor = new Map();
     let telemetryRecords = [];
 
