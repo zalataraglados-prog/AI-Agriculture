@@ -492,3 +492,13 @@
   border: 1px solid rgba(148, 163, 184, 0.2);
   overflow-x: auto;
 }
+
+/* Modal states */
+.show-modal {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.show-modal > .glass-panel {
+  transform: scale(1) !important;
+}
