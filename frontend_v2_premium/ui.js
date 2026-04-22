@@ -99,7 +99,7 @@ window.UI = (() => {
                     <div>
                         <p class="text-[10px] text-slate-500 font-mono mb-0.5">${latest?.device_id || '-'}</p>
                         <h3 class="text-xs font-bold text-white tracking-wider">${sid.toUpperCase()}</h3>
-                        <p class="text-[10px] text-slate-400 mt-1">${fieldPreview || '无字段数据'}</p>
+                        <p class="text-[10px] text-slate-400 mt-1">${fieldPreview || window.t('no_data')}</p>
                     </div>
                     <div class="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
                         <span class="text-[9px] text-slate-400">STATUS: ${isFault ? 'FAULT' : 'ONLINE'}</span>
@@ -157,7 +157,7 @@ window.UI = (() => {
                     <div class="glass-panel p-6">
                         <h3 class="text-sm font-bold text-slate-200 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-list text-emerald-500"></i>字段明细</h3>
                         <div class="space-y-4">
-                            ${rows || '<p class="text-slate-500 italic text-sm">暂无字段定义</p>'}
+                            ${rows || '<p class="text-slate-500 italic text-sm">' + window.t('no_data') + '</p>'}
                         </div>
                     </div>
                     <button onclick="UI.switchView('view-home')" class="w-full py-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-400 font-bold text-sm hover:bg-emerald-500/30 transition-all flex items-center justify-center gap-2">
@@ -202,12 +202,12 @@ window.UI = (() => {
                             <p class="text-[10px] text-slate-400 font-mono">${formatDate(r.captured_at || r.ts)}</p>
                             <span class="text-[10px] ${card.text} uppercase font-bold">${card.badge}</span>
                         </div>
-                        <h4 class="text-sm font-bold text-white mb-2">${r.predicted_class || '处理中'}</h4>
-                        <p class="text-[11px] text-slate-300 mb-2">患病率: <span class="${card.text} font-semibold">${diseaseRate}</span></p>
+                        <h4 class="text-sm font-bold text-white mb-2">${r.predicted_class || window.t('processing')}</h4>
+                        <p class="text-[11px] text-slate-300 mb-2">${window.t('disease_rate')}: <span class="${card.text} font-semibold">${diseaseRate}</span></p>
                         <div class="h-28 w-full bg-black/30 rounded-lg overflow-hidden border border-white/10 cursor-pointer" onclick="UI.openImagePreview('${imgUrl}', '${safeUploadId}')">
                             ${imgUrl
-                                ? `<img src="${imgUrl}" alt="${safeUploadId}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-xs text-slate-500&quot;>图片不可用</div>';" />`
-                                : '<div class="w-full h-full flex items-center justify-center text-xs text-slate-500">无图片路径</div>'}
+                                ? `<img src="${imgUrl}" alt="${safeUploadId}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-xs text-slate-500&quot;>${window.t('img_fail')}</div>';" />`
+                                : '<div class="w-full h-full flex items-center justify-center text-xs text-slate-500">' + window.t('no_data') + '</div>'}
                         </div>
                     </div>
                 `;
@@ -225,7 +225,7 @@ window.UI = (() => {
             fallback.classList.remove('flex');
         }
         if (img) img.src = url;
-        if (caption) caption.textContent = title || '图传预览';
+        if (caption) caption.textContent = title || window.t('modal_preview');
         if (typeof window.openModal === 'function') window.openModal();
     };
 
@@ -263,7 +263,7 @@ window.UI = (() => {
             if (type === 'location') {
                 html += `<div class="px-4 py-2.5 text-[11px] text-slate-300 hover:bg-emerald-500/10 cursor-pointer flex items-center gap-2 transition-colors" onclick="UI.HomePositioning.selectLocation(null)">
                     <i class="fa fa-globe text-blue-400 text-[10px]"></i>
-                    <span class="font-bold uppercase tracking-wider">全部位置</span>
+                    <span class="font-bold uppercase tracking-wider">${window.t('all_locations')}</span>
                 </div>`;
             }
             items.forEach(item => {
@@ -287,7 +287,7 @@ window.UI = (() => {
         selectCrop: (cropType) => {
             HomePositioning.selectedCropType = cropType;
             const label = document.getElementById('cropTypeBtnLabel');
-            if (label) label.textContent = cropType || '作物种类选择';
+            if (label) label.textContent = cropType || window.t('crop_select');
             document.getElementById('cropTypeDropdown')?.classList.add('hidden');
             HomePositioning.updateSummary();
         },
@@ -295,7 +295,7 @@ window.UI = (() => {
         selectLocation: (location) => {
             HomePositioning.selectedLocation = location;
             const label = document.getElementById('locationBtnLabel');
-            if (label) label.textContent = location || '全部位置';
+            if (label) label.textContent = location || window.t('all_locations');
             document.getElementById('locationDropdown')?.classList.add('hidden');
             HomePositioning.updateSummary();
         },
@@ -304,7 +304,7 @@ window.UI = (() => {
             const el = document.getElementById('positioningSummary');
             if (!el) return;
             const crop = HomePositioning.selectedCropType || '--';
-            const loc = HomePositioning.selectedLocation || '全部位置';
+            const loc = HomePositioning.selectedLocation || window.t('all_locations');
             el.textContent = `ACTIVE > ${crop} / ${loc}`;
         }
     };
@@ -470,7 +470,7 @@ window.UI = (() => {
             if (!deviceId) deviceId = localStorage.getItem('device_id') || 'GATEWAY-01';
 
             // Fetch History with explicit range
-            container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">SYNCHRONIZING SECURE TELEMETRY...</div>`;
+            container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">${window.t('syncing')}</div>`;
             
             let history = [];
             try {
@@ -493,7 +493,7 @@ window.UI = (() => {
             container.innerHTML = '';
 
             if (history.length === 0) {
-                container.innerHTML = `<div class="p-20 text-center text-slate-500 italic text-xs">所选时间范围内无历史数据</div>`;
+                container.innerHTML = `<div class="p-20 text-center text-slate-500 italic text-xs">${window.t('no_history')}</div>`;
                 return;
             }
 
@@ -544,7 +544,7 @@ window.UI = (() => {
                                 </div>
                             </div>
                             <div class="avg-badge">
-                                <div class="text-[8px] uppercase font-bold text-emerald-500/50 mr-2">Mean Value</div>
+                                <div class="text-[8px] uppercase font-bold text-emerald-500/50 mr-2">${window.t('mean_value')}</div>
                                 <span class="text-sm font-black">${avg !== null ? window.API.formatNumeric(avg, fieldSpec.unit) : '--'}</span>
                             </div>
                         </div>
@@ -615,7 +615,7 @@ window.UI = (() => {
                 visionCard.innerHTML = `
                     <div class="flex items-center justify-between mb-6">
                          <h4 class="text-xs font-black text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                            <i class="fa fa-dot-circle-o"></i> 视觉观测时间轴 (Vision History)
+                            <i class="fa fa-dot-circle-o"></i> ${window.t('vision_timeline')}
                          </h4>
                     </div>
                     <div id="visionTimeline" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
