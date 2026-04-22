@@ -102,7 +102,7 @@ window.UI = (() => {
                         <p class="text-[10px] text-slate-400 mt-1">${fieldPreview || window.t('no_data')}</p>
                     </div>
                     <div class="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
-                        <span class="text-[9px] text-slate-400">STATUS: ${isFault ? 'FAULT' : 'ONLINE'}</span>
+                        <span class="text-[9px] text-slate-400">STATUS: ${window.t(isFault ? 'status_fault' : 'status_online')}</span>
                         <i class="fa fa-chevron-right text-[10px] text-slate-600 group-hover:translate-x-1 transition-transform"></i>
                     </div>
                 </div>`;
@@ -144,8 +144,8 @@ window.UI = (() => {
                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent"></div>
                     <div class="w-48 h-48 rounded-full border-8 border-emerald-500/20 flex items-center justify-center relative shadow-[0_0_50px_rgba(16,185,129,0.1)]">
                         <div class="text-center">
-                            <p class="text-[10px] text-emerald-400 font-bold tracking-widest uppercase">Sensor Status</p>
-                            <p class="text-5xl font-black ${isFault ? 'text-rose-400' : 'text-white'} tracking-widest">${isFault ? 'FAULT' : 'OK'}</p>
+                            <p class="text-[10px] text-emerald-400 font-bold tracking-widest uppercase">${window.t('sensor_status')}</p>
+                            <p class="text-5xl font-black ${isFault ? 'text-rose-400' : 'text-white'} tracking-widest">${window.t(isFault ? 'status_fault' : 'status_ok')}</p>
                         </div>
                         <div class="absolute inset-[-12px] border-2 border-dashed border-emerald-400/20 rounded-full animate-[spin_10s_linear_infinite]"></div>
                     </div>
@@ -155,13 +155,13 @@ window.UI = (() => {
                 </div>
                 <div class="space-y-6">
                     <div class="glass-panel p-6">
-                        <h3 class="text-sm font-bold text-slate-200 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-list text-emerald-500"></i>字段明细</h3>
+                        <h3 class="text-sm font-bold text-slate-200 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-list text-emerald-500"></i>${window.t('field_details')}</h3>
                         <div class="space-y-4">
                             ${rows || '<p class="text-slate-500 italic text-sm">' + window.t('no_data') + '</p>'}
                         </div>
                     </div>
                     <button onclick="UI.switchView('view-home')" class="w-full py-4 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-400 font-bold text-sm hover:bg-emerald-500/30 transition-all flex items-center justify-center gap-2">
-                        <i class="fa fa-arrow-left"></i> 返回主页
+                        <i class="fa fa-arrow-left"></i> ${window.t('back_home')}
                     </button>
                 </div>
             </div>

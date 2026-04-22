@@ -28,7 +28,8 @@ window.I18N = (() => {
             'sensor_lab': '传感器实验室', 'hardware_monitor_desc': '底层硬件寄存器实时探测与协议栈监控',
             'agent_skill_protocol': 'AI-ag Agent Skill 核心协议',
             'server_detail_gateway': 'Edge-Cloud 实时链路', 'server_detail_ai': '视觉语义分析引擎',
-            'server_detail_db': '时序数据库集群', 'server_detail_cdn': '多媒体分发链路同步滞后'
+            'server_detail_db': '时序数据库集群', 'server_detail_cdn': '多媒体分发链路同步滞后',
+            'sensor_status': '传感器状态', 'status_ok': '正常', 'status_fault': '故障', 'status_online': '在线'
         },
         'en': {
             'nav_home': 'Dashboard', 'nav_charts': 'Analytics', 'nav_health': 'System Health', 'nav_refresh': 'Refresh System',
@@ -53,7 +54,8 @@ window.I18N = (() => {
             'sensor_lab': 'Sensor Laboratory', 'hardware_monitor_desc': 'Low-level hardware register detection and stack monitoring',
             'agent_skill_protocol': 'AI-ag Agent Skill Core Protocol',
             'server_detail_gateway': 'Edge-Cloud Real-time Link', 'server_detail_ai': 'Vision Semantic Analysis Engine',
-            'server_detail_db': 'Time-series Database Cluster', 'server_detail_cdn': 'Multimedia distribution link sync lag'
+            'server_detail_db': 'Time-series Database Cluster', 'server_detail_cdn': 'Multimedia distribution link sync lag',
+            'sensor_status': 'Sensor Status', 'status_ok': 'OK', 'status_fault': 'FAULT', 'status_online': 'ONLINE'
         },
         'ms': {
             'nav_home': 'Laman Utama', 'nav_charts': 'Analisis', 'nav_health': 'Kesihatan Peranti', 'nav_refresh': 'Segar Semula',
@@ -78,7 +80,8 @@ window.I18N = (() => {
             'sensor_lab': 'Makmal Penderia', 'hardware_monitor_desc': 'Pengesanan daftar perkakasan tahap rendah dan pemantauan tindanan',
             'agent_skill_protocol': 'Protokol Teras Ejen AI-ag',
             'server_detail_gateway': 'Pautan Masa Nyata Tepi-Awan', 'server_detail_ai': 'Enjin Analisis Semantik Visi',
-            'server_detail_db': 'Kluster Pangkalan Data Siri-Masa', 'server_detail_cdn': 'Lat penyegerakan pautan pengedaran multimedia'
+            'server_detail_db': 'Kluster Pangkalan Data Siri-Masa', 'server_detail_cdn': 'Lat penyegerakan pautan pengedaran multimedia',
+            'sensor_status': 'Status Penderia', 'status_ok': 'OK', 'status_fault': 'RALAT', 'status_online': 'AKTIF'
         }
     };
 
