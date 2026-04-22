@@ -482,8 +482,8 @@ window.UI = (() => {
                 console.warn("History fetch failed, using fallback:", err);
             }
 
-            // Mock fallback if API failed (local dev)
-            if (history.length === 0) {
+            // Mock fallback if API failed (local dev only)
+            if (history.length === 0 && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
                 history = window.API.generateTimeRangeMockTelemetry(deviceId, startTime, endTime, selectedSensors.length ? selectedSensors : undefined);
             }
 

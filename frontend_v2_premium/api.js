@@ -163,7 +163,9 @@ window.API = (() => {
         } catch (e) {
             console.warn('[API] fetchDevices failed, using mock:', e);
         }
-        if (devices.length === 0) devices = MOCK_DEVICES;
+        if (devices.length === 0 && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            devices = MOCK_DEVICES;
+        }
         const cropTypes = [...new Set(devices.map(d => d.crop_type).filter(Boolean))];
         const locations = [...new Set(devices.map(d => d.location).filter(Boolean))];
         return { devices, cropTypes, locations };
