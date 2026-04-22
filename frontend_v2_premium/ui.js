@@ -363,8 +363,8 @@ window.UI = (() => {
             const schema = window.API.getSchema();
             const sensorList = document.getElementById('sensorSelectionList');
             if (sensorList) {
-                let sids = Array.from(schema.keys());
-                if (sids.length === 0) {
+                let sids = Array.from(schema.keys()).filter(sid => sid !== 'mq7' && sid !== 'pcf8591');
+                if (sids.length === 0 && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
                     // Mock fallback for local preview
                     sids = ['dht22', 'adc', 'soil_modbus_02'];
                 }
