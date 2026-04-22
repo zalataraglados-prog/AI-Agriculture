@@ -16,7 +16,19 @@ window.I18N = (() => {
             'gateway_vision': '网关实时视觉', 'live_streaming': '实时推流中...', 'ai_feedback': '视觉 AI 反馈',
             'sensor_base': '网关传感器设备底座', 'new_session': '新建会话', 'session_history': '会话历史',
             'clear_all': '清除全部', 'immersive_chat': '沉浸式对话站', 'back_overview': '返回概览',
-            'modal_preview': '图传预览', 'img_fail': '图片加载失败'
+            'modal_preview': '图传预览', 'img_fail': '图片加载失败',
+            'chart_start_time': '起始时间', 'chart_end_time': '截止时间', 'sync_board': '同步看板',
+            'select_analysis_hint': '请选择分析条件并点击“同步看板”', 'node_mesh': '节点传感器网格',
+            'config_sensors': '配置节点传感器', 'vision_sync': '视觉同步', 'send_msg': '发送消息',
+            'chat_main_placeholder': '在此输入深度指令或技术咨询...', 'agent_skill_title': 'AI-ag Agent Skill (协作版)',
+            'agent_skill_desc': '包含服务巡检、日志定位、数据库检查、网关管理等核心权限集。点击查看完整协议。',
+            'enhanced_instr': '增强指令集 (User Override)', 'add_instr_placeholder': '添加新指令...',
+            'token_usage': 'Token 消耗量', 'load_normal': '流量负载正常', 'crop_sector_analysis': '作物区块分析',
+            'cloud_ops': '云端运维', 'gateway_mesh': '网关拓扑', 'sensor_array': '传感器阵列',
+            'sensor_lab': '传感器实验室', 'hardware_monitor_desc': '底层硬件寄存器实时探测与协议栈监控',
+            'agent_skill_protocol': 'AI-ag Agent Skill 核心协议',
+            'server_detail_gateway': 'Edge-Cloud 实时链路', 'server_detail_ai': '视觉语义分析引擎',
+            'server_detail_db': '时序数据库集群', 'server_detail_cdn': '多媒体分发链路同步滞后'
         },
         'en': {
             'nav_home': 'Dashboard', 'nav_charts': 'Analytics', 'nav_health': 'System Health', 'nav_refresh': 'Refresh System',
@@ -29,7 +41,19 @@ window.I18N = (() => {
             'gateway_vision': 'Gateway Live Vision', 'live_streaming': 'Live Streaming...', 'ai_feedback': 'Vision AI Feedback',
             'sensor_base': 'Gateway Sensor Base', 'new_session': 'New Session', 'session_history': 'Session History',
             'clear_all': 'Clear All', 'immersive_chat': 'Immersive Chat Station', 'back_overview': 'Back to Overview',
-            'modal_preview': 'Image Preview', 'img_fail': 'Image Failed to Load'
+            'modal_preview': 'Image Preview', 'img_fail': 'Image Failed to Load',
+            'chart_start_time': 'Start Time', 'chart_end_time': 'End Time', 'sync_board': 'Sync Dashboard',
+            'select_analysis_hint': 'Please select analysis criteria and click "Sync Dashboard"', 'node_mesh': 'Node Sensor Mesh',
+            'config_sensors': 'Configure Node Sensors', 'vision_sync': 'Vision Sync', 'send_msg': 'Send Message',
+            'chat_main_placeholder': 'Enter deep commands or technical inquiries...', 'agent_skill_title': 'AI-ag Agent Skill (Collaboration)',
+            'agent_skill_desc': 'Includes service inspection, log positioning, database check, gateway management, etc. Click to view protocol.',
+            'enhanced_instr': 'Enhanced Instructions (User Override)', 'add_instr_placeholder': 'Add new instruction...',
+            'token_usage': 'Token Usage', 'load_normal': 'Load normal', 'crop_sector_analysis': 'Crop Sector Analysis',
+            'cloud_ops': 'Cloud Operations', 'gateway_mesh': 'Gateway Mesh', 'sensor_array': 'Sensor Array',
+            'sensor_lab': 'Sensor Laboratory', 'hardware_monitor_desc': 'Low-level hardware register detection and stack monitoring',
+            'agent_skill_protocol': 'AI-ag Agent Skill Core Protocol',
+            'server_detail_gateway': 'Edge-Cloud Real-time Link', 'server_detail_ai': 'Vision Semantic Analysis Engine',
+            'server_detail_db': 'Time-series Database Cluster', 'server_detail_cdn': 'Multimedia distribution link sync lag'
         },
         'ms': {
             'nav_home': 'Laman Utama', 'nav_charts': 'Analisis', 'nav_health': 'Kesihatan Peranti', 'nav_refresh': 'Segar Semula',
@@ -42,7 +66,19 @@ window.I18N = (() => {
             'gateway_vision': 'Visi Langsung Gerbang', 'live_streaming': 'Penstriman Langsung...', 'ai_feedback': 'Maklum Balas AI Visual',
             'sensor_base': 'Pangkalan Penderia Gerbang', 'new_session': 'Sesi Baharu', 'session_history': 'Sejarah Sesi',
             'clear_all': 'Kosongkan Semua', 'immersive_chat': 'Sembang Mengasyikkan', 'back_overview': 'Kembali ke Gambaran Keseluruhan',
-            'modal_preview': 'Pratonton Imej', 'img_fail': 'Imej Gagal Dimuatkan'
+            'modal_preview': 'Pratonton Imej', 'img_fail': 'Imej Gagal Dimuatkan',
+            'chart_start_time': 'Masa Mula', 'chart_end_time': 'Masa Tamat', 'sync_board': 'Segar Semula Papan',
+            'select_analysis_hint': 'Sila pilih kriteria analisis dan klik "Segerakkan Papan"', 'node_mesh': 'Mesh Penderia Nod',
+            'config_sensors': 'Konfigurasi Penderia Nod', 'vision_sync': 'Penyegerakan Visual', 'send_msg': 'Hantar Mesej',
+            'chat_main_placeholder': 'Masukkan arahan mendalam atau pertanyaan teknikal...', 'agent_skill_title': 'Ejen AI-ag (Kolaborasi)',
+            'agent_skill_desc': 'Termasuk pemeriksaan perkhidmatan, kedudukan log, pemeriksaan pangkalan data, pengurusan gerbang, dll.',
+            'enhanced_instr': 'Arahan Dipertingkatkan', 'add_instr_placeholder': 'Tambah arahan baharu...',
+            'token_usage': 'Penggunaan Token', 'load_normal': 'Muatan normal', 'crop_sector_analysis': 'Analisis Sektor Tanaman',
+            'cloud_ops': 'Operasi Awan', 'gateway_mesh': 'Mesh Gerbang', 'sensor_array': 'Susunan Penderia',
+            'sensor_lab': 'Makmal Penderia', 'hardware_monitor_desc': 'Pengesanan daftar perkakasan tahap rendah dan pemantauan tindanan',
+            'agent_skill_protocol': 'Protokol Teras Ejen AI-ag',
+            'server_detail_gateway': 'Pautan Masa Nyata Tepi-Awan', 'server_detail_ai': 'Enjin Analisis Semantik Visi',
+            'server_detail_db': 'Kluster Pangkalan Data Siri-Masa', 'server_detail_cdn': 'Lat penyegerakan pautan pengedaran multimedia'
         }
     };
 
@@ -50,13 +86,17 @@ window.I18N = (() => {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             if (DICT[currentLang][key]) {
-                if (el.tagName === 'INPUT' && el.type === 'text') {
+                if (['INPUT', 'TEXTAREA'].includes(el.tagName)) {
                     el.placeholder = DICT[currentLang][key];
                 } else {
                     el.textContent = DICT[currentLang][key];
                 }
             }
         });
+
+        // Update language display in header
+        const display = document.getElementById('currentLangDisplay');
+        if (display) display.textContent = currentLang.toUpperCase();
     };
 
     return {

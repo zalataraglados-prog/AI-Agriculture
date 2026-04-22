@@ -674,10 +674,10 @@ window.UI = (() => {
             if (!container) return;
 
             const servers = [
-                { name: 'Telemetry Gateway (Rust)', status: 'ok', detail: 'Edge-Cloud 实时链路' },
-                { name: 'AI Inference Hub (FastAPI)', status: 'ok', detail: '视觉语义分析引擎' },
-                { name: 'Data Persistence (Postgres)', status: 'ok', detail: '时序数据库集群' },
-                { name: 'Storage CDN (Object)', status: 'warning', detail: '多媒体分发链路同步滞后' }
+                { name: 'Telemetry Gateway (Rust)', status: 'ok', detail: window.t('server_detail_gateway') },
+                { name: 'AI Inference Hub (FastAPI)', status: 'ok', detail: window.t('server_detail_ai') },
+                { name: 'Data Persistence (Postgres)', status: 'ok', detail: window.t('server_detail_db') },
+                { name: 'Storage CDN (Object)', status: 'warning', detail: window.t('server_detail_cdn') }
             ];
 
             container.innerHTML = servers.map(s => `
