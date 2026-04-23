@@ -248,3 +248,29 @@ This validates:
 - `dht22:temp_c=28.0,hum=48.9 -> ack:dht22`
 - `adc:pin=34,raw=523,voltage=0.421 -> ack:adc`
 - invalid typed packet -> `ack:error`
+
+## Image upload stress CLI (hot frequency change)
+
+Use custom CLI to pressure test image upload and change frequency without restarting:
+
+```bash
+python3 scripts/image_stress_cli.py run \
+  --endpoint http://8.134.32.223:8088/api/v1/image/upload \
+  --device-id dev_stress_01 \
+  --interval-sec 5 \
+  --control-file /tmp/image_stress_control.json
+```
+
+In another terminal, hot change rate:
+
+```bash
+python3 scripts/image_stress_cli.py set-rate --hz 1 --control-file /tmp/image_stress_control.json
+python3 scripts/image_stress_cli.py set-rate --interval-sec 0.2 --control-file /tmp/image_stress_control.json
+python3 scripts/image_stress_cli.py show-rate --control-file /tmp/image_stress_control.json
+python3 scripts/image_stress_cli.py stop --control-file /tmp/image_stress_control.json
+```
+
+Notes:
+- `run` reads `control-file` every loop, so frequency changes are applied live.
+- Use `--image-path <file>` to upload a real test image; if omitted, it uses a built-in tiny PNG.
+- Use `--max-uploads <n>` for bounded test runs in CI/local smoke.
