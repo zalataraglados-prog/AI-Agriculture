@@ -69,10 +69,6 @@ window.UI = (() => {
         if (!sensorGrid) return;
 
         let data = Array.isArray(telemetry) ? telemetry : [];
-        if (!data.length) {
-            // Fallback to mock for local dev preview
-            data = window.API.getMockTelemetry();
-        }
 
         const uniqueSensors = Array.from(new Set(data.map((r) => r.sensor_id).filter(Boolean)));
         sensorGrid.innerHTML = uniqueSensors
@@ -364,10 +360,6 @@ window.UI = (() => {
             const sensorList = document.getElementById('sensorSelectionList');
             if (sensorList) {
                 let sids = Array.from(schema.keys()).filter(sid => sid !== 'mq7' && sid !== 'pcf8591');
-                if (sids.length === 0 && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-                    // Mock fallback for local preview
-                    sids = ['dht22', 'adc', 'soil_modbus_02'];
-                }
                 sensorList.innerHTML = sids.map(sid => `
                     <label class="sensor-pill cursor-pointer group">
                         <input type="checkbox" value="${sid}" class="hidden peer" checked />
@@ -482,10 +474,7 @@ window.UI = (() => {
                 console.warn("History fetch failed, using fallback:", err);
             }
 
-            // Mock fallback if API failed (local dev only)
-            if (history.length === 0 && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-                history = window.API.generateTimeRangeMockTelemetry(deviceId, startTime, endTime, selectedSensors.length ? selectedSensors : undefined);
-            }
+
 
             // Clear old charts
             Charts.chartInstances.forEach(c => c.destroy());
@@ -502,21 +491,7 @@ window.UI = (() => {
                 const sensorData = history.filter(r => r.sensor_id === sid);
                 let schema = window.API.getSchema().get(sid);
                 
-                // Fallback schema if API is offline
-                if (!schema && sensorData.length > 0) {
-                    const fields = new Map();
-                    Object.keys(sensorData[0].fields).forEach(f => {
-                        let unit = '';
-                        // Simple heuristic for mock units
-                        if (f.includes('temp')) unit = '℃';
-                        else if (f.includes('hum') || f === 'vwc') unit = '%';
-                        else if (f === 'ec') unit = 'μS/cm';
-                        else if (f === 'voltage') unit = 'V';
-                        
-                        fields.set(f, { label: f, unit: unit, data_type: 'number' });
-                    });
-                    schema = { fields };
-                }
+
 
                 if (!schema || sensorData.length === 0) return;
 
