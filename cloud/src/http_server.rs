@@ -157,56 +157,77 @@ pub fn start_http_server(
             let url = request.url().to_string();
             let method = request.method().clone();
             let (path, query) = split_query(&url);
+            let path = path.to_string();
+            let query = query.to_string();
 
-            if path.starts_with("/api/") {
-                handle_api(
-                    request,
-                    method,
-                    path,
-                    query,
-                    &image_store_path,
-                    &image_index_path,
-                    &image_db_error_store_path,
-                    &ai_predict_url,
-                    &openclaw_url,
-                    &sensor_schema_payload,
-                    &registry_path,
-                    db.clone(),
-                    query_cache.clone(),
-                );
-                continue;
-            }
+            // Clone shared resources for the per-request worker thread.
+            let image_store_path = image_store_path.clone();
+            let image_index_path = image_index_path.clone();
+            let image_db_error_store_path = image_db_error_store_path.clone();
+            let ai_predict_url = ai_predict_url.clone();
+            let openclaw_url = openclaw_url.clone();
+            let sensor_schema_payload = sensor_schema_payload.clone();
+            let registry_path = registry_path.clone();
+            let db = db.clone();
+            let query_cache = query_cache.clone();
 
-            let mut file_path = path.to_string();
-            if file_path == "/" {
-                file_path = "/index.html".to_string();
-            }
-
-            let path = resolve_static_file_path(&file_path);
-            if path.exists() && path.is_file() {
-                let content_type = match path.extension().and_then(|s| s.to_str()) {
-                    Some("html") => "text/html; charset=utf-8",
-                    Some("css") => "text/css",
-                    Some("js") => "application/javascript",
-                    Some("png") => "image/png",
-                    _ => "application/octet-stream",
-                };
-
-                let header =
-                    Header::from_bytes(&b"Content-Type"[..], content_type.as_bytes()).unwrap();
-                match File::open(path) {
-                    Ok(f) => {
-                        let response = Response::from_file(f).with_header(header);
-                        let _ = request.respond(response);
-                    }
-                    Err(_) => {
-                        let _ = request
-                            .respond(Response::from_string("File Error").with_status_code(500));
-                    }
+            // Spawn a dedicated worker thread per request so that slow endpoints
+            // (AI inference, DB queries) never block static-file serving.
+            thread::spawn(move || {
+                if path.starts_with("/api/") {
+                    handle_api(
+                        request,
+                        method,
+                        &path,
+                        &query,
+                        &image_store_path,
+                        &image_index_path,
+                        &image_db_error_store_path,
+                        &ai_predict_url,
+                        &openclaw_url,
+                        &sensor_schema_payload,
+                        &registry_path,
+                        db,
+                        query_cache,
+                    );
+                    return;
                 }
-            } else {
-                let _ = request.respond(Response::from_string("Not Found").with_status_code(404));
-            }
+
+                let mut file_path = path;
+                if file_path == "/" {
+                    file_path = "/index.html".to_string();
+                }
+
+                let path = resolve_static_file_path(&file_path);
+                if path.exists() && path.is_file() {
+                    let content_type = match path.extension().and_then(|s| s.to_str()) {
+                        Some("html") => "text/html; charset=utf-8",
+                        Some("css") => "text/css",
+                        Some("js") => "application/javascript",
+                        Some("png") => "image/png",
+                        Some("md") => "text/markdown; charset=utf-8",
+                        Some("svg") => "image/svg+xml",
+                        _ => "application/octet-stream",
+                    };
+
+                    let header =
+                        Header::from_bytes(&b"Content-Type"[..], content_type.as_bytes()).unwrap();
+                    match File::open(path) {
+                        Ok(f) => {
+                            let response = Response::from_file(f).with_header(header);
+                            let _ = request.respond(response);
+                        }
+                        Err(_) => {
+                            let _ = request.respond(
+                                Response::from_string("File Error").with_status_code(500),
+                            );
+                        }
+                    }
+                } else {
+                    let _ =
+                        request.respond(Response::from_string("Not Found").with_status_code(404));
+                }
+            });
         }
     });
 }
