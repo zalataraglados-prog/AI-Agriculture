@@ -147,12 +147,6 @@ window.API = (() => {
         return normalizeTelemetryRows(rows).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     };
 
-    const MOCK_DEVICES = [
-        { device_id: 'GATEWAY-01', location: 'field-a', crop_type: 'rice', farm_note: '', sensors: ['dht22', 'soil_modbus_02'], registered_at_epoch_sec: 0 },
-        { device_id: 'GATEWAY-02', location: 'field-b', crop_type: 'rice', farm_note: '', sensors: ['dht22', 'adc'], registered_at_epoch_sec: 0 },
-        { device_id: 'GATEWAY-03', location: 'greenhouse-01', crop_type: 'tomato', farm_note: '', sensors: ['dht22'], registered_at_epoch_sec: 0 },
-    ];
-
     const fetchDevices = async () => {
         let devices = [];
         try {
@@ -161,72 +155,14 @@ window.API = (() => {
                 devices = data.devices;
             }
         } catch (e) {
-            console.warn('[API] fetchDevices failed, using mock:', e);
-        }
-        if (devices.length === 0 && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-            devices = MOCK_DEVICES;
+            console.warn('[API] fetchDevices failed:', e);
         }
         const cropTypes = [...new Set(devices.map(d => d.crop_type).filter(Boolean))];
         const locations = [...new Set(devices.map(d => d.location).filter(Boolean))];
         return { devices, cropTypes, locations };
     };
 
-    const getMockTelemetry = () => [
-        { device_id: 'GATEWAY-01', sensor_id: 'dht22', ts: new Date().toISOString(), fields: { temp_c: 24.5, hum: 62 } },
-        { device_id: 'GATEWAY-01', sensor_id: 'soil_modbus_02', ts: new Date().toISOString(), fields: { vwc: 32, temp_c: 21.8, ec: 450 } },
-        { device_id: 'GATEWAY-01', sensor_id: 'adc', ts: new Date().toISOString(), fields: { pin: 34, raw: 512, voltage: 0.41 } }
-    ];
 
-    const generateTimeRangeMockTelemetry = (deviceId, startTime, endTime, sensors = ['dht22', 'soil_modbus_02', 'adc']) => {
-        const history = [];
-        const end = endTime ? new Date(endTime) : new Date();
-        const start = startTime ? new Date(startTime) : new Date(end.getTime() - 24 * 3600 * 1000);
-        
-        const steps = 60; // 60 data points for smooth line rendering
-        const timeStep = (end.getTime() - start.getTime()) / steps;
-
-        for (let i = 0; i <= steps; i++) {
-            const currentTs = new Date(start.getTime() + i * timeStep);
-            const tsIso = currentTs.toISOString();
-            
-            // Generate some pseudo-random but trendy sinusoidal data
-            // Use time as an angle relative to a 24h phase for temperature
-            const hoursFromStart = (currentTs.getTime() - start.getTime()) / (1000 * 3600);
-            const phase = (hoursFromStart % 24) / 24 * Math.PI * 2;
-            const noise = () => (Math.random() - 0.5) * 1.5;
-
-            if (sensors.includes('dht22')) {
-                history.push({
-                    device_id: deviceId, sensor_id: 'dht22', ts: tsIso,
-                    fields: {
-                        temp_c: +(22 + 5 * Math.sin(phase - Math.PI/4) + noise()).toFixed(2),
-                        hum: +(60 + 10 * Math.cos(phase) + noise()*2).toFixed(2)
-                    }
-                });
-            }
-            if (sensors.includes('soil_modbus_02')) {
-                history.push({
-                    device_id: deviceId, sensor_id: 'soil_modbus_02', ts: tsIso,
-                    fields: {
-                        vwc: +(30 + 3 * Math.sin(phase) + noise()).toFixed(1),
-                        temp_c: +(20 + 3 * Math.sin(phase - Math.PI/4) + noise()).toFixed(2),
-                        ec: +(400 + 50 * Math.cos(phase * 2) + noise()*10).toFixed(0)
-                    }
-                });
-            }
-            if (sensors.includes('adc')) {
-                history.push({
-                    device_id: deviceId, sensor_id: 'adc', ts: tsIso,
-                    fields: {
-                        pin: 34,
-                        raw: +(500 + 100 * Math.sin(phase * 4) + noise()*20).toFixed(0),
-                        voltage: +(0.4 + 0.1 * Math.sin(phase * 4) + noise()*0.02).toFixed(3)
-                    }
-                });
-            }
-        }
-        return history;
-    };
 
     return {
         GATEWAY_STALE_MS,
@@ -237,8 +173,6 @@ window.API = (() => {
         getSchemaField,
         setTelemetry,
         getTelemetry,
-        getMockTelemetry,
-        generateTimeRangeMockTelemetry,
         getLatestBySensor,
         detectSensorFault,
         formatNumeric,
