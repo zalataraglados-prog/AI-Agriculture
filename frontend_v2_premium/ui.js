@@ -646,12 +646,13 @@ window.UI = (() => {
                 const queryEnd = endTime ? new Date(endTime) : new Date();
                 // Keep devices registered within 7 days before the end of the query window.
                 // This skips obviously stale shadow IDs without affecting real multi-device deployments.
-                const PRUNE_WINDOW_MS = 7 * 24 * 3600 * 1000;
+                const runtime = window.RUNTIME_CONFIG || {};
+                const pruneWindowMs = Number(runtime?.telemetry?.chartPruneWindowMs) || 7 * 24 * 3600 * 1000;
                 const matchedDevices = Charts._devicesData.devices.filter(d => {
                     if (d.crop_type !== Charts.selectedCrop || d.location !== Charts.selectedLocation) return false;
                     if (!d.registered_at_epoch_sec) return true;
                     const registeredAt = d.registered_at_epoch_sec * 1000;
-                    return (queryEnd.getTime() - registeredAt) < PRUNE_WINDOW_MS;
+                    return (queryEnd.getTime() - registeredAt) < pruneWindowMs;
                 });
                 deviceIds = matchedDevices.map(d => d.device_id);
                 // If all were pruned (e.g. user queries very old data), fall back to all matches

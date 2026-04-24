@@ -3,10 +3,14 @@
  */
 
 window.API = (() => {
-    const GATEWAY_STALE_MS = 5 * 60 * 1000;
-    const DEFAULT_LIMIT = 300;
-    const DEFAULT_UPLOAD_RETRIES = 2;
-    const DEFAULT_UPLOAD_TIMEOUT_MS = 45000;
+    const runtime = window.RUNTIME_CONFIG || {};
+    const telemetryCfg = runtime.telemetry || {};
+    const uploadCfg = runtime.imageUpload || {};
+    const GATEWAY_STALE_MS = Number(telemetryCfg.gatewayStaleMs) || 5 * 60 * 1000;
+    const DEFAULT_LIMIT = Number(telemetryCfg.defaultLimit) || 300;
+    const HISTORY_MAX_LIMIT = Number(telemetryCfg.historyMaxLimit) || 1000;
+    const DEFAULT_UPLOAD_RETRIES = Number(uploadCfg.retries);
+    const DEFAULT_UPLOAD_TIMEOUT_MS = Number(uploadCfg.timeoutMs);
     const schemaBySensor = new Map();
     let schemaSource = 'remote';
     let telemetryRecords = [];
@@ -213,7 +217,7 @@ window.API = (() => {
                 device_id: id,
                 start_time: start.toISOString(),
                 end_time: endExclusive.toISOString(),
-                limit: Math.max(DEFAULT_LIMIT, Math.min(limit, 1000)),
+                limit: Math.max(DEFAULT_LIMIT, Math.min(limit, HISTORY_MAX_LIMIT)),
             });
             return fetchWithRetry(url);
         });
@@ -328,7 +332,13 @@ window.API = (() => {
             xhr.send(form);
         });
 
-    const uploadImage = async ({ file, tag, retries = DEFAULT_UPLOAD_RETRIES, timeoutMs = DEFAULT_UPLOAD_TIMEOUT_MS, onProgress }) => {
+    const uploadImage = async ({
+        file,
+        tag,
+        retries = Number.isFinite(DEFAULT_UPLOAD_RETRIES) ? DEFAULT_UPLOAD_RETRIES : 2,
+        timeoutMs = Number.isFinite(DEFAULT_UPLOAD_TIMEOUT_MS) ? DEFAULT_UPLOAD_TIMEOUT_MS : 45000,
+        onProgress,
+    }) => {
         const deviceId = `${tag?.device_id || ''}`.trim();
         if (!deviceId) throw new Error('device_id is required for upload');
         const preparedFile = await maybeConvertForUpload(file);
