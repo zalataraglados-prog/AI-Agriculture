@@ -69,13 +69,29 @@ window.UI = (() => {
         }
     };
 
+    const renderSchemaNotice = () => {
+        const notice = document.getElementById('schemaNotice');
+        if (!notice) return;
+        if (window.API.isSchemaFallback && window.API.isSchemaFallback()) {
+            notice.classList.remove('hidden');
+            notice.textContent = 'Schema API unavailable, using fallback mapping (soil_modbus_02 / dht22).';
+            return;
+        }
+        notice.classList.add('hidden');
+    };
+
     const renderSensorGrid = (telemetry) => {
         const sensorGrid = document.getElementById('sensorGrid');
         if (!sensorGrid) return;
+        renderSchemaNotice();
 
         let data = Array.isArray(telemetry) ? telemetry : [];
 
         const uniqueSensors = Array.from(new Set(data.map((r) => r.sensor_id).filter(Boolean)));
+        if (!uniqueSensors.length) {
+            sensorGrid.innerHTML = `<div class="col-span-full text-center text-xs text-slate-500 py-8">${window.t('no_data')}</div>`;
+            return;
+        }
         sensorGrid.innerHTML = uniqueSensors
             .map((sid) => {
                 const latest = data.find((r) => r.sensor_id === sid);
@@ -307,6 +323,157 @@ window.UI = (() => {
         }
     };
 
+    const Upload = {
+        selectedFile: null,
+        activeDeviceId: '',
+
+        init: (deviceId = '') => {
+            Upload.activeDeviceId = (deviceId || localStorage.getItem('device_id') || '').trim();
+            const fileInput = document.getElementById('mobileUploadInput');
+            const pickBtn = document.getElementById('mobileUploadPickBtn');
+            const clearBtn = document.getElementById('mobileUploadClearBtn');
+            const submitBtn = document.getElementById('mobileUploadSubmitBtn');
+            if (!fileInput || !pickBtn || !submitBtn) return;
+
+            pickBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', () => {
+                const [file] = fileInput.files || [];
+                Upload.selectedFile = file || null;
+                Upload.renderSelectedFile();
+            });
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    Upload.selectedFile = null;
+                    fileInput.value = '';
+                    Upload.setProgress(0);
+                    Upload.renderSelectedFile();
+                    Upload.setStatus('No image selected.', 'idle');
+                });
+            }
+            submitBtn.addEventListener('click', () => Upload.submit());
+            Upload.renderSelectedFile();
+            Upload.setStatus('Ready for mobile camera upload.', 'idle');
+        },
+
+        setStatus: (message, level = 'idle') => {
+            const statusEl = document.getElementById('mobileUploadStatus');
+            if (!statusEl) return;
+            const palette = {
+                idle: 'text-slate-400',
+                loading: 'text-emerald-300',
+                success: 'text-emerald-400',
+                error: 'text-rose-400',
+                warn: 'text-amber-300',
+            };
+            statusEl.className = `text-[11px] ${palette[level] || palette.idle}`;
+            statusEl.textContent = message;
+        },
+
+        setProgress: (value) => {
+            const bar = document.getElementById('mobileUploadProgressBar');
+            const label = document.getElementById('mobileUploadProgressText');
+            const v = Math.max(0, Math.min(100, Number(value) || 0));
+            if (bar) bar.style.width = `${v}%`;
+            if (label) label.textContent = `${v}%`;
+        },
+
+        renderSelectedFile: () => {
+            const nameEl = document.getElementById('mobileUploadFileName');
+            const preview = document.getElementById('mobileUploadPreview');
+            const emptyState = document.getElementById('mobileUploadPreviewEmpty');
+            const submitBtn = document.getElementById('mobileUploadSubmitBtn');
+            const file = Upload.selectedFile;
+            if (nameEl) {
+                if (file) {
+                    const mb = (file.size / (1024 * 1024)).toFixed(2);
+                    nameEl.textContent = `${file.name} (${mb} MB)`;
+                } else {
+                    nameEl.textContent = 'No image selected';
+                }
+            }
+            if (submitBtn) submitBtn.disabled = !file;
+            if (!preview || !emptyState) return;
+            if (!file) {
+                preview.src = '';
+                preview.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            const blobUrl = URL.createObjectURL(file);
+            preview.src = blobUrl;
+            preview.onload = () => URL.revokeObjectURL(blobUrl);
+            preview.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+        },
+
+        resolveTag: () => {
+            const now = new Date().toISOString();
+            let deviceId = (localStorage.getItem('device_id') || Upload.activeDeviceId || '').trim();
+            let location = '';
+            let cropType = '';
+            let farmNote = '';
+
+            const allDevices = HomePositioning.devicesData?.devices || [];
+            let pickedDevice = null;
+            if (deviceId) {
+                pickedDevice = allDevices.find((d) => d.device_id === deviceId) || null;
+            }
+            if (!pickedDevice) {
+                pickedDevice = allDevices.find((d) => {
+                    if (HomePositioning.selectedCropType && d.crop_type !== HomePositioning.selectedCropType) return false;
+                    if (HomePositioning.selectedLocation && d.location !== HomePositioning.selectedLocation) return false;
+                    return true;
+                }) || allDevices[0] || null;
+            }
+            if (pickedDevice) {
+                deviceId = pickedDevice.device_id || deviceId;
+                location = pickedDevice.location || '';
+                cropType = pickedDevice.crop_type || '';
+                farmNote = pickedDevice.farm_note || '';
+                localStorage.setItem('device_id', deviceId);
+            }
+            return {
+                device_id: deviceId,
+                ts: now,
+                location,
+                crop_type: cropType,
+                farm_note: farmNote,
+            };
+        },
+
+        submit: async () => {
+            if (!Upload.selectedFile) {
+                Upload.setStatus('Please select an image first.', 'warn');
+                return;
+            }
+            const submitBtn = document.getElementById('mobileUploadSubmitBtn');
+            if (submitBtn) submitBtn.disabled = true;
+            Upload.setProgress(0);
+            const tag = Upload.resolveTag();
+            if (!tag.device_id) {
+                Upload.setStatus('No device_id found. Open page with ?device_id=... or register device first.', 'error');
+                if (submitBtn) submitBtn.disabled = false;
+                return;
+            }
+            Upload.setStatus(`Uploading for ${tag.device_id} ...`, 'loading');
+            try {
+                const result = await window.API.uploadImage({
+                    file: Upload.selectedFile,
+                    tag,
+                    onProgress: (v) => Upload.setProgress(v),
+                });
+                Upload.setStatus(`Upload success: ${result.upload_id || 'accepted'}`, 'success');
+                if (window.APP && typeof window.APP.refreshNow === 'function') {
+                    await window.APP.refreshNow();
+                }
+            } catch (err) {
+                Upload.setStatus(`Upload failed: ${err.message || err}`, 'error');
+            } finally {
+                if (submitBtn) submitBtn.disabled = !Upload.selectedFile;
+            }
+        },
+    };
+
     const Charts = {
         chartInstances: new Map(),
         selectedCrop: null,
@@ -363,7 +530,9 @@ window.UI = (() => {
             const schema = window.API.getSchema();
             const sensorList = document.getElementById('sensorSelectionList');
             if (sensorList) {
-                let sids = Array.from(schema.keys()).filter(sid => sid !== 'mq7' && sid !== 'pcf8591');
+                const telemetrySensors = Array.from(new Set(window.API.getTelemetry().map((r) => r.sensor_id).filter(Boolean)));
+                let sids = Array.from(new Set([...schema.keys(), ...telemetrySensors]));
+                sids.sort();
                 sensorList.innerHTML = sids.map(sid => `
                     <label class="sensor-pill cursor-pointer group">
                         <input type="checkbox" value="${sid}" class="hidden peer" checked />
@@ -540,10 +709,34 @@ window.UI = (() => {
                     .filter((r) => r.sensor_id === sid)
                     .sort((a, b) => new Date(a.ts || 0).getTime() - new Date(b.ts || 0).getTime());
                 const schema = window.API.getSchema().get(sid);
-                if (!schema || sensorData.length === 0) return;
+                if (sensorData.length === 0) return;
 
-                schema.fields.forEach((fieldSpec, fieldName) => {
-                    const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'];
+                let fieldSpecs = [];
+                if (schema && schema.fields instanceof Map && schema.fields.size > 0) {
+                    fieldSpecs = Array.from(schema.fields.entries()).map(([fieldName, fieldSpec]) => ({
+                        fieldName,
+                        fieldSpec,
+                    }));
+                } else {
+                    const inferred = new Set();
+                    sensorData.forEach((row) => {
+                        Object.entries(row?.fields || {}).forEach(([fieldName, value]) => {
+                            if (!Number.isFinite(Number(value))) return;
+                            inferred.add(fieldName);
+                        });
+                    });
+                    fieldSpecs = Array.from(inferred).map((fieldName) => ({
+                        fieldName,
+                        fieldSpec: {
+                            label: fieldName,
+                            unit: '',
+                            data_type: 'f64',
+                        },
+                    }));
+                }
+
+                fieldSpecs.forEach(({ fieldName, fieldSpec }) => {
+                    const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'u64', 'i32', 'i64'];
                     if (!numericTypes.includes(`${fieldSpec.data_type || ''}`.toLowerCase())) return;
 
                     const points = sensorData
@@ -848,6 +1041,7 @@ window.UI = (() => {
         openSensorDetail,
         openImagePreview,
         HomePositioning,
+        Upload,
         Charts,
         Health,
         setEnvChart: (c) => envChart = c,

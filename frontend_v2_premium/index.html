@@ -252,15 +252,27 @@
                       <!-- Gateway Visuals -->
                       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                           <div class="glass-panel p-6">
-                              <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-camera text-blue-400"></i><span data-i18n="gateway_vision">网关实时视觉</span></h2>
-                              <div class="aspect-video bg-black/40 rounded-xl overflow-hidden border border-white/5 relative group">
-                                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                  <div class="absolute bottom-4 left-4">
-                                      <p class="text-[10px] text-white/60 font-mono tracking-widest">GATEWAY_CAM_01</p>
-                                      <p class="text-xs text-white" data-i18n="live_streaming">实时推流中...</p>
-                                  </div>
-                                  <!-- Shimmer Overlay -->
-                                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
+                              <h2 class="text-sm font-bold text-slate-100 mb-4 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-camera text-blue-400"></i><span>手机图传上传</span></h2>
+                              <p class="text-[11px] text-slate-400 mb-4">仅真实链路：图片将通过 <span class="font-mono text-emerald-300">/api/v1/image/upload</span> 上传并触发 AI 入库。</p>
+                              <input id="mobileUploadInput" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif" capture="environment" class="hidden" />
+                              <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2 mb-3">
+                                  <button id="mobileUploadPickBtn" class="px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-xs text-slate-100 hover:bg-white/20 transition-all">
+                                      <i class="fa fa-camera mr-1"></i>拍照 / 选图
+                                  </button>
+                                  <button id="mobileUploadClearBtn" class="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-xs text-slate-300 hover:text-white transition-all">清空</button>
+                                  <button id="mobileUploadSubmitBtn" class="px-3 py-2 rounded-lg bg-emerald-600/80 border border-emerald-400/30 text-xs text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled>上传</button>
+                              </div>
+                              <p id="mobileUploadFileName" class="text-[11px] text-slate-400 mb-3 font-mono truncate">No image selected</p>
+                              <div class="aspect-video bg-black/40 rounded-xl overflow-hidden border border-white/10 relative mb-3">
+                                  <img id="mobileUploadPreview" src="" alt="preview" class="hidden w-full h-full object-cover" />
+                                  <div id="mobileUploadPreviewEmpty" class="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">等待图片...</div>
+                              </div>
+                              <div class="w-full bg-black/30 rounded-full h-1.5 overflow-hidden border border-white/10">
+                                  <div id="mobileUploadProgressBar" class="h-full bg-emerald-400 transition-all" style="width:0%"></div>
+                              </div>
+                              <div class="flex items-center justify-between mt-2">
+                                  <p id="mobileUploadStatus" class="text-[11px] text-slate-400">Ready for upload.</p>
+                                  <span id="mobileUploadProgressText" class="text-[10px] text-slate-500 font-mono">0%</span>
                               </div>
                           </div>
 
@@ -275,6 +287,7 @@
                       <!-- Sensor Device Base -->
                       <div class="glass-panel p-6">
                           <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-cube text-emerald-400"></i><span data-i18n="sensor_base">网关传感器设备底座</span></h2>
+                          <p id="schemaNotice" class="hidden mb-4 text-[11px] text-amber-300 border border-amber-400/20 bg-amber-500/10 rounded-lg px-3 py-2"></p>
                           <div id="sensorGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                               <!-- Dynamic Device Tiles -->
                           </div>
