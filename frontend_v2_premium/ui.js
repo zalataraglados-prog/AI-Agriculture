@@ -451,20 +451,37 @@ window.UI = (() => {
             const showImages = document.getElementById('toggleImages')?.checked;
             const selectedSensors = Array.from(document.querySelectorAll('#sensorSelectionList input:checked')).map(i => i.value);
 
-            // Map selected crop/location to ALL actual device IDs
+            // Map selected crop/location to ALL actual device IDs,
+            // pre-filtering out shadow gateways that were registered long before the query window.
             let deviceIds = [];
             if (Charts._devicesData && Charts._devicesData.devices) {
-                const matchedDevices = Charts._devicesData.devices.filter(d => d.crop_type === Charts.selectedCrop && d.location === Charts.selectedLocation);
+                const queryEnd = endTime ? new Date(endTime) : new Date();
+                // Keep devices registered within 7 days before the end of the query window.
+                // This skips obviously stale shadow IDs without affecting real multi-device deployments.
+                const PRUNE_WINDOW_MS = 7 * 24 * 3600 * 1000;
+                const matchedDevices = Charts._devicesData.devices.filter(d => {
+                    if (d.crop_type !== Charts.selectedCrop || d.location !== Charts.selectedLocation) return false;
+                    if (!d.registered_at_epoch_sec) return true;
+                    const registeredAt = d.registered_at_epoch_sec * 1000;
+                    return (queryEnd.getTime() - registeredAt) < PRUNE_WINDOW_MS;
+                });
                 deviceIds = matchedDevices.map(d => d.device_id);
+                // If all were pruned (e.g. user queries very old data), fall back to all matches
+                if (deviceIds.length === 0) {
+                    deviceIds = Charts._devicesData.devices
+                        .filter(d => d.crop_type === Charts.selectedCrop && d.location === Charts.selectedLocation)
+                        .map(d => d.device_id);
+                }
             }
             if (deviceIds.length === 0) {
                 const fallbackId = localStorage.getItem('device_id') || 'GATEWAY-01';
                 deviceIds = [fallbackId];
             }
 
-            // Fetch History with explicit range
-            container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">${window.t('syncing')}</div>`;
-            
+            // Show dynamic progress indicator
+            const totalDevices = deviceIds.length;
+            container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">${window.t('syncing')} (0 / ${totalDevices} 节点)</div>`;
+
             let history = [];
             try {
                 // Set a timeout to ensure it doesn't hang in case of network issues
