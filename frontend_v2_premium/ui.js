@@ -1,6 +1,4 @@
-/**
- * UI & rendering module.
- */
+
 window.UI = (() => {
     let envChart;
     let faultTrendChart;
