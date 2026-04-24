@@ -5,8 +5,34 @@
 window.API = (() => {
     const GATEWAY_STALE_MS = 5 * 60 * 1000;
     const DEFAULT_LIMIT = 300;
+    const DEFAULT_UPLOAD_RETRIES = 2;
+    const DEFAULT_UPLOAD_TIMEOUT_MS = 45000;
     const schemaBySensor = new Map();
+    let schemaSource = 'remote';
     let telemetryRecords = [];
+    const FALLBACK_SCHEMA = {
+        sensors: [
+            {
+                sensor_id: 'soil_modbus_02',
+                trend_metric: 'ec',
+                category_metric: 'slave_id',
+                fields: [
+                    { field: 'vwc', label: 'Soil Moisture', unit: '%', data_type: 'f32', required: true, threshold_low: 20, threshold_high: 70 },
+                    { field: 'temp_c', label: 'Temperature', unit: 'C', data_type: 'f32', required: true, threshold_low: 0, threshold_high: 45 },
+                    { field: 'ec', label: 'Soil Fertility', unit: 'uS/cm', data_type: 'f32', required: true, threshold_low: 0, threshold_high: 5000 },
+                ],
+            },
+            {
+                sensor_id: 'dht22',
+                trend_metric: 'temp_c',
+                category_metric: null,
+                fields: [
+                    { field: 'temp_c', label: 'Temperature', unit: 'C', data_type: 'f32', required: true, threshold_low: 0, threshold_high: 50 },
+                    { field: 'hum', label: 'Humidity', unit: '%', data_type: 'f32', required: true, threshold_low: 20, threshold_high: 95 },
+                ],
+            },
+        ],
+    };
 
     const fetchJson = async (url) => {
         const res = await fetch(url, { cache: 'no-store' });
@@ -52,34 +78,46 @@ window.API = (() => {
 
     const getLatestBySensor = (sensorId) => telemetryRecords.find((row) => row.sensor_id === sensorId) || null;
 
-    const loadSchema = async () => {
+    const loadSchemaFromPayload = (payload) => {
         schemaBySensor.clear();
-        try {
-            const payload = await fetchJson('/api/v1/sensor/schema');
-            const sensors = Array.isArray(payload?.sensors) ? payload.sensors : [];
-            sensors.forEach((sensor) => {
-                if (!sensor?.sensor_id) return;
-                const fields = new Map();
-                (sensor.fields || []).forEach((field) => {
-                    if (!field?.field) return;
-                    fields.set(field.field, {
-                        field: field.field,
-                        label: field.label || field.field,
-                        unit: field.unit || '',
-                        data_type: field.data_type || 'string',
-                        required: !!field.required,
-                        threshold_low: typeof field.threshold_low === 'number' ? field.threshold_low : null,
-                        threshold_high: typeof field.threshold_high === 'number' ? field.threshold_high : null,
-                    });
-                });
-                schemaBySensor.set(sensor.sensor_id, {
-                    trendMetric: sensor.trend_metric || null,
-                    categoryMetric: sensor.category_metric || null,
-                    fields,
+        const sensors = Array.isArray(payload?.sensors) ? payload.sensors : [];
+        sensors.forEach((sensor) => {
+            if (!sensor?.sensor_id) return;
+            const fields = new Map();
+            (sensor.fields || []).forEach((field) => {
+                if (!field?.field) return;
+                fields.set(field.field, {
+                    field: field.field,
+                    label: field.label || field.field,
+                    unit: field.unit || '',
+                    data_type: field.data_type || 'string',
+                    required: !!field.required,
+                    threshold_low: typeof field.threshold_low === 'number' ? field.threshold_low : null,
+                    threshold_high: typeof field.threshold_high === 'number' ? field.threshold_high : null,
                 });
             });
+            schemaBySensor.set(sensor.sensor_id, {
+                trendMetric: sensor.trend_metric || null,
+                categoryMetric: sensor.category_metric || null,
+                fields,
+            });
+        });
+    };
+
+    const loadSchema = async () => {
+        schemaBySensor.clear();
+        schemaSource = 'remote';
+        try {
+            const payload = await fetchJson('/api/v1/sensor/schema');
+            loadSchemaFromPayload(payload);
+            if (!schemaBySensor.size) {
+                loadSchemaFromPayload(FALLBACK_SCHEMA);
+                schemaSource = 'fallback';
+            }
         } catch (err) {
             console.warn('Schema loading failed:', err);
+            loadSchemaFromPayload(FALLBACK_SCHEMA);
+            schemaSource = 'fallback';
         }
     };
 
@@ -108,7 +146,7 @@ window.API = (() => {
             const value = fields[field];
             if (value === undefined || value === null || value === '') return;
             const dataType = `${spec.data_type || ''}`.toLowerCase();
-            const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'];
+            const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'u64', 'i32', 'i64'];
             if (!numericTypes.includes(dataType)) return;
             const num = Number(value);
             if (!Number.isFinite(num)) {
@@ -215,6 +253,106 @@ window.API = (() => {
         return { devices, cropTypes, locations };
     };
 
+    const maybeConvertForUpload = async (file) => {
+        if (!file) throw new Error('No image file selected');
+        const type = `${file.type || ''}`.toLowerCase();
+        const heicLike = type.includes('heic') || type.includes('heif') || /\.(heic|heif)$/i.test(file.name || '');
+        if (!heicLike) {
+            return file;
+        }
+        if (typeof createImageBitmap !== 'function') {
+            throw new Error('HEIC conversion is not supported on this browser. Please upload jpg/png.');
+        }
+        try {
+            const imageBitmap = await createImageBitmap(file);
+            const canvas = document.createElement('canvas');
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas context unavailable');
+            ctx.drawImage(imageBitmap, 0, 0);
+            imageBitmap.close();
+            const jpegBlob = await new Promise((resolve, reject) => {
+                canvas.toBlob(
+                    (blob) => (blob ? resolve(blob) : reject(new Error('HEIC to JPEG conversion failed'))),
+                    'image/jpeg',
+                    0.92,
+                );
+            });
+            const baseName = (file.name || 'upload').replace(/\.(heic|heif)$/i, '');
+            return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+        } catch (err) {
+            throw new Error(`HEIC conversion failed: ${err.message || err}`);
+        }
+    };
+
+    const buildUploadQuery = (tag) =>
+        apiUrl('/api/v1/image/upload', {
+            device_id: tag?.device_id || '',
+            ts: tag?.ts || new Date().toISOString(),
+            location: tag?.location || '',
+            crop_type: tag?.crop_type || '',
+            farm_note: tag?.farm_note || '',
+        });
+
+    const uploadImageOnce = ({ file, tag, timeoutMs, onProgress }) =>
+        new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', buildUploadQuery(tag), true);
+            xhr.timeout = timeoutMs;
+            xhr.onload = () => {
+                const payloadText = xhr.responseText || '{}';
+                let payload = {};
+                try {
+                    payload = JSON.parse(payloadText);
+                } catch (err) {
+                    reject(new Error(`Upload response is not JSON: ${payloadText.slice(0, 120)}`));
+                    return;
+                }
+                if (xhr.status >= 200 && xhr.status < 300 && payload?.status === 'success') {
+                    resolve(payload);
+                    return;
+                }
+                const message = payload?.message || `HTTP ${xhr.status}`;
+                reject(new Error(message));
+            };
+            xhr.onerror = () => reject(new Error('Network error while uploading image'));
+            xhr.ontimeout = () => reject(new Error(`Upload timeout (${timeoutMs} ms)`));
+            xhr.upload.onprogress = (evt) => {
+                if (!evt.lengthComputable || typeof onProgress !== 'function') return;
+                onProgress(Math.round((evt.loaded / evt.total) * 100));
+            };
+
+            const form = new FormData();
+            form.append('file', file, file.name || 'upload.jpg');
+            xhr.send(form);
+        });
+
+    const uploadImage = async ({ file, tag, retries = DEFAULT_UPLOAD_RETRIES, timeoutMs = DEFAULT_UPLOAD_TIMEOUT_MS, onProgress }) => {
+        const deviceId = `${tag?.device_id || ''}`.trim();
+        if (!deviceId) throw new Error('device_id is required for upload');
+        const preparedFile = await maybeConvertForUpload(file);
+        let lastErr = null;
+        for (let attempt = 0; attempt <= retries; attempt += 1) {
+            try {
+                if (typeof onProgress === 'function') onProgress(0);
+                const result = await uploadImageOnce({
+                    file: preparedFile,
+                    tag: { ...tag, device_id: deviceId, ts: tag?.ts || new Date().toISOString() },
+                    timeoutMs,
+                    onProgress,
+                });
+                if (typeof onProgress === 'function') onProgress(100);
+                return result;
+            } catch (err) {
+                lastErr = err;
+                if (attempt >= retries) break;
+                await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+            }
+        }
+        throw lastErr || new Error('Image upload failed');
+    };
+
 
 
     return {
@@ -231,5 +369,8 @@ window.API = (() => {
         formatNumeric,
         fetchHistory,
         fetchDevices,
+        uploadImage,
+        isSchemaFallback: () => schemaSource === 'fallback',
+        getSchemaSource: () => schemaSource,
     };
 })();

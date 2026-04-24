@@ -5,11 +5,11 @@
 
 window.onload = async () => {
     const params = new URLSearchParams(window.location.search);
-    const deviceId = (params.get('device_id') || localStorage.getItem('device_id') || '').trim();
-    if (deviceId) localStorage.setItem('device_id', deviceId);
+    let activeDeviceId = (params.get('device_id') || localStorage.getItem('device_id') || '').trim();
+    if (activeDeviceId) localStorage.setItem('device_id', activeDeviceId);
     
     const ctxTitle = document.getElementById('ctxDevice');
-    if (ctxTitle) ctxTitle.textContent = `Node: ${deviceId || 'GLOBAL'}`;
+    if (ctxTitle) ctxTitle.textContent = `Node: ${activeDeviceId || 'GLOBAL'}`;
 
     // 1. Initialize Global UI Components (Clock)
     setInterval(() => {
@@ -23,11 +23,22 @@ window.onload = async () => {
     // 3. Load Schema & Initial Data
     await window.API.loadSchema();
     window.UI.HomePositioning.init();
+    window.UI.Upload.init(activeDeviceId);
     window.UI.AI.init();
-    await updateAppLoop(deviceId);
+    await updateAppLoop(activeDeviceId);
+
+    window.APP = {
+        refreshNow: async () => {
+            activeDeviceId = (localStorage.getItem('device_id') || activeDeviceId || '').trim();
+            await updateAppLoop(activeDeviceId);
+        },
+    };
 
     // 4. Start Interval
-    setInterval(() => updateAppLoop(deviceId), 15000);
+    setInterval(() => {
+        activeDeviceId = (localStorage.getItem('device_id') || activeDeviceId || '').trim();
+        updateAppLoop(activeDeviceId);
+    }, 15000);
 
     // Initial Resize
     window.UI.switchView('view-home');
