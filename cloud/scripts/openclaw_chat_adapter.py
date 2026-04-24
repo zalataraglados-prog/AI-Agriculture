@@ -1,10 +1,6 @@
-#!/usr/bin/env python3
-"""OpenClaw Chat Adapter v2 — uses `openclaw agent --local` via subprocess.
 
-Speed: ~1.8s per turn .
-Multi-turn: adapter caches history, injects into prompt.
-Streaming: SSE char-by-char after reply received.
-Knowledge: loads AI-ag-agent-skill.md.
+#!/usr/bin/env python3
+"""
 
 JSON contract:
   Input:  {"message": "...", "context": {"current_vwc": 25.5, ...}, "session_id": "..."}
