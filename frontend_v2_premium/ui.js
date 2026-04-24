@@ -34,8 +34,13 @@ window.UI = (() => {
     };
 
     const switchView = (viewId, el) => {
-        if (el) {
-            document.querySelectorAll('.sidebar-item').forEach((item) => item.classList.remove('active'));
+        const navTargets = document.querySelectorAll('.nav-target');
+        navTargets.forEach((item) => item.classList.remove('active'));
+        const mappedView = viewId === 'view-sensor-detail' ? 'view-home' : viewId;
+        const matched = document.querySelectorAll(`.nav-target[data-view="${mappedView}"]`);
+        if (matched.length) {
+            matched.forEach((item) => item.classList.add('active'));
+        } else if (el) {
             el.classList.add('active');
         }
 
