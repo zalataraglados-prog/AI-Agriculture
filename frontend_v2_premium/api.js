@@ -133,10 +133,25 @@ window.API = (() => {
         return `${num.toFixed(digits)}${suffix}`;
     };
 
+    const parseInputDate = (value) => {
+        if (!value) return null;
+        const text = `${value}`.trim();
+        if (!text) return null;
+        const dt = new Date(text);
+        if (!Number.isFinite(dt.getTime())) return null;
+        return dt;
+    };
+
     const fetchHistory = async (deviceIds, hours = 24, limit = 1000, explicitStart = null, explicitEnd = null) => {
         const ids = Array.isArray(deviceIds) ? deviceIds : [deviceIds];
-        const end = explicitEnd ? new Date(explicitEnd) : new Date();
-        const start = explicitStart ? new Date(explicitStart) : new Date(end.getTime() - hours * 3600 * 1000);
+        if (!ids.length) return [];
+        const parsedEnd = parseInputDate(explicitEnd);
+        const parsedStart = parseInputDate(explicitStart);
+        const end = parsedEnd || new Date();
+        const start = parsedStart || new Date(end.getTime() - hours * 3600 * 1000);
+        // datetime-local values are usually minute precision, while backend uses [start, end).
+        // Expand end by one minute to keep user-selected final minute included.
+        const endExclusive = explicitEnd ? new Date(end.getTime() + 60 * 1000) : end;
 
         // Retry a single fetch up to maxRetries times with a small delay
         const fetchWithRetry = async (url, maxRetries = 2, delayMs = 600) => {
@@ -159,7 +174,7 @@ window.API = (() => {
             const url = apiUrl('/api/v1/telemetry', {
                 device_id: id,
                 start_time: start.toISOString(),
-                end_time: end.toISOString(),
+                end_time: endExclusive.toISOString(),
                 limit: Math.max(DEFAULT_LIMIT, Math.min(limit, 1000)),
             });
             return fetchWithRetry(url);
@@ -176,7 +191,7 @@ window.API = (() => {
         // Deduplicate based on exact timestamp and sensor to prevent render glitches
         const uniqueRows = new Map();
         combinedRows.forEach(row => {
-            const key = `${row.ts}_${row.sensor_id}`;
+            const key = `${row.device_id || ''}_${row.sensor_id || ''}_${row.ts || ''}`;
             uniqueRows.set(key, row);
         });
 

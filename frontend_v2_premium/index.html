@@ -78,15 +78,15 @@
 
       <!-- Navigation Menu -->
       <nav class="flex-1 mt-4">
-          <div id="nav-home" class="sidebar-item active" onclick="UI.switchView('view-home', this)">
+          <div id="nav-home" class="sidebar-item nav-target active" data-view="view-home" onclick="UI.switchView('view-home', this)">
               <i class="fa fa-th-large text-xl w-6 text-center"></i>
               <span class="nav-label font-bold tracking-widest text-sm" data-i18n="nav_home">首页</span>
           </div>
-          <div id="nav-charts" class="sidebar-item" onclick="UI.switchView('view-charts', this)">
+          <div id="nav-charts" class="sidebar-item nav-target" data-view="view-charts" onclick="UI.switchView('view-charts', this)">
               <i class="fa fa-line-chart text-xl w-6 text-center"></i>
               <span class="nav-label font-bold tracking-widest text-sm" data-i18n="nav_charts">图表</span>
           </div>
-          <div id="nav-health" class="sidebar-item" onclick="UI.switchView('view-health', this)">
+          <div id="nav-health" class="sidebar-item nav-target" data-view="view-health" onclick="UI.switchView('view-health', this)">
               <i class="fa fa-heartbeat text-xl w-6 text-center"></i>
               <span class="nav-label font-bold tracking-widest text-sm" data-i18n="nav_health">设备健康度</span>
           </div>
@@ -507,6 +507,26 @@
           </section>
       </div>
   </div>
+
+
+  <nav id="mobile-nav" class="fixed bottom-3 left-3 right-3 z-[90] hidden items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/85 px-2 py-2 backdrop-blur-xl shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+      <button class="mobile-nav-item nav-target active" data-view="view-home" onclick="UI.switchView('view-home')">
+          <i class="fa fa-th-large"></i>
+          <span data-i18n="nav_home">??</span>
+      </button>
+      <button class="mobile-nav-item nav-target" data-view="view-charts" onclick="UI.switchView('view-charts')">
+          <i class="fa fa-line-chart"></i>
+          <span data-i18n="nav_charts">??</span>
+      </button>
+      <button class="mobile-nav-item nav-target" data-view="view-health" onclick="UI.switchView('view-health')">
+          <i class="fa fa-heartbeat"></i>
+          <span data-i18n="nav_health">??</span>
+      </button>
+      <button class="mobile-nav-item nav-target" data-view="view-ai" onclick="UI.switchView('view-ai')">
+          <i class="fa fa-comments"></i>
+          <span>AI</span>
+      </button>
+  </nav>
 
   <!-- Modal for Base Skill Preview -->
   <div id="aiSkillModal" class="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
