@@ -169,14 +169,11 @@ window.UI = (() => {
         if (!aiContainer) return;
 
         let data = Array.isArray(imageUploads) ? imageUploads : [];
-        if (!data.length) {
-            // Mock fallback
-            data = [
-                { ts: new Date().toISOString(), predicted_class: 'Healthy (Rice)', disease_rate: 0.02, upload_status: 'inferred' },
-                { ts: new Date(Date.now() - 3600000).toISOString(), predicted_class: 'Blast Detected', disease_rate: 0.88, upload_status: 'inferred' }
-            ];
-        }
         latestImageUploads = data;
+        if (!latestImageUploads.length) {
+            aiContainer.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">${window.t('no_data')}</div>`;
+            return;
+        }
 
         aiContainer.innerHTML = latestImageUploads
             .map((r) => {
@@ -310,6 +307,8 @@ window.UI = (() => {
         selectedCrop: null,
         selectedLocation: null,
         _devicesData: null,
+        _initialized: false,
+        _boundDateInputs: false,
 
         init: async () => {
             // 1. Populate Crop Sectors from API
@@ -369,36 +368,51 @@ window.UI = (() => {
                 `).join('');
             }
 
-            // 3. Set Default Date Range (last 24h)
+            // 3. Set Default Date Range (last 24h) only once, avoid overriding user selection.
             const end = new Date();
             const start = new Date(end.getTime() - 24 * 3600 * 1000);
             const toLocalISO = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-            
             const startInput = document.getElementById('chartStartTime');
             const endInput = document.getElementById('chartEndTime');
             if (startInput) {
-                startInput.value = toLocalISO(start);
-                startInput.addEventListener('change', (e) => {
-                    if (endInput) endInput.min = e.target.value;
-                });
+                if (!startInput.value) {
+                    startInput.value = toLocalISO(start);
+                }
             }
             if (endInput) {
-                endInput.value = toLocalISO(end);
-                endInput.addEventListener('change', (e) => {
-                    if (startInput) startInput.max = e.target.value;
-                });
-                // Initial sync
-                if (startInput) endInput.min = startInput.value;
+                if (!endInput.value) {
+                    endInput.value = toLocalISO(end);
+                }
+            }
+            if (!Charts._boundDateInputs) {
+                if (startInput) {
+                    startInput.addEventListener('change', (e) => {
+                        if (endInput) endInput.min = e.target.value;
+                    });
+                }
+                if (endInput) {
+                    endInput.addEventListener('change', (e) => {
+                        if (startInput) startInput.max = e.target.value;
+                    });
+                }
+                Charts._boundDateInputs = true;
+            }
+            if (startInput && endInput) {
+                endInput.min = startInput.value;
+                startInput.max = endInput.value;
             }
 
             // Global listener to close popover
-            document.addEventListener('click', (e) => {
-                const popover = document.getElementById('sensorPopover');
-                const btn = document.getElementById('sensorSelectBtn');
-                if (popover && !popover.contains(e.target) && !btn.contains(e.target)) {
-                    popover.classList.remove('show-popover');
-                }
-            });
+            if (!Charts._initialized) {
+                document.addEventListener('click', (e) => {
+                    const popover = document.getElementById('sensorPopover');
+                    const btn = document.getElementById('sensorSelectBtn');
+                    if (popover && btn && !popover.contains(e.target) && !btn.contains(e.target)) {
+                        popover.classList.remove('show-popover');
+                    }
+                });
+            }
+            Charts._initialized = true;
         },
 
         togglePopover: (e) => {
@@ -444,7 +458,7 @@ window.UI = (() => {
 
             // Date Validation
             if (startTime && endTime && new Date(startTime) > new Date(endTime)) {
-                container.innerHTML = `<div class="p-20 text-center text-rose-400 italic text-xs">错误：起始时间不能晚于结束时间</div>`;
+                container.innerHTML = `<div class="p-20 text-center text-rose-400 italic text-xs">${window.t('chart_time_invalid') || 'Start time must be before end time'}</div>`;
                 return;
             }
 
@@ -474,13 +488,19 @@ window.UI = (() => {
                 }
             }
             if (deviceIds.length === 0) {
-                const fallbackId = localStorage.getItem('device_id') || 'GATEWAY-01';
-                deviceIds = [fallbackId];
+                const fallbackId = (localStorage.getItem('device_id') || '').trim();
+                if (fallbackId) {
+                    deviceIds = [fallbackId];
+                }
+            }
+            if (deviceIds.length === 0) {
+                container.innerHTML = `<div class="p-20 text-center text-slate-500 italic text-xs">${window.t('no_data')}</div>`;
+                return;
             }
 
             // Show dynamic progress indicator
             const totalDevices = deviceIds.length;
-            container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">${window.t('syncing')} (0 / ${totalDevices} 节点)</div>`;
+            container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">${window.t('syncing')} (0 / ${totalDevices})</div>`;
 
             let history = [];
             try {
@@ -489,7 +509,7 @@ window.UI = (() => {
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('Timeout'), 10000));
                 history = await Promise.race([fetchPromise, timeoutPromise]);
             } catch (err) {
-                console.warn("History fetch failed, using fallback:", err);
+                console.warn('History fetch failed:', err);
             }
 
 
@@ -504,24 +524,35 @@ window.UI = (() => {
                 return;
             }
 
+            if (selectedSensors.length === 0) {
+                container.innerHTML = `<div class="p-20 text-center text-slate-500 italic text-xs">${window.t('no_data')}</div>`;
+                return;
+            }
+
             // Render selected sensors
-            selectedSensors.forEach(sid => {
-                const sensorData = history.filter(r => r.sensor_id === sid);
-                let schema = window.API.getSchema().get(sid);
-                
-
-
+            selectedSensors.forEach((sid) => {
+                const sensorData = history
+                    .filter((r) => r.sensor_id === sid)
+                    .sort((a, b) => new Date(a.ts || 0).getTime() - new Date(b.ts || 0).getTime());
+                const schema = window.API.getSchema().get(sid);
                 if (!schema || sensorData.length === 0) return;
 
                 schema.fields.forEach((fieldSpec, fieldName) => {
                     const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'];
-                    if (!numericTypes.includes(fieldSpec.data_type)) return;
-                    
+                    if (!numericTypes.includes(`${fieldSpec.data_type || ''}`.toLowerCase())) return;
+
+                    const points = sensorData
+                        .map((r) => ({
+                            label: Charts.formatTime(r.ts),
+                            value: Number(r?.fields?.[fieldName]),
+                        }))
+                        .filter((p) => Number.isFinite(p.value));
+                    if (!points.length) return;
+
+                    const values = points.map((p) => p.value);
+                    const yBounds = calcYAxisBounds(values);
+                    const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
                     const canvasId = `canvas-${sid}-${fieldName}`;
-                    
-                    // Calculate Average
-                    const vals = sensorData.map(r => r.fields[fieldName]).filter(v => typeof v === 'number');
-                    const avg = vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length) : null;
 
                     const card = document.createElement('div');
                     card.className = 'chart-card';
@@ -533,12 +564,12 @@ window.UI = (() => {
                                 </div>
                                 <div>
                                     <h4 class="text-xs font-black text-white uppercase tracking-widest">${sid} / ${fieldSpec.label} ${fieldSpec.unit ? `(${fieldSpec.unit})` : ''}</h4>
-                                    <p class="text-[9px] text-slate-500 font-mono">HASH: ${btoa(sid+fieldName).slice(0,8)}</p>
+                                    <p class="text-[9px] text-slate-500 font-mono">HASH: ${btoa(sid + fieldName).slice(0, 8)}</p>
                                 </div>
                             </div>
                             <div class="avg-badge">
                                 <div class="text-[8px] uppercase font-bold text-emerald-500/50 mr-2">${window.t('mean_value')}</div>
-                                <span class="text-sm font-black">${avg !== null ? window.API.formatNumeric(avg, fieldSpec.unit) : '--'}</span>
+                                <span class="text-sm font-black">${window.API.formatNumeric(avg, fieldSpec.unit)}</span>
                             </div>
                         </div>
                         <div class="h-72">
@@ -555,19 +586,19 @@ window.UI = (() => {
                     const newChart = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: sensorData.map(r => Charts.formatTime(r.ts)),
+                            labels: points.map((p) => p.label),
                             datasets: [{
                                 label: fieldSpec.label,
-                                data: sensorData.map(r => r.fields[fieldName]),
-                                borderColor: '#fff',
+                                data: points.map((p) => p.value),
+                                borderColor: '#ffffff',
                                 backgroundColor: grad,
                                 borderWidth: 2,
-                                tension: 0.4,
+                                tension: 0.35,
                                 fill: true,
                                 pointRadius: 0,
-                                pointHoverRadius: 6,
+                                pointHoverRadius: 5,
                                 pointHoverBackgroundColor: '#10b981',
-                                pointHoverBorderColor: '#fff',
+                                pointHoverBorderColor: '#ffffff',
                                 pointHoverBorderWidth: 2
                             }]
                         },
@@ -575,24 +606,28 @@ window.UI = (() => {
                             responsive: true,
                             maintainAspectRatio: false,
                             interaction: { intersect: false, mode: 'index' },
-                            plugins: { 
+                            plugins: {
                                 legend: { display: false },
-                                tooltip: { 
+                                tooltip: {
                                     displayColors: false,
                                     callbacks: {
                                         label: (context) => {
                                             const val = context.parsed.y;
-                                            return `${fieldSpec.label}: ${val} ${fieldSpec.unit || ''}`;
+                                            return `${fieldSpec.label}: ${window.API.formatNumeric(val, fieldSpec.unit)}`;
                                         }
                                     }
                                 }
                             },
                             scales: {
-                                x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
-                                y: { 
-                                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }
+                                },
+                                y: {
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
                                     ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 } },
-                                    suggestedMin: 0
+                                    min: yBounds.min,
+                                    max: yBounds.max
                                 }
                             }
                         }
@@ -601,10 +636,22 @@ window.UI = (() => {
                 });
             });
 
-            // Vision Integration
+            // Vision integration (real uploads only, no mock frames)
             if (showImages) {
                 const visionCard = document.createElement('div');
                 visionCard.className = 'chart-card border-emerald-500/20';
+                const startMs = startTime ? new Date(startTime).getTime() : null;
+                const endMs = endTime ? new Date(endTime).getTime() + 60 * 1000 : null;
+                const visionRows = latestImageUploads
+                    .filter((row) => {
+                        const ts = new Date(row?.captured_at || row?.received_at || 0).getTime();
+                        if (!Number.isFinite(ts)) return false;
+                        if (startMs !== null && ts < startMs) return false;
+                        if (endMs !== null && ts >= endMs) return false;
+                        return true;
+                    })
+                    .sort((a, b) => new Date(b?.captured_at || b?.received_at || 0).getTime() - new Date(a?.captured_at || a?.received_at || 0).getTime())
+                    .slice(0, 12);
                 visionCard.innerHTML = `
                     <div class="flex items-center justify-between mb-6">
                          <h4 class="text-xs font-black text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -612,18 +659,29 @@ window.UI = (() => {
                          </h4>
                     </div>
                     <div id="visionTimeline" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        <!-- Simplified mock vision frames matching the timeline -->
-                        ${[1,2,3,4,5,6].map(i => `
-                            <div class="aspect-[4/3] bg-black/40 rounded-xl border border-white/5 overflow-hidden group relative">
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <i class="fa fa-camera text-white/5 text-4xl group-hover:scale-110 transition-transform"></i>
-                                </div>
-                                <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-                                    <span class="text-[8px] text-white/40 font-mono">FRAME_0${i}</span>
-                                    <span class="text-[8px] text-emerald-500/60 font-black">SYNC</span>
-                                </div>
-                            </div>
-                        `).join('')}
+                        ${
+                            visionRows.length
+                                ? visionRows.map((row) => {
+                                    const imgUrl = row.upload_id
+                                        ? `/api/v1/image/file?upload_id=${encodeURIComponent(row.upload_id)}`
+                                        : (row.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(row.saved_path)}` : '');
+                                    const title = `${row.predicted_class || '-'} / ${formatDate(row.captured_at || row.received_at)}`;
+                                    return `
+                                        <div class="aspect-[4/3] bg-black/40 rounded-xl border border-white/5 overflow-hidden group relative cursor-pointer" onclick="UI.openImagePreview('${imgUrl}', '${title.replace(/'/g, '\\\'')}')">
+                                            ${
+                                                imgUrl
+                                                    ? `<img src="${imgUrl}" alt="${title}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-xs text-slate-500&quot;>${window.t('img_fail')}</div>';" />`
+                                                    : `<div class="w-full h-full flex items-center justify-center text-xs text-slate-500">${window.t('no_data')}</div>`
+                                            }
+                                            <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center bg-black/40 rounded px-1.5 py-0.5">
+                                                <span class="text-[8px] text-white/80 font-mono">${formatDate(row.captured_at || row.received_at)}</span>
+                                                <span class="text-[8px] text-emerald-300 font-black">${row.upload_status || '-'}</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')
+                                : `<div class="col-span-full text-center text-xs text-slate-500 py-8">${window.t('no_data')}</div>`
+                        }
                     </div>
                 `;
                 container.appendChild(visionCard);
@@ -646,11 +704,11 @@ window.UI = (() => {
                 }
             }
 
-            const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            const hhmmss = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
             if (showDate) {
-                return `${d.getMonth() + 1}-${d.getDate()} ${hhmm}`;
+                return `${d.getMonth() + 1}-${d.getDate()} ${hhmmss}`;
             }
-            return hhmm;
+            return hhmmss;
         }
     };
 
@@ -666,11 +724,33 @@ window.UI = (() => {
             const container = document.getElementById('healthServerList');
             if (!container) return;
 
+            const telemetry = window.API.getTelemetry();
+            const hasTelemetry = telemetry.length > 0;
+            const imageRows = Array.isArray(latestImageUploads) ? latestImageUploads : [];
+            const inferredCount = imageRows.filter((row) => row?.upload_status === 'inferred').length;
+            const failedCount = imageRows.filter((row) => row?.upload_status === 'failed').length;
+
             const servers = [
-                { name: 'Telemetry Gateway (Rust)', status: 'ok', detail: window.t('server_detail_gateway') },
-                { name: 'AI Inference Hub (FastAPI)', status: 'ok', detail: window.t('server_detail_ai') },
-                { name: 'Data Persistence (Postgres)', status: 'ok', detail: window.t('server_detail_db') },
-                { name: 'Storage CDN (Object)', status: 'warning', detail: window.t('server_detail_cdn') }
+                {
+                    name: 'Telemetry Gateway (Rust)',
+                    status: hasTelemetry ? 'ok' : 'warning',
+                    detail: hasTelemetry ? 'Live telemetry packets are flowing.' : 'No live telemetry in current window.'
+                },
+                {
+                    name: 'AI Inference Hub (FastAPI)',
+                    status: inferredCount > 0 ? 'ok' : (failedCount > 0 ? 'critical' : 'warning'),
+                    detail: inferredCount > 0 ? `Inference completed: ${inferredCount} uploads.` : 'No successful inference in current window.'
+                },
+                {
+                    name: 'Data Persistence (Postgres)',
+                    status: hasTelemetry || imageRows.length > 0 ? 'ok' : 'warning',
+                    detail: hasTelemetry || imageRows.length > 0 ? 'DB-backed APIs returned real records.' : 'No DB-backed records returned yet.'
+                },
+                {
+                    name: 'Storage (Image File API)',
+                    status: imageRows.length > 0 ? 'ok' : 'warning',
+                    detail: imageRows.length > 0 ? 'Image uploads are queryable from cloud API.' : 'No recent image upload records.'
+                }
             ];
 
             container.innerHTML = servers.map(s => `
@@ -688,23 +768,17 @@ window.UI = (() => {
             const container = document.getElementById('healthGatewayList');
             if (!container) return;
 
-            let telemetry = window.API.getTelemetry();
-            let deviceIds = Array.from(new Set(telemetry.map(r => r.device_id).filter(id => id)));
-            
+            const telemetry = window.API.getTelemetry();
+            const deviceIds = Array.from(new Set(telemetry.map(r => r.device_id).filter(id => id)));
             if (deviceIds.length === 0) {
-                // Mock fallback for preview
-                deviceIds = ['GATEWAY-PRIME-01', 'GATEWAY-NODE-02'];
-                telemetry = [
-                    { device_id: 'GATEWAY-PRIME-01', ts: new Date().toISOString() },
-                    { device_id: 'GATEWAY-NODE-02', ts: new Date(Date.now() - 3600000).toISOString() }
-                ];
+                container.innerHTML = `<div class="text-xs text-slate-500 p-3">${window.t('no_data')}</div>`;
+                return;
             }
 
             container.innerHTML = deviceIds.map(id => {
                 const latest = telemetry.find(r => r.device_id === id);
-                const isMock = id.includes('PRIME') || id.includes('NODE');
                 const ts = latest ? latest.ts : new Date().toISOString();
-                const stale = !isMock && (Date.now() - new Date(ts).getTime()) > window.API.GATEWAY_STALE_MS;
+                const stale = (Date.now() - new Date(ts).getTime()) > window.API.GATEWAY_STALE_MS;
                 const status = stale ? 'critical' : 'ok';
                 const statusLabel = stale ? 'OFFLINE / TIMEOUT' : 'CONNECTED / ACTIVE';
 
@@ -731,16 +805,18 @@ window.UI = (() => {
             
             let sensorIds = Array.from(schema.keys());
             if (sensorIds.length === 0) {
-                // Mock fallback for preview
-                sensorIds = ['dht22', 'mq7', 'soil_modbus_02'];
+                sensorIds = Array.from(new Set(telemetry.map(r => r.sensor_id).filter(Boolean)));
+            }
+            if (sensorIds.length === 0) {
+                container.innerHTML = `<div class="text-xs text-slate-500 p-3">${window.t('no_data')}</div>`;
+                return;
             }
 
             container.innerHTML = sensorIds.map(sid => {
                 const latest = telemetry.find(r => r.sensor_id === sid);
-                const isMock = !telemetry.length;
                 const { isFault, reasons } = window.API.detectSensorFault(latest);
-                const status = isMock ? 'ok' : (!latest ? 'warning' : (isFault ? 'critical' : 'ok'));
-                const reasonText = isMock ? 'Simulated Active' : (reasons.length > 0 ? reasons.join(', ') : (latest ? 'Operational' : 'Waiting for data'));
+                const status = !latest ? 'warning' : (isFault ? 'critical' : 'ok');
+                const reasonText = reasons.length > 0 ? reasons.join(', ') : (latest ? 'Operational' : 'Waiting for data');
 
                 return `
                 <div class="status-card health-${status} mb-4">
