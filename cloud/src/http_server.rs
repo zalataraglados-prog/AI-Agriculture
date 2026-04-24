@@ -544,6 +544,11 @@ fn handle_image_file_request(
             q.get("saved_path")
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
+        })
+        .or_else(|| {
+            q.get("path")
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
         });
     let Some(saved_path_raw) = saved_path_raw else {
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
