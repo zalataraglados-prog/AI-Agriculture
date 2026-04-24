@@ -133,18 +133,39 @@ window.API = (() => {
         return `${num.toFixed(digits)}${suffix}`;
     };
 
-    const fetchHistory = async (deviceId, hours = 24, limit = 1000, explicitStart = null, explicitEnd = null) => {
+    const fetchHistory = async (deviceIds, hours = 24, limit = 1000, explicitStart = null, explicitEnd = null) => {
+        const ids = Array.isArray(deviceIds) ? deviceIds : [deviceIds];
         const end = explicitEnd ? new Date(explicitEnd) : new Date();
         const start = explicitStart ? new Date(explicitStart) : new Date(end.getTime() - hours * 3600 * 1000);
         
-        const url = apiUrl('/api/v1/telemetry', {
-            device_id: deviceId,
-            start_time: start.toISOString(),
-            end_time: end.toISOString(),
-            limit: Math.max(DEFAULT_LIMIT, Math.min(limit, 1000)),
+        const fetchPromises = ids.map(id => {
+            const url = apiUrl('/api/v1/telemetry', {
+                device_id: id,
+                start_time: start.toISOString(),
+                end_time: end.toISOString(),
+                limit: Math.max(DEFAULT_LIMIT, Math.min(limit, 1000)),
+            });
+            // Gracefully handle errors per device to avoid breaking the whole chart
+            return fetchJson(url).catch(() => []);
         });
-        const rows = await fetchJson(url);
-        return normalizeTelemetryRows(rows).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+
+        const results = await Promise.all(fetchPromises);
+        let combinedRows = [];
+        results.forEach(rows => {
+            if (Array.isArray(rows)) {
+                combinedRows = combinedRows.concat(rows);
+            }
+        });
+
+        // Deduplicate based on exact timestamp and sensor to prevent render glitches
+        const uniqueRows = new Map();
+        combinedRows.forEach(row => {
+            const key = `${row.ts}_${row.sensor_id}`;
+            uniqueRows.set(key, row);
+        });
+
+        const merged = Array.from(uniqueRows.values());
+        return normalizeTelemetryRows(merged).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     };
 
     const fetchDevices = async () => {

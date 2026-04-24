@@ -451,15 +451,16 @@ window.UI = (() => {
             const showImages = document.getElementById('toggleImages')?.checked;
             const selectedSensors = Array.from(document.querySelectorAll('#sensorSelectionList input:checked')).map(i => i.value);
 
-            // Map selected crop/location to actual device ID
-            let deviceId = '';
+            // Map selected crop/location to ALL actual device IDs
+            let deviceIds = [];
             if (Charts._devicesData && Charts._devicesData.devices) {
-                const matchedDevice = Charts._devicesData.devices.find(d => d.crop_type === Charts.selectedCrop && d.location === Charts.selectedLocation);
-                if (matchedDevice) {
-                    deviceId = matchedDevice.device_id;
-                }
+                const matchedDevices = Charts._devicesData.devices.filter(d => d.crop_type === Charts.selectedCrop && d.location === Charts.selectedLocation);
+                deviceIds = matchedDevices.map(d => d.device_id);
             }
-            if (!deviceId) deviceId = localStorage.getItem('device_id') || 'GATEWAY-01';
+            if (deviceIds.length === 0) {
+                const fallbackId = localStorage.getItem('device_id') || 'GATEWAY-01';
+                deviceIds = [fallbackId];
+            }
 
             // Fetch History with explicit range
             container.innerHTML = `<div class="p-20 text-center text-emerald-400 animate-pulse font-mono text-xs">${window.t('syncing')}</div>`;
@@ -467,7 +468,7 @@ window.UI = (() => {
             let history = [];
             try {
                 // Set a timeout to ensure it doesn't hang in case of network issues
-                const fetchPromise = window.API.fetchHistory(deviceId, 24, 1000, startTime, endTime);
+                const fetchPromise = window.API.fetchHistory(deviceIds, 24, 1000, startTime, endTime);
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('Timeout'), 2000));
                 history = await Promise.race([fetchPromise, timeoutPromise]);
             } catch (err) {
