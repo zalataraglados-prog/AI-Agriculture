@@ -70,6 +70,15 @@ pub(crate) fn parse_tag(query: &HashMap<String, String>) -> Result<ImageUploadTa
     let location = query.get("location").cloned().unwrap_or_default();
     let crop_type = query.get("crop_type").cloned().unwrap_or_default();
     let farm_note = query.get("farm_note").cloned().unwrap_or_default();
+    let capture_mode = query
+        .get("capture_mode")
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| !v.is_empty());
+    let capture_input = query
+        .get("capture_input")
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| !v.is_empty());
+    let farm_note = merge_capture_marker(farm_note, capture_mode.as_deref(), capture_input.as_deref());
 
     Ok(ImageUploadTag {
         device_id,
@@ -78,6 +87,33 @@ pub(crate) fn parse_tag(query: &HashMap<String, String>) -> Result<ImageUploadTa
         crop_type,
         farm_note,
     })
+}
+
+fn merge_capture_marker(base_note: String, capture_mode: Option<&str>, capture_input: Option<&str>) -> String {
+    let Some(mode) = capture_mode else {
+        return base_note;
+    };
+    let normalized_mode = if mode == "manual" || mode == "auto" {
+        mode
+    } else {
+        "auto"
+    };
+    let normalized_input = capture_input.unwrap_or("unknown");
+    let marker = format!("capture_mode={normalized_mode};capture_input={normalized_input}");
+    let trimmed = base_note.trim();
+    if trimmed.is_empty() {
+        return marker;
+    }
+    if trimmed.contains("capture_mode=") {
+        return trimmed
+            .split('|')
+            .map(str::trim)
+            .filter(|part| !part.starts_with("capture_mode="))
+            .chain(std::iter::once(marker.as_str()))
+            .collect::<Vec<_>>()
+            .join(" | ");
+    }
+    format!("{trimmed} | {marker}")
 }
 
 pub(crate) fn parse_multipart_file(

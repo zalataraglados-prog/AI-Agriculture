@@ -533,6 +533,16 @@
   background: rgba(16, 185, 129, 0.12);
 }
 
+.mobile-upload-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.diagnosis-scroll {
+  scrollbar-gutter: stable;
+}
+
 @media (max-width: 1024px) {
   :root {
     --panel-left-w: 320px;
@@ -662,6 +672,10 @@
     width: auto !important;
     max-width: none !important;
   }
+
+  .mobile-upload-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -705,5 +719,13 @@
     border-right: none !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+  }
+
+  .mobile-upload-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnosis-scroll {
+    max-height: 420px !important;
   }
 }

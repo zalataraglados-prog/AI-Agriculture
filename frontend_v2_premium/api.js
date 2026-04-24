@@ -297,6 +297,8 @@ window.API = (() => {
             location: tag?.location || '',
             crop_type: tag?.crop_type || '',
             farm_note: tag?.farm_note || '',
+            capture_mode: tag?.capture_mode || '',
+            capture_input: tag?.capture_input || '',
         });
 
     const uploadImageOnce = ({ file, tag, timeoutMs, onProgress }) =>
