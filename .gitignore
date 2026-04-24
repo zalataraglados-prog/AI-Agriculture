@@ -13,8 +13,6 @@ coverage/
 .env.*
 !.env.example
 *.local
-.venv/
-venv/
 
 # Logs/runtime
 *.log
@@ -32,22 +30,28 @@ Thumbs.db
 *.tmp
 *.temp
 ~$*
-*.iml
 
-# Python
+# Python helper cache
 __pycache__/
 *.pyc
-*.py[cod]
-.pytest_cache/
 
-# Node / frontend
+# Node artifacts (future web/docs tooling)
 node_modules/
-dist/
-build/
 
 # Dataset and model training outputs
-/local_data/
-/outputs/
+/local_data/**
+!/local_data/
+!/local_data/**/
+!/local_data/README.md
+!/local_data/**/README.md
+/outputs/**
+!/outputs/
+!/outputs/**/
+!/outputs/README.md
+!/outputs/**/README.md
 *.pth
 *.pt
 *.onnx
+__pycache__/
+*.pyc
+.pytest_cache/

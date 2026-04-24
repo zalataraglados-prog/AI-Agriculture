@@ -1,0 +1,594 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover
+    import tomli as tomllib  # type: ignore
+
+SERVICE_CLOUD = "ai-agri-cloud-receiver"
+SERVICE_ADAPTER = "openclaw-chat-adapter"
+PORTS = [9000, 8088, 3000, 18789]
+DEFAULT_CONFIG = "/opt/ai-agriculture/cloud/config/sensors.toml"
+DEFAULT_INSTALL_ROOT = "/opt/ai-agriculture/cloud"
+DEFAULT_BINARY = "/opt/ai-agriculture/cloud/bin/ai-agri-cloud-receiver"
+
+
+def run(cmd: list[str], check: bool = False) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, text=True, capture_output=True, check=check)
+
+
+def print_block(title: str, body: str) -> None:
+    print(f"[{title}]")
+    print(body.strip() if body.strip() else "(empty)")
+
+
+def load_receiver_config(config_path: str) -> dict[str, Any]:
+    with open(config_path, "rb") as f:
+        data = tomllib.load(f)
+    return data.get("receiver", {})
+
+
+def resolve_paths(config_path: str) -> dict[str, str]:
+    cfg = load_receiver_config(config_path)
+    config_dir = Path(config_path).resolve().parent
+    if config_dir.name.lower() == "config":
+        base = config_dir.parent
+    else:
+        base = config_dir
+
+    def resolve(key: str, default: str) -> str:
+        raw = str(cfg.get(key, default))
+        p = Path(raw)
+        if not p.is_absolute():
+            p = (base / p).resolve()
+        return str(p)
+
+    return {
+        "config_path": str(Path(config_path).resolve()),
+        "database_url": str(cfg.get("database_url", "")),
+        "registry_path": resolve("registry_path", "state/registry.json"),
+        "token_store_path": resolve("token_store_path", "state/token_store.json"),
+        "telemetry_store_path": resolve("telemetry_store_path", "state/telemetry.jsonl"),
+        "image_index_path": resolve("image_index_path", "state/image_index.jsonl"),
+        "log_path": str((Path(DEFAULT_INSTALL_ROOT) / "log" / "receiver.log").resolve()),
+    }
+
+
+def systemctl_state(service: str) -> str:
+    p = run(["systemctl", "is-active", service])
+    return p.stdout.strip() if p.returncode == 0 else p.stdout.strip() or p.stderr.strip() or "unknown"
+
+
+def _read_cpu_usage_pct(sample_sec: float = 0.2) -> float | None:
+    def read_ticks() -> tuple[int, int] | None:
+        try:
+            with open("/proc/stat", "r", encoding="utf-8") as f:
+                line = f.readline().strip()
+        except OSError:
+            return None
+        parts = line.split()
+        if len(parts) < 5 or parts[0] != "cpu":
+            return None
+        values = [int(x) for x in parts[1:]]
+        idle = values[3] + (values[4] if len(values) > 4 else 0)
+        total = sum(values)
+        return total, idle
+
+    p1 = read_ticks()
+    if p1 is None:
+        return None
+    time.sleep(sample_sec)
+    p2 = read_ticks()
+    if p2 is None:
+        return None
+    total_delta = p2[0] - p1[0]
+    idle_delta = p2[1] - p1[1]
+    if total_delta <= 0:
+        return None
+    return max(0.0, min(100.0, 100.0 * (1.0 - idle_delta / total_delta)))
+
+
+def _read_mem_swap_bytes() -> dict[str, int] | None:
+    data: dict[str, int] = {}
+    try:
+        with open("/proc/meminfo", "r", encoding="utf-8") as f:
+            for line in f:
+                if ":" not in line:
+                    continue
+                key, val = line.split(":", 1)
+                token = val.strip().split()
+                if not token:
+                    continue
+                kb = int(token[0])
+                data[key.strip()] = kb * 1024
+    except (OSError, ValueError):
+        return None
+
+    required = ["MemTotal", "MemAvailable", "SwapTotal", "SwapFree"]
+    if any(k not in data for k in required):
+        return None
+    mem_total = data["MemTotal"]
+    mem_avail = data["MemAvailable"]
+    swap_total = data["SwapTotal"]
+    swap_free = data["SwapFree"]
+    return {
+        "mem_total": mem_total,
+        "mem_used": max(0, mem_total - mem_avail),
+        "swap_total": swap_total,
+        "swap_used": max(0, swap_total - swap_free),
+    }
+
+
+def _fmt_bytes(num: int) -> str:
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    value = float(num)
+    idx = 0
+    while value >= 1024.0 and idx < len(units) - 1:
+        value /= 1024.0
+        idx += 1
+    return f"{value:.1f}{units[idx]}"
+
+
+def cmd_server(_args: argparse.Namespace) -> int:
+    cloud = systemctl_state(SERVICE_CLOUD)
+    adapter = systemctl_state(SERVICE_ADAPTER)
+
+    ports = run(["ss", "-lntup"])
+    lines = []
+    for line in ports.stdout.splitlines():
+        if any(f":{port} " in line or line.rstrip().endswith(f":{port}") for port in PORTS):
+            lines.append(line)
+
+    print(f"cloud_service={cloud}")
+    print(f"chat_adapter_service={adapter}")
+    cpu = _read_cpu_usage_pct()
+    mem = _read_mem_swap_bytes()
+    disk_root = shutil.disk_usage("/")
+    disk_data = shutil.disk_usage(DEFAULT_INSTALL_ROOT if Path(DEFAULT_INSTALL_ROOT).exists() else "/")
+    load = run(["cat", "/proc/loadavg"])
+    load_avg = load.stdout.strip().split()[0:3] if load.returncode == 0 else []
+    print(
+        "cpu_usage="
+        + (f"{cpu:.1f}%" if cpu is not None else "unknown")
+        + (f" load_avg={'/'.join(load_avg)}" if load_avg else "")
+    )
+    if mem is None:
+        print("memory=unknown swap=unknown")
+    else:
+        mem_total = mem["mem_total"]
+        mem_used = mem["mem_used"]
+        swap_total = mem["swap_total"]
+        swap_used = mem["swap_used"]
+        mem_pct = (mem_used / mem_total * 100.0) if mem_total > 0 else 0.0
+        swap_pct = (swap_used / swap_total * 100.0) if swap_total > 0 else 0.0
+        print(
+            f"memory={_fmt_bytes(mem_used)}/{_fmt_bytes(mem_total)} ({mem_pct:.1f}%) "
+            f"swap={_fmt_bytes(swap_used)}/{_fmt_bytes(swap_total)} ({swap_pct:.1f}%)"
+        )
+    print(
+        "disk_root="
+        f"{_fmt_bytes(disk_root.used)}/{_fmt_bytes(disk_root.total)} "
+        f"({disk_root.used / disk_root.total * 100.0:.1f}%)"
+    )
+    print(
+        "disk_cloud="
+        f"{_fmt_bytes(disk_data.used)}/{_fmt_bytes(disk_data.total)} "
+        f"({disk_data.used / disk_data.total * 100.0:.1f}%)"
+    )
+    print("ports=")
+    if lines:
+        for line in lines:
+            print(f"  {line}")
+    else:
+        print("  (no tracked ports listening)")
+    return 0
+
+
+def _service_action(action: str) -> int:
+    services = [SERVICE_CLOUD, SERVICE_ADAPTER]
+    rc = 0
+    for svc in services:
+        p = run(["systemctl", action, svc])
+        if p.returncode != 0:
+            rc = p.returncode
+            print(f"{svc}: {action} failed: {(p.stderr or p.stdout).strip()}")
+        else:
+            print(f"{svc}: {action} ok")
+    return rc
+
+
+def cmd_start(_args: argparse.Namespace) -> int:
+    return _service_action("start")
+
+
+def cmd_stop(_args: argparse.Namespace) -> int:
+    return _service_action("stop")
+
+
+def cmd_restart(_args: argparse.Namespace) -> int:
+    return _service_action("restart")
+
+
+def cmd_log(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args.config)
+    log_path = Path(paths["log_path"])
+    if not log_path.exists():
+        print(f"log file not found: {log_path}")
+        return 1
+    p = run(["tail", "-n", str(args.t), str(log_path)])
+    sys.stdout.write(p.stdout)
+    return 0
+
+
+def _parse_ts(text: str) -> dt.datetime:
+    raw = text.strip().replace("Z", "+00:00")
+    return dt.datetime.fromisoformat(raw)
+
+
+def cmd_database(args: argparse.Namespace) -> int:
+    path = Path(args.p)
+    if not path.exists():
+        print(f"path not found: {path}")
+        return 1
+
+    tval = args.t.strip()
+    start: dt.datetime | None = None
+    end: dt.datetime | None = None
+
+    m = re.fullmatch(r"(\d+)m", tval)
+    if m:
+        end = dt.datetime.now(dt.timezone.utc)
+        start = end - dt.timedelta(minutes=int(m.group(1)))
+    else:
+        parts = [x.strip() for x in tval.split(",")]
+        if len(parts) == 2:
+            start = _parse_ts(parts[0])
+            end = _parse_ts(parts[1])
+        else:
+            print("-t must be '<minutes>m' or '<start_rfc3339>,<end_rfc3339>'")
+            return 2
+
+    matched = 0
+    total = 0
+    with path.open("r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            total += 1
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except Exception:
+                continue
+            ts = obj.get("ts") or obj.get("captured_at") or obj.get("received_at")
+            if not ts:
+                continue
+            try:
+                t = _parse_ts(str(ts))
+            except Exception:
+                continue
+            if start and t < start:
+                continue
+            if end and t > end:
+                continue
+            matched += 1
+            if matched <= 20:
+                print(json.dumps(obj, ensure_ascii=False))
+
+    print(f"summary: total_lines={total} matched={matched}")
+    return 0
+
+
+def cmd_check_database(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args.config)
+    dsn = paths["database_url"]
+    if not dsn:
+        print("database_url missing in config")
+        return 1
+    if shutil.which("psql") is None:
+        print("check failed: psql not found in PATH")
+        return 2
+
+    sql = (
+        "SELECT hypertable_name, num_chunks FROM timescaledb_information.hypertables ORDER BY hypertable_name;"
+    )
+    q1 = run(["psql", dsn, "-At", "-c", sql])
+    if q1.returncode != 0:
+        print(f"check failed: {(q1.stderr or q1.stdout).strip()}")
+        return q1.returncode
+
+    q2 = run(
+        [
+            "psql",
+            dsn,
+            "-At",
+            "-c",
+            "SELECT COUNT(*) FROM sensor_telemetry WHERE ts IS NULL;",
+        ]
+    )
+    q3 = run(
+        [
+            "psql",
+            dsn,
+            "-At",
+            "-c",
+            "SELECT COUNT(*) FROM image_uploads WHERE captured_at IS NULL;",
+        ]
+    )
+    print_block("hypertables", q1.stdout)
+    print(f"sensor_telemetry.null_ts={q2.stdout.strip()}")
+    print(f"image_uploads.null_captured_at={q3.stdout.strip()}")
+    return 0
+
+
+def _current_hour_key() -> str:
+    return str(int(time.time()) // 3600)
+
+
+def _cloud_token(config_path: str) -> str:
+    paths = resolve_paths(config_path)
+    p = run([DEFAULT_BINARY, "token", "--config", paths["config_path"]])
+    if p.returncode != 0:
+        raise RuntimeError((p.stderr or p.stdout).strip())
+    return p.stdout.strip().splitlines()[-1].strip()
+
+
+def cmd_token(args: argparse.Namespace) -> int:
+    try:
+        print(_cloud_token(args.config))
+        return 0
+    except Exception as exc:  # noqa: BLE001
+        print(f"token error: {exc}")
+        return 1
+
+
+def cmd_refresh_token(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args.config)
+    store_path = Path(paths["token_store_path"])
+    if not store_path.exists():
+        store = {"hourly_tokens": {}}
+    else:
+        store = json.loads(store_path.read_text(encoding="utf-8"))
+
+    hourly = store.get("hourly_tokens", {})
+    if not isinstance(hourly, dict):
+        hourly = {}
+    hourly.pop(_current_hour_key(), None)
+    store["hourly_tokens"] = hourly
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    store_path.write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    try:
+        print(_cloud_token(args.config))
+        return 0
+    except Exception as exc:  # noqa: BLE001
+        print(f"refresh-token error: {exc}")
+        return 1
+
+
+def cmd_ls_port(_args: argparse.Namespace) -> int:
+    tcp = run(["ss", "-lntpH"])
+    udp = run(["ss", "-lnupH"])
+    entries: dict[tuple[str, int], str] = {}
+
+    def collect(proto: str, text: str) -> None:
+        for line in text.splitlines():
+            m = re.search(r":(\d+)\b", line)
+            if not m:
+                continue
+            port = int(m.group(1))
+            if port not in PORTS:
+                continue
+            entries.setdefault((proto, port), line.strip())
+
+    collect("tcp", tcp.stdout)
+    collect("udp", udp.stdout)
+
+    tcp_lines = [entries[k] for k in sorted(entries) if k[0] == "tcp"]
+    udp_lines = [entries[k] for k in sorted(entries) if k[0] == "udp"]
+    print_block("tcp", "\n".join(tcp_lines))
+    print_block("udp", "\n".join(udp_lines))
+    return 0
+
+
+def _format_duration(sec: int) -> str:
+    if sec < 0:
+        sec = 0
+    d, rem = divmod(sec, 86400)
+    h, rem = divmod(rem, 3600)
+    m, s = divmod(rem, 60)
+    if d:
+        return f"{d}d{h}h{m}m"
+    if h:
+        return f"{h}h{m}m"
+    return f"{m}m{s}s"
+
+
+def cmd_ls_gateway(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args.config)
+    reg = Path(paths["registry_path"])
+    if not reg.exists():
+        print("registry not found")
+        return 1
+    data = json.loads(reg.read_text(encoding="utf-8"))
+    devices = data.get("devices", {})
+    now = int(time.time())
+    if not devices:
+        print("no registered gateways")
+        return 0
+    for device_id, dev in devices.items():
+        ts = int(dev.get("registered_at_epoch_sec", 0))
+        age = _format_duration(now - ts)
+        print(f"device_id={device_id} registered_at={ts} online_for={age}")
+    return 0
+
+
+def cmd_check_gateway(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args.config)
+    log_path = Path(paths["log_path"])
+    if not log_path.exists():
+        print(f"log file not found: {log_path}")
+        return 1
+
+    deadline = time.time() + args.t
+    print(f"watching gateway={args.n} seconds={args.t}")
+    seen = set()
+    while time.time() < deadline:
+        p = run(["grep", "-a", args.n, str(log_path)])
+        lines = [x for x in p.stdout.splitlines() if x not in seen]
+        for line in lines[-20:]:
+            seen.add(line)
+            print(line)
+        time.sleep(1)
+    return 0
+
+
+def cmd_deregister_gateway(args: argparse.Namespace) -> int:
+    paths = resolve_paths(args.config)
+    reg = Path(paths["registry_path"])
+    if not reg.exists():
+        print("registry not found")
+        return 1
+    data = json.loads(reg.read_text(encoding="utf-8"))
+    devices = data.get("devices", {})
+    if args.n not in devices:
+        print(f"device not found: {args.n}")
+        return 1
+    del devices[args.n]
+    data["devices"] = devices
+    reg.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"deregistered: {args.n}")
+    return 0
+
+
+def _ensure_iptables_drop(port: int) -> None:
+    check = run(["iptables", "-C", "INPUT", "-p", "tcp", "--dport", str(port), "-j", "DROP"])
+    if check.returncode != 0:
+        add = run(["iptables", "-I", "INPUT", "-p", "tcp", "--dport", str(port), "-j", "DROP"])
+        if add.returncode != 0:
+            raise RuntimeError((add.stderr or add.stdout).strip())
+
+
+def cmd_lockdown(args: argparse.Namespace) -> int:
+    expected = _cloud_token(args.config)
+    if args.token.strip() != expected:
+        print("token mismatch")
+        return 2
+
+    _service_action("stop")
+    for port in [9000, 8088, 3000]:
+        try:
+            _ensure_iptables_drop(port)
+            print(f"locked tcp/{port}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"lockdown warning tcp/{port}: {exc}")
+    print("lockdown complete")
+    return 0
+
+
+def cmd_version(_args: argparse.Namespace) -> int:
+    p = run(["git", "-C", "/opt/src/AI-Agriculture", "rev-parse", "--short", "HEAD"])
+    if p.returncode == 0:
+        print(p.stdout.strip())
+        return 0
+    print("unknown")
+    return 1
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="AI-ag")
+    parser.add_argument("--config", default=DEFAULT_CONFIG, help="cloud sensors.toml path")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("server")
+    sub.add_parser("start")
+    sub.add_parser("stop")
+    sub.add_parser("restart")
+
+    p_log = sub.add_parser("log")
+    p_log.add_argument("-t", type=int, default=50)
+
+    p_db = sub.add_parser("database")
+    p_db.add_argument("-p", required=True)
+    p_db.add_argument("-t", required=True)
+
+    sub.add_parser("check-database")
+    sub.add_parser("token")
+    sub.add_parser("refresh-token")
+    sub.add_parser("ls-port")
+    sub.add_parser("ls-gateway")
+
+    p_check = sub.add_parser("check-gateway")
+    p_check.add_argument("-n", required=True)
+    p_check.add_argument("-t", type=int, default=30)
+
+    p_dereg = sub.add_parser("deregister-gateway")
+    p_dereg.add_argument("-n", required=True)
+
+    p_lock = sub.add_parser("lockdown")
+    p_lock.add_argument("-token", required=True)
+
+    sub.add_parser("V")
+    sub.add_parser("help")
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    cmd = args.command
+    if cmd == "server":
+        return cmd_server(args)
+    if cmd == "start":
+        return cmd_start(args)
+    if cmd == "stop":
+        return cmd_stop(args)
+    if cmd == "restart":
+        return cmd_restart(args)
+    if cmd == "log":
+        return cmd_log(args)
+    if cmd == "database":
+        return cmd_database(args)
+    if cmd == "check-database":
+        return cmd_check_database(args)
+    if cmd == "token":
+        return cmd_token(args)
+    if cmd == "refresh-token":
+        return cmd_refresh_token(args)
+    if cmd == "ls-port":
+        return cmd_ls_port(args)
+    if cmd == "ls-gateway":
+        return cmd_ls_gateway(args)
+    if cmd == "check-gateway":
+        return cmd_check_gateway(args)
+    if cmd == "deregister-gateway":
+        return cmd_deregister_gateway(args)
+    if cmd == "lockdown":
+        return cmd_lockdown(args)
+    if cmd == "V":
+        return cmd_version(args)
+    if cmd == "help":
+        parser.print_help()
+        return 0
+
+    parser.print_help()
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

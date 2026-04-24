@@ -1,0 +1,40 @@
+# ==============================================================
+# Smart Farm AI Engine — Local Development Compose
+# ==============================================================
+# Usage:
+#   docker compose build
+#   docker compose up -d
+#   curl http://localhost:8000/api/v1/health
+#   docker compose logs -f ai-engine
+#   docker compose down
+# ==============================================================
+
+services:
+  ai-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smart-farm-ai-engine
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount model weights directory (read-only).
+      # Place your best_model.pth inside models/rice_leaf_classifier/
+      - ./models:/app/models:ro
+    environment:
+      - MODEL_CHECKPOINT_PATH=/app/models/rice_leaf_classifier/best_model.pth
+      - MODEL_LABELS_FILE=/app/models/rice_leaf_classifier/labels.json
+      - MODEL_CONFIG_FILE=/app/models/rice_leaf_classifier/config.yaml
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped

@@ -1,76 +1,94 @@
 # AI-Agriculture
-
 智慧农业系统方案 - 新一代 AI + 农业平台。
 
-## 项目概览
+当前仓库以 `cloud` Rust 接收端为核心，支持基于配置的传感器数据规则校验与 ACK 回传。
 
-当前仓库核心为 `gateway` 子项目：
-
+## Quick Start
 - 负责采集（固定负载）并通过 UDP 上报。
 - 使用 Rust 编写，适配 Linux/WSL 场景。
 
-## Quick Start（可直接执行）
+### 1. 环境要求
 
-### 1) 前置依赖
+- Rust 工具链（建议 stable，Edition 2021）
+- Cargo（随 Rust 一起安装）
+- Bash（用于运行脚本；Windows 可用 Git Bash / WSL）
 
-- Rust（建议 stable）
-	- 安装：`https://www.rust-lang.org/tools/install`
-- Linux/WSL 额外系统依赖（串口模式需要）
+### 2. 本地运行 cloud 接收端
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y pkg-config libudev-dev
+cd cloud
+cargo run -- --config config/sensors.toml --bind ${CLOUD_BIND_ADDR:-0.0.0.0:9000} --timeout-ms 0
+```
+*(注：可通过配置 `CLOUD_BIND_ADDR` 环境变量或 `sensors.toml` 更改端口与IP。网关侧及串口波特率配置详见网关子仓文档。)*
+
+### 3. 本地配置冒烟测试（脚本）
+
+```bash
+cd cloud
+chmod +x scripts/local_config_smoke_test.sh
+./scripts/local_config_smoke_test.sh
 ```
 
-### 2) 编译与运行
-
-进入 gateway 目录：
+### 4. 运行自动化测试
 
 ```bash
-cd gateway
-```
-
-最小可运行命令（发送 1 个 UDP 包，不等待 ACK）：
-
-```bash
-cargo run -- --target 127.0.0.1:9000 --count 1 --no-wait-ack
-```
-
-固定负载连续发送（默认 payload 为 `success`）：
-
-```bash
-cargo run -- --target 127.0.0.1:9000
-```
-
-串口模式（MQ-7）：
-
-```bash
-cargo run -- --target 8.134.32.223:9000 --serial-port /dev/ttyUSB0 --serial-baud 115200 --expected-ack ack:mq7
-```
-
-### 3) 运行测试
-
-```bash
-cd gateway
+cd cloud
 cargo test
 ```
 
 ## 技术栈与依赖清单
 
-- 语言：Rust 2021 edition
-- 网关依赖：
-	- `serialport = 4.8.1`（见 `gateway/Cargo.toml`）
-- 系统依赖（Linux/WSL 串口场景）：
-	- `pkg-config`
-	- `libudev-dev`
+### 语言与运行时
 
-说明：本仓库目前主要是 Rust 网关工程，因此依赖入口为 Cargo 生态（`Cargo.toml`），不是 `package.json` 或 `requirements.txt`。
+- Rust（Edition 2021）
 
-## 目录结构
+### 主要依赖（`cloud/Cargo.toml`）
 
-- `gateway/`：Rust UDP 网关
-- `doc/`：文档
+- `serde`（含 `derive`）
+- `toml`
 
-## 许可证
+### 部署相关
 
-本项目采用 MIT License，详见根目录 `LICENSE`。
+- `cloud/deploy.sh`：Linux 服务器一键部署脚本
+- systemd（可选，脚本会优先使用）
+
+## 目录结构（核心）
+
+- `cloud/`：云端 UDP 接收器（Rust）
+- `cloud/config/sensors.toml`：传感器规则配置
+- `cloud/scripts/local_config_smoke_test.sh`：本地脚本 smoke test
+- `cloud/tests/`：集成测试目录
+- `doc/`：协作与流程文档
+
+## 测试说明
+
+- 单元测试：位于 `cloud/src/main.rs` 中
+- 集成 smoke 测试：位于 `cloud/tests/smoke_e2e.rs`
+
+## AI 模块补充说明
+
+- `service/`：本地模型加载与单张图片推理逻辑，详见 `service/README.md`
+- `scripts/`：数据集整理、训练等脚本，详见 `scripts/README.md`
+- `tests/`：AI 模块的 `pytest` 测试代码
+- `models/`：分类模型的配置文件、标签文件与说明
+- `local_data/`：本地数据说明与数据集目录
+- `outputs/`：训练输出与模型产物目录
+
+## Python 依赖与测试补充
+
+如需运行 AI 相关脚本或测试，可在仓库根目录执行：
+
+```bash
+pip install -r requirements.txt
+pytest -q
+```
+
+补充说明：
+
+- 根目录已提供 `pytest.ini`，可直接在仓库根目录运行 `pytest`，无需额外设置 `PYTHONPATH`
+- 如仅需运行 AI 模块测试，可使用 `pytest -q tests`
+- `tests/test_infer_smoke.py` 依赖 `torch` 与 `torchvision`
+
+## License
+
+本项目使用 MIT License，详见根目录 `LICENSE`。
