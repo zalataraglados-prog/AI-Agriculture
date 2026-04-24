@@ -469,7 +469,7 @@ window.UI = (() => {
             try {
                 // Set a timeout to ensure it doesn't hang in case of network issues
                 const fetchPromise = window.API.fetchHistory(deviceIds, 24, 1000, startTime, endTime);
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('Timeout'), 2000));
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('Timeout'), 10000));
                 history = await Promise.race([fetchPromise, timeoutPromise]);
             } catch (err) {
                 console.warn("History fetch failed, using fallback:", err);
