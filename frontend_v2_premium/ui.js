@@ -1092,30 +1092,12 @@ window.UI = (() => {
             handleMainSubmit: async (e) => {
                 if (e) e.preventDefault();
                 if (UI.AI.isTyping) return;
-
                 const input = document.getElementById('aiMainInput');
                 const msg = input.value.trim();
                 if (!msg) return;
-
-                UI.AI.addMessage('user', msg);
                 input.value = '';
-
-                UI.AI.isTyping = true;
-                UI.AI.showLoading();
-
-                try {
-                    // Combine all active instructions
-                    const stack = UI.AI.instructionList.join('\n');
-                    const fullPrompt = stack ? `${stack}\n\nClient Input: ${msg}` : msg;
-                    const reply = await window.CHAT.sendMessageToOpenClaw(fullPrompt);
-                    UI.AI.hideLoading();
-                    UI.AI.addMessage('ai', reply);
-                } catch (err) {
-                    UI.AI.hideLoading();
-                    UI.AI.addMessage('ai', `服务暂时离线: ${err.message}`);
-                } finally {
-                    UI.AI.isTyping = false;
-                }
+                // Delegate to CHAT.handleSubmit for streaming + session_id
+                window.CHAT.handleSubmit({ preventDefault: () => {}, msg: msg });
             },
 
             updateTokenUI: () => {
