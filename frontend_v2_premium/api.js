@@ -137,7 +137,24 @@ window.API = (() => {
         const ids = Array.isArray(deviceIds) ? deviceIds : [deviceIds];
         const end = explicitEnd ? new Date(explicitEnd) : new Date();
         const start = explicitStart ? new Date(explicitStart) : new Date(end.getTime() - hours * 3600 * 1000);
-        
+
+        // Retry a single fetch up to maxRetries times with a small delay
+        const fetchWithRetry = async (url, maxRetries = 2, delayMs = 600) => {
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    const result = await fetchJson(url);
+                    return Array.isArray(result) ? result : [];
+                } catch (err) {
+                    if (attempt === maxRetries) {
+                        console.warn(`[API] fetchHistory: gave up after ${maxRetries + 1} attempts for ${url}`, err);
+                        return [];
+                    }
+                    await new Promise(r => setTimeout(r, delayMs * (attempt + 1)));
+                }
+            }
+            return [];
+        };
+
         const fetchPromises = ids.map(id => {
             const url = apiUrl('/api/v1/telemetry', {
                 device_id: id,
@@ -145,8 +162,7 @@ window.API = (() => {
                 end_time: end.toISOString(),
                 limit: Math.max(DEFAULT_LIMIT, Math.min(limit, 1000)),
             });
-            // Gracefully handle errors per device to avoid breaking the whole chart
-            return fetchJson(url).catch(() => []);
+            return fetchWithRetry(url);
         });
 
         const results = await Promise.all(fetchPromises);
@@ -167,6 +183,7 @@ window.API = (() => {
         const merged = Array.from(uniqueRows.values());
         return normalizeTelemetryRows(merged).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
     };
+
 
     const fetchDevices = async () => {
         let devices = [];
