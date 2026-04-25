@@ -89,6 +89,30 @@ pytest -q
 - 如仅需运行 AI 模块测试，可使用 `pytest -q tests`
 - `tests/test_infer_smoke.py` 依赖 `torch` 与 `torchvision`
 
+## Configuration-First Deployment Notes
+
+Use environment variables or deployment config files to switch environments.
+Do not hardcode a fixed server IP, serial path, or port in code.
+
+Recommended variables:
+
+- `CLOUD_BIND_ADDR` (example: `0.0.0.0:9000`)
+- `AI_PREDICT_URL` (example: `http://ai-engine:8000/api/v1/predict`)
+- `OPENCLAW_URL` (example: `http://openclaw:3000`)
+- `TOKEN_STORE_PATH`, `REGISTRY_PATH`, `TELEMETRY_STORE_PATH`
+- `IMAGE_STORE_PATH`, `IMAGE_INDEX_PATH`, `IMAGE_DB_ERROR_STORE_PATH`
+
+Gateway-side variables (WSL/edge):
+
+- `GATEWAY_CLOUD_TARGET`
+- `GATEWAY_BAUD_LIST`
+- `GATEWAY_MODBUS_PORT`
+- `GATEWAY_IMAGE_UPLOAD_URL` (or compose via gateway config)
+
+Acceptance rule:
+
+- Switch target environment by changing configuration only, without code edits.
+
 ## License
 
 本项目使用 MIT License，详见根目录 `LICENSE`。
