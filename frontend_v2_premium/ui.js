@@ -185,6 +185,52 @@ window.UI = (() => {
         `;
     };
 
+    const inferCaptureMode = (row) => {
+        const explicit = `${row?.capture_mode || ''}`.trim().toLowerCase();
+        if (explicit === 'manual' || explicit === 'auto') return explicit;
+        const note = `${row?.farm_note || ''}`.toLowerCase();
+        if (note.includes('capture_mode=manual')) return 'manual';
+        if (note.includes('capture_mode=auto')) return 'auto';
+        return 'auto';
+    };
+
+    const renderDiagnosisCard = (r, captureMode) => {
+        const state = r.upload_status || 'stored';
+        const diseaseRate = typeof r.disease_rate === 'number' ? `${(r.disease_rate * 100).toFixed(1)}%` : '-';
+        const card =
+            state === 'failed'
+                ? { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20', badge: 'FAILED' }
+                : state === 'inferred'
+                    ? { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', badge: 'INFERRED' }
+                    : { bg: 'bg-white/5', text: 'text-slate-400', border: 'border-white/5', badge: 'STORED' };
+        const modeClass = captureMode === 'manual'
+            ? 'bg-sky-500/15 text-sky-300 border-sky-400/30'
+            : 'bg-violet-500/15 text-violet-300 border-violet-400/30';
+        const modeLabel = captureMode === 'manual' ? 'MANUAL' : 'AUTO';
+        const imgUrl = r.upload_id
+            ? `/api/v1/image/file?upload_id=${encodeURIComponent(r.upload_id)}`
+            : (r.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(r.saved_path)}` : '');
+        const safeUploadId = `${r.upload_id || ''}`.replace(/'/g, "\\'");
+        return `
+            <div class="p-4 border ${card.border} ${card.bg} rounded-xl mb-3">
+                <div class="flex justify-between items-start mb-2 gap-2">
+                    <p class="text-[10px] text-slate-400 font-mono">${formatDate(r.captured_at || r.ts)}</p>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[9px] uppercase font-bold px-2 py-0.5 border rounded-full ${modeClass}">${modeLabel}</span>
+                        <span class="text-[10px] ${card.text} uppercase font-bold">${card.badge}</span>
+                    </div>
+                </div>
+                <h4 class="text-sm font-bold text-white mb-1.5">${r.predicted_class || window.t('processing')}</h4>
+                <p class="text-[11px] text-slate-300 mb-2">${window.t('disease_rate')}: <span class="${card.text} font-semibold">${diseaseRate}</span></p>
+                <div class="h-28 w-full bg-black/30 rounded-lg overflow-hidden border border-white/10 cursor-pointer" onclick="UI.openImagePreview('${imgUrl}', '${safeUploadId}')">
+                    ${imgUrl
+                        ? `<img src="${imgUrl}" alt="${safeUploadId}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-xs text-slate-500&quot;>${window.t('img_fail')}</div>';" />`
+                        : '<div class="w-full h-full flex items-center justify-center text-xs text-slate-500">' + window.t('no_data') + '</div>'}
+                </div>
+            </div>
+        `;
+    };
+
     const renderDiagnosis = (imageUploads) => {
         const aiContainer = document.getElementById('aiDiagnosisContainer');
         if (!aiContainer) return;
@@ -196,37 +242,27 @@ window.UI = (() => {
             return;
         }
 
-        aiContainer.innerHTML = latestImageUploads
-            .map((r) => {
-                const state = r.upload_status || 'stored';
-                const diseaseRate = typeof r.disease_rate === 'number' ? `${(r.disease_rate * 100).toFixed(1)}%` : '-';
-                const card =
-                    state === 'failed'
-                        ? { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20', badge: 'FAILED' }
-                        : state === 'inferred'
-                            ? { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', badge: 'INFERRED' }
-                            : { bg: 'bg-white/5', text: 'text-slate-400', border: 'border-white/5', badge: 'STORED' };
-                const imgUrl = r.upload_id
-                    ? `/api/v1/image/file?upload_id=${encodeURIComponent(r.upload_id)}`
-                    : (r.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(r.saved_path)}` : '');
-                const safeUploadId = `${r.upload_id || ''}`.replace(/'/g, "\\'");
-                return `
-                    <div class="p-4 border ${card.border} ${card.bg} rounded-xl mb-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <p class="text-[10px] text-slate-400 font-mono">${formatDate(r.captured_at || r.ts)}</p>
-                            <span class="text-[10px] ${card.text} uppercase font-bold">${card.badge}</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-2">${r.predicted_class || window.t('processing')}</h4>
-                        <p class="text-[11px] text-slate-300 mb-2">${window.t('disease_rate')}: <span class="${card.text} font-semibold">${diseaseRate}</span></p>
-                        <div class="h-28 w-full bg-black/30 rounded-lg overflow-hidden border border-white/10 cursor-pointer" onclick="UI.openImagePreview('${imgUrl}', '${safeUploadId}')">
-                            ${imgUrl
-                                ? `<img src="${imgUrl}" alt="${safeUploadId}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-xs text-slate-500&quot;>${window.t('img_fail')}</div>';" />`
-                                : '<div class="w-full h-full flex items-center justify-center text-xs text-slate-500">' + window.t('no_data') + '</div>'}
-                        </div>
-                    </div>
-                `;
-            })
-            .join('');
+        const manualRows = latestImageUploads.filter((row) => inferCaptureMode(row) === 'manual');
+        const autoRows = latestImageUploads.filter((row) => inferCaptureMode(row) !== 'manual');
+        const sectionHtml = (title, icon, rows, mode) => `
+            <div class="border border-white/10 rounded-xl p-3 bg-black/20">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-[10px] uppercase tracking-widest font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa ${icon}"></i>${title}
+                    </h4>
+                    <span class="text-[10px] text-slate-400 font-mono">${rows.length}</span>
+                </div>
+                ${
+                    rows.length
+                        ? rows.slice(0, 6).map((row) => renderDiagnosisCard(row, mode)).join('')
+                        : `<div class="text-[11px] text-slate-500 p-3 text-center">${window.t('no_data')}</div>`
+                }
+            </div>
+        `;
+        aiContainer.innerHTML = [
+            sectionHtml('Manual Capture', 'fa-mobile', manualRows, 'manual'),
+            sectionHtml('Auto Pipeline', 'fa-random', autoRows, 'auto'),
+        ].join('');
     };
 
     const openImagePreview = (url, title = '') => {
@@ -326,25 +362,55 @@ window.UI = (() => {
     const Upload = {
         selectedFile: null,
         activeDeviceId: '',
+        selectedInputType: 'album',
+        isMobileClient: false,
 
         init: (deviceId = '') => {
             Upload.activeDeviceId = (deviceId || localStorage.getItem('device_id') || '').trim();
-            const fileInput = document.getElementById('mobileUploadInput');
-            const pickBtn = document.getElementById('mobileUploadPickBtn');
+            const cameraInput = document.getElementById('mobileUploadCameraInput');
+            const fileInput = document.getElementById('mobileUploadFileInput');
+            const cameraBtn = document.getElementById('mobileUploadCameraBtn');
+            const albumBtn = document.getElementById('mobileUploadAlbumBtn');
             const clearBtn = document.getElementById('mobileUploadClearBtn');
             const submitBtn = document.getElementById('mobileUploadSubmitBtn');
-            if (!fileInput || !pickBtn || !submitBtn) return;
+            if (!cameraInput || !fileInput || !cameraBtn || !albumBtn || !submitBtn) return;
 
-            pickBtn.addEventListener('click', () => fileInput.click());
-            fileInput.addEventListener('change', () => {
-                const [file] = fileInput.files || [];
+            Upload.isMobileClient = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+                || window.matchMedia('(max-width: 900px)').matches;
+            if (!Upload.isMobileClient) {
+                cameraBtn.disabled = true;
+                cameraBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                cameraBtn.title = 'Camera capture is mobile-only';
+            }
+
+            const setFileFromInput = (inputEl, inputType) => {
+                Upload.selectedInputType = inputType;
+                const [file] = inputEl.files || [];
                 Upload.selectedFile = file || null;
                 Upload.renderSelectedFile();
+            };
+
+            cameraBtn.addEventListener('click', () => {
+                if (!Upload.isMobileClient) {
+                    Upload.setStatus('拍照按钮仅支持手机端，请改用“相册图片”。', 'warn');
+                    return;
+                }
+                Upload.selectedInputType = 'camera';
+                cameraInput.click();
             });
+            albumBtn.addEventListener('click', () => {
+                Upload.selectedInputType = 'album';
+                fileInput.click();
+            });
+            cameraInput.addEventListener('change', () => setFileFromInput(cameraInput, 'camera'));
+            fileInput.addEventListener('change', () => setFileFromInput(fileInput, 'album'));
+
             if (clearBtn) {
                 clearBtn.addEventListener('click', () => {
                     Upload.selectedFile = null;
                     fileInput.value = '';
+                    cameraInput.value = '';
+                    Upload.selectedInputType = 'album';
                     Upload.setProgress(0);
                     Upload.renderSelectedFile();
                     Upload.setStatus('No image selected.', 'idle');
@@ -352,7 +418,7 @@ window.UI = (() => {
             }
             submitBtn.addEventListener('click', () => Upload.submit());
             Upload.renderSelectedFile();
-            Upload.setStatus('Ready for mobile camera upload.', 'idle');
+            Upload.setStatus(Upload.isMobileClient ? 'Ready for mobile camera upload.' : 'Desktop mode: album upload enabled.', 'idle');
         },
 
         setStatus: (message, level = 'idle') => {
@@ -386,7 +452,8 @@ window.UI = (() => {
             if (nameEl) {
                 if (file) {
                     const mb = (file.size / (1024 * 1024)).toFixed(2);
-                    nameEl.textContent = `${file.name} (${mb} MB)`;
+                    const inputMode = Upload.selectedInputType === 'camera' ? 'camera' : 'album';
+                    nameEl.textContent = `${file.name} (${mb} MB, ${inputMode})`;
                 } else {
                     nameEl.textContent = 'No image selected';
                 }
@@ -404,6 +471,17 @@ window.UI = (() => {
             preview.onload = () => URL.revokeObjectURL(blobUrl);
             preview.classList.remove('hidden');
             emptyState.classList.add('hidden');
+        },
+
+        buildTaggedFarmNote: (baseNote) => {
+            const note = `${baseNote || ''}`.trim();
+            const inputMode = Upload.selectedInputType === 'camera' ? 'camera' : 'album';
+            const marker = `capture_mode=manual;capture_input=${inputMode}`;
+            if (!note) return marker;
+            if (note.includes('capture_mode=')) {
+                return note.replace(/capture_mode=[^;|\s]+(;capture_input=[^;|\s]+)?/i, marker);
+            }
+            return `${note} | ${marker}`;
         },
 
         resolveTag: () => {
@@ -432,12 +510,15 @@ window.UI = (() => {
                 farmNote = pickedDevice.farm_note || '';
                 localStorage.setItem('device_id', deviceId);
             }
+            farmNote = Upload.buildTaggedFarmNote(farmNote);
             return {
                 device_id: deviceId,
                 ts: now,
                 location,
                 crop_type: cropType,
                 farm_note: farmNote,
+                capture_mode: 'manual',
+                capture_input: Upload.selectedInputType === 'camera' ? 'camera' : 'album',
             };
         },
 
@@ -646,12 +727,13 @@ window.UI = (() => {
                 const queryEnd = endTime ? new Date(endTime) : new Date();
                 // Keep devices registered within 7 days before the end of the query window.
                 // This skips obviously stale shadow IDs without affecting real multi-device deployments.
-                const PRUNE_WINDOW_MS = 7 * 24 * 3600 * 1000;
+                const runtime = window.RUNTIME_CONFIG || {};
+                const pruneWindowMs = Number(runtime?.telemetry?.chartPruneWindowMs) || 7 * 24 * 3600 * 1000;
                 const matchedDevices = Charts._devicesData.devices.filter(d => {
                     if (d.crop_type !== Charts.selectedCrop || d.location !== Charts.selectedLocation) return false;
                     if (!d.registered_at_epoch_sec) return true;
                     const registeredAt = d.registered_at_epoch_sec * 1000;
-                    return (queryEnd.getTime() - registeredAt) < PRUNE_WINDOW_MS;
+                    return (queryEnd.getTime() - registeredAt) < pruneWindowMs;
                 });
                 deviceIds = matchedDevices.map(d => d.device_id);
                 // If all were pruned (e.g. user queries very old data), fall back to all matches

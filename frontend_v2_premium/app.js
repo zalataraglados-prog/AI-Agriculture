@@ -4,6 +4,9 @@
  */
 
 window.onload = async () => {
+    const runtime = window.RUNTIME_CONFIG || {};
+    const telemetryCfg = runtime.telemetry || {};
+    const refreshMs = Number(telemetryCfg.chartRefreshMs) || 15000;
     const params = new URLSearchParams(window.location.search);
     let activeDeviceId = (params.get('device_id') || localStorage.getItem('device_id') || '').trim();
     if (activeDeviceId) localStorage.setItem('device_id', activeDeviceId);
@@ -38,7 +41,7 @@ window.onload = async () => {
     setInterval(() => {
         activeDeviceId = (localStorage.getItem('device_id') || activeDeviceId || '').trim();
         updateAppLoop(activeDeviceId);
-    }, 15000);
+    }, refreshMs);
 
     // Initial Resize
     window.UI.switchView('view-home');

@@ -254,10 +254,14 @@
                           <div class="glass-panel p-6">
                               <h2 class="text-sm font-bold text-slate-100 mb-4 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-camera text-blue-400"></i><span>手机图传上传</span></h2>
                               <p class="text-[11px] text-slate-400 mb-4">仅真实链路：图片将通过 <span class="font-mono text-emerald-300">/api/v1/image/upload</span> 上传并触发 AI 入库。</p>
-                              <input id="mobileUploadInput" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif" capture="environment" class="hidden" />
-                              <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-2 mb-3">
-                                  <button id="mobileUploadPickBtn" class="px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-xs text-slate-100 hover:bg-white/20 transition-all">
-                                      <i class="fa fa-camera mr-1"></i>拍照 / 选图
+                              <input id="mobileUploadCameraInput" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif" capture="environment" class="hidden" />
+                              <input id="mobileUploadFileInput" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif" class="hidden" />
+                              <div class="mobile-upload-actions mb-3">
+                                  <button id="mobileUploadCameraBtn" class="px-3 py-2 rounded-lg bg-sky-500/20 border border-sky-400/30 text-xs text-sky-100 hover:bg-sky-500/30 transition-all">
+                                      <i class="fa fa-camera mr-1"></i>手机拍照
+                                  </button>
+                                  <button id="mobileUploadAlbumBtn" class="px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-xs text-slate-100 hover:bg-white/20 transition-all">
+                                      <i class="fa fa-image mr-1"></i>相册图片
                                   </button>
                                   <button id="mobileUploadClearBtn" class="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-xs text-slate-300 hover:text-white transition-all">清空</button>
                                   <button id="mobileUploadSubmitBtn" class="px-3 py-2 rounded-lg bg-emerald-600/80 border border-emerald-400/30 text-xs text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled>上传</button>
@@ -278,7 +282,7 @@
 
                           <div class="glass-panel p-6 flex flex-col">
                               <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-microchip text-rose-400"></i><span data-i18n="ai_feedback">视觉 AI 反馈</span></h2>
-                              <div id="aiDiagnosisContainer" class="flex-1 space-y-4 overflow-y-auto max-h-[250px] pr-2">
+                              <div id="aiDiagnosisContainer" class="diagnosis-scroll flex-1 space-y-4 overflow-y-auto max-h-[360px] pr-2">
                                   <!-- Diagnosis Cards -->
                               </div>
                           </div>
@@ -582,6 +586,7 @@
 
 
   <script src="i18n.js"></script>
+  <script src="runtime-config.js"></script>
   <script src="api.js"></script>
   <script src="ui.js"></script>
   <script src="chat.js"></script>
