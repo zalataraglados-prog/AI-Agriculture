@@ -6,8 +6,10 @@ use serde::Deserialize;
 
 use crate::constants::{
     DEFAULT_ACK_TIMEOUT_MS, DEFAULT_BAUD_LIST, DEFAULT_IMAGE_UPLOAD_INTERVAL_MS,
+    DEFAULT_IMAGE_UPLOAD_PATH, DEFAULT_IMAGE_UPLOAD_PORT, DEFAULT_IMAGE_UPLOAD_SCHEME,
     DEFAULT_SCAN_INTERVAL_MS, DEFAULT_SCAN_WINDOW_MS, DEFAULT_STATE_DIR, DEFAULT_TARGET,
 };
+use crate::serial::ModbusConfig;
 
 #[derive(Debug, Clone)]
 pub enum GatewayCommand {
@@ -28,6 +30,10 @@ pub struct RunConfig {
     pub image_dir: Option<String>,
     pub image_upload_url: Option<String>,
     pub image_upload_interval: Duration,
+    pub image_upload_scheme: String,
+    pub image_upload_port: u16,
+    pub image_upload_path: String,
+    pub modbus: ModbusConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +46,7 @@ pub struct DiagConfig {
     pub state_dir: String,
     pub scan_window: Duration,
     pub baud_list: Vec<u32>,
+    pub modbus: ModbusConfig,
 }
 
 pub fn print_usage(binary: &str) {
@@ -48,6 +55,8 @@ pub fn print_usage(binary: &str) {
   {binary} run [--config <path>] [--target <ip:port>] [--state-dir <dir>] [--scan-interval-ms <ms>]
                [--scan-window-ms <ms>] [--ack-timeout-ms <ms>] [--baud-list <csv>]
                [--image-dir <dir>] [--image-upload-url <url>] [--image-interval-ms <ms>]
+               [--image-upload-scheme <http|https>] [--image-upload-port <1-65535>]
+               [--image-upload-path </api/...>]
   {binary} diag [--state-dir <dir>] [--scan-window-ms <ms>] [--baud-list <csv>]
   {binary} reset [--state-dir <dir>]
 
@@ -58,6 +67,9 @@ Defaults:
   --scan-window-ms {DEFAULT_SCAN_WINDOW_MS}
   --ack-timeout-ms {DEFAULT_ACK_TIMEOUT_MS}
   --image-interval-ms {DEFAULT_IMAGE_UPLOAD_INTERVAL_MS}
+  --image-upload-scheme {DEFAULT_IMAGE_UPLOAD_SCHEME}
+  --image-upload-port {DEFAULT_IMAGE_UPLOAD_PORT}
+  --image-upload-path {DEFAULT_IMAGE_UPLOAD_PATH}
   --baud-list {}
 
 Notes:
@@ -167,6 +179,27 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<RunConfig, String> {
                 ensure_non_zero(value, "--image-interval-ms")?;
                 cfg.image_upload_interval = Duration::from_millis(value);
             }
+            "--image-upload-scheme" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| "Missing value for --image-upload-scheme".to_string())?;
+                cfg.image_upload_scheme = parse_image_upload_scheme(&value)?;
+            }
+            "--image-upload-port" => {
+                let value = parse_u16_arg(
+                    args.next(),
+                    "--image-upload-port",
+                    "Invalid --image-upload-port, expected 1..65535",
+                )?;
+                ensure_non_zero_u16(value, "--image-upload-port")?;
+                cfg.image_upload_port = value;
+            }
+            "--image-upload-path" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| "Missing value for --image-upload-path".to_string())?;
+                cfg.image_upload_path = normalize_image_upload_path(&value)?;
+            }
             "-h" | "--help" => {
                 let binary = env::args().next().unwrap_or_else(|| "gateway".to_string());
                 print_usage(&binary);
@@ -180,10 +213,14 @@ fn parse_run_args(raw_args: Vec<String>) -> Result<RunConfig, String> {
 }
 
 fn parse_diag_args(raw_args: Vec<String>) -> Result<DiagConfig, String> {
+    let mut modbus = ModbusConfig::default();
+    apply_modbus_env_overrides(&mut modbus);
+
     let mut cfg = DiagConfig {
         state_dir: DEFAULT_STATE_DIR.to_string(),
         scan_window: Duration::from_millis(DEFAULT_SCAN_WINDOW_MS),
         baud_list: DEFAULT_BAUD_LIST.to_vec(),
+        modbus,
     };
 
     let mut args = raw_args.into_iter();
@@ -262,6 +299,28 @@ struct RunToml {
     image_dir: Option<String>,
     image_upload_url: Option<String>,
     image_interval_ms: Option<u64>,
+    image_upload_scheme: Option<String>,
+    image_upload_port: Option<u16>,
+    image_upload_path: Option<String>,
+    modbus: Option<ModbusToml>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct ModbusToml {
+    slave_id: Option<u8>,
+    function_code: Option<u8>,
+    start_addr: Option<u16>,
+    reg_count: Option<u16>,
+    response_len: Option<usize>,
+    expected_byte_count: Option<u8>,
+    sensor_id: Option<String>,
+    feature: Option<String>,
+    protocol: Option<String>,
+    default_port: Option<String>,
+    poll_interval_ms: Option<u64>,
+    request_gap_ms: Option<u64>,
+    response_timeout_ms: Option<u64>,
+    discovery_response_timeout_ms: Option<u64>,
 }
 
 fn preprocess_run_args(raw_args: Vec<String>, cfg: &mut RunConfig) -> Result<Vec<String>, String> {
@@ -328,19 +387,42 @@ fn apply_run_config_toml(path: &str, cfg: &mut RunConfig) -> Result<(), String> 
         ensure_non_zero(ms, "run.image_interval_ms")?;
         cfg.image_upload_interval = Duration::from_millis(ms);
     }
+    if let Some(scheme) = run.image_upload_scheme {
+        cfg.image_upload_scheme = parse_image_upload_scheme(&scheme)?;
+    }
+    if let Some(port) = run.image_upload_port {
+        ensure_non_zero_u16(port, "run.image_upload_port")?;
+        cfg.image_upload_port = port;
+    }
+    if let Some(path) = run.image_upload_path {
+        cfg.image_upload_path = normalize_image_upload_path(&path)?;
+    }
+    if let Some(modbus) = run.modbus {
+        apply_modbus_toml(&mut cfg.modbus, modbus)?;
+    }
 
     Ok(())
 }
 
 fn default_run_config() -> RunConfig {
+    let mut modbus = ModbusConfig::default();
+    apply_modbus_env_overrides(&mut modbus);
+
     RunConfig {
         config_path: None,
         target_override: None,
-        state_dir: DEFAULT_STATE_DIR.to_string(),
+        state_dir: env::var("GATEWAY_STATE_DIR")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| DEFAULT_STATE_DIR.to_string()),
         scan_interval: Duration::from_millis(DEFAULT_SCAN_INTERVAL_MS),
         scan_window: Duration::from_millis(DEFAULT_SCAN_WINDOW_MS),
         ack_timeout: Duration::from_millis(DEFAULT_ACK_TIMEOUT_MS),
-        baud_list: DEFAULT_BAUD_LIST.to_vec(),
+        baud_list: env::var("GATEWAY_BAUD_LIST")
+            .ok()
+            .and_then(|v| parse_baud_csv(&v).ok())
+            .unwrap_or_else(|| DEFAULT_BAUD_LIST.to_vec()),
         image_dir: env::var("GATEWAY_IMAGE_DIR")
             .ok()
             .map(|v| v.trim().to_string())
@@ -355,6 +437,20 @@ fn default_run_config() -> RunConfig {
             .filter(|v| *v > 0)
             .map(Duration::from_millis)
             .unwrap_or_else(|| Duration::from_millis(DEFAULT_IMAGE_UPLOAD_INTERVAL_MS)),
+        image_upload_scheme: env::var("GATEWAY_IMAGE_UPLOAD_SCHEME")
+            .ok()
+            .and_then(|v| parse_image_upload_scheme(v.trim()).ok())
+            .unwrap_or_else(|| DEFAULT_IMAGE_UPLOAD_SCHEME.to_string()),
+        image_upload_port: env::var("GATEWAY_IMAGE_UPLOAD_PORT")
+            .ok()
+            .and_then(|v| v.parse::<u16>().ok())
+            .filter(|v| *v > 0)
+            .unwrap_or(DEFAULT_IMAGE_UPLOAD_PORT),
+        image_upload_path: env::var("GATEWAY_IMAGE_UPLOAD_PATH")
+            .ok()
+            .and_then(|v| normalize_image_upload_path(v.trim()).ok())
+            .unwrap_or_else(|| DEFAULT_IMAGE_UPLOAD_PATH.to_string()),
+        modbus,
     }
 }
 
@@ -400,9 +496,184 @@ fn parse_u64_arg(raw: Option<String>, name: &str, invalid_msg: &str) -> Result<u
     value.parse::<u64>().map_err(|_| invalid_msg.to_string())
 }
 
+fn parse_u16_arg(raw: Option<String>, name: &str, invalid_msg: &str) -> Result<u16, String> {
+    let value = raw.ok_or_else(|| format!("Missing value for {name}"))?;
+    value.parse::<u16>().map_err(|_| invalid_msg.to_string())
+}
+
 fn ensure_non_zero(value: u64, flag: &str) -> Result<(), String> {
     if value == 0 {
         return Err(format!("{flag} must be >= 1"));
     }
     Ok(())
+}
+
+fn ensure_non_zero_u16(value: u16, flag: &str) -> Result<(), String> {
+    if value == 0 {
+        return Err(format!("{flag} must be >= 1"));
+    }
+    Ok(())
+}
+
+fn parse_image_upload_scheme(raw: &str) -> Result<String, String> {
+    let lowered = raw.trim().to_ascii_lowercase();
+    match lowered.as_str() {
+        "http" | "https" => Ok(lowered),
+        _ => Err("image upload scheme must be http or https".to_string()),
+    }
+}
+
+fn normalize_image_upload_path(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("image upload path cannot be empty".to_string());
+    }
+    if trimmed.starts_with('/') {
+        return Ok(trimmed.to_string());
+    }
+    Ok(format!("/{trimmed}"))
+}
+
+fn apply_modbus_toml(modbus: &mut ModbusConfig, patch: ModbusToml) -> Result<(), String> {
+    if let Some(v) = patch.slave_id {
+        modbus.slave_id = v;
+    }
+    if let Some(v) = patch.function_code {
+        modbus.function_code = v;
+    }
+    if let Some(v) = patch.start_addr {
+        modbus.start_addr = v;
+    }
+    if let Some(v) = patch.reg_count {
+        modbus.reg_count = v;
+    }
+    if let Some(v) = patch.response_len {
+        if v < 5 {
+            return Err("run.modbus.response_len must be >= 5".to_string());
+        }
+        modbus.response_len = v;
+    }
+    if let Some(v) = patch.expected_byte_count {
+        modbus.expected_byte_count = v;
+    }
+    if let Some(v) = patch.sensor_id {
+        if !v.trim().is_empty() {
+            modbus.sensor_id = v.trim().to_string();
+        }
+    }
+    if let Some(v) = patch.feature {
+        if !v.trim().is_empty() {
+            modbus.feature = v.trim().to_string();
+        }
+    }
+    if let Some(v) = patch.protocol {
+        if !v.trim().is_empty() {
+            modbus.protocol = v.trim().to_string();
+        }
+    }
+    if let Some(v) = patch.default_port {
+        if !v.trim().is_empty() {
+            modbus.default_port = v.trim().to_string();
+        }
+    }
+    if let Some(v) = patch.poll_interval_ms {
+        ensure_non_zero(v, "run.modbus.poll_interval_ms")?;
+        modbus.poll_interval_ms = v;
+    }
+    if let Some(v) = patch.request_gap_ms {
+        ensure_non_zero(v, "run.modbus.request_gap_ms")?;
+        modbus.request_gap_ms = v;
+    }
+    if let Some(v) = patch.response_timeout_ms {
+        ensure_non_zero(v, "run.modbus.response_timeout_ms")?;
+        modbus.response_timeout_ms = v;
+    }
+    if let Some(v) = patch.discovery_response_timeout_ms {
+        ensure_non_zero(v, "run.modbus.discovery_response_timeout_ms")?;
+        modbus.discovery_response_timeout_ms = v;
+    }
+    Ok(())
+}
+
+fn apply_modbus_env_overrides(modbus: &mut ModbusConfig) {
+    if let Ok(v) = env::var("GATEWAY_MODBUS_SLAVE_ID") {
+        if let Ok(n) = v.trim().parse::<u8>() {
+            modbus.slave_id = n;
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_FUNCTION_CODE") {
+        if let Ok(n) = v.trim().parse::<u8>() {
+            modbus.function_code = n;
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_START_ADDR") {
+        if let Ok(n) = v.trim().parse::<u16>() {
+            modbus.start_addr = n;
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_REG_COUNT") {
+        if let Ok(n) = v.trim().parse::<u16>() {
+            modbus.reg_count = n;
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_RESPONSE_LEN") {
+        if let Ok(n) = v.trim().parse::<usize>() {
+            if n >= 5 {
+                modbus.response_len = n;
+            }
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_EXPECTED_BYTE_COUNT") {
+        if let Ok(n) = v.trim().parse::<u8>() {
+            modbus.expected_byte_count = n;
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_SENSOR_ID") {
+        if !v.trim().is_empty() {
+            modbus.sensor_id = v.trim().to_string();
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_FEATURE") {
+        if !v.trim().is_empty() {
+            modbus.feature = v.trim().to_string();
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_PROTOCOL") {
+        if !v.trim().is_empty() {
+            modbus.protocol = v.trim().to_string();
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_PORT") {
+        if !v.trim().is_empty() {
+            modbus.default_port = v.trim().to_string();
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_POLL_INTERVAL_MS") {
+        if let Ok(n) = v.trim().parse::<u64>() {
+            if n > 0 {
+                modbus.poll_interval_ms = n;
+            }
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_REQUEST_GAP_MS") {
+        if let Ok(n) = v.trim().parse::<u64>() {
+            if n > 0 {
+                modbus.request_gap_ms = n;
+            }
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_RESPONSE_TIMEOUT_MS") {
+        if let Ok(n) = v.trim().parse::<u64>() {
+            if n > 0 {
+                modbus.response_timeout_ms = n;
+            }
+        }
+    }
+    if let Ok(v) = env::var("GATEWAY_MODBUS_DISCOVERY_RESPONSE_TIMEOUT_MS") {
+        if let Ok(n) = v.trim().parse::<u64>() {
+            if n > 0 {
+                modbus.discovery_response_timeout_ms = n;
+            }
+        }
+    }
 }

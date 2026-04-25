@@ -12,8 +12,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::config::{DiagConfig, GatewayCommand, RunConfig};
 use crate::constants::{
-    DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_IMAGE_UPLOAD_PATH, DEFAULT_PAYLOAD_SUCCESS,
-    DEFAULT_TARGET, RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID,
+    DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_PAYLOAD_SUCCESS, DEFAULT_TARGET, RESERVED_IMAGE_FEATURE,
+    RESERVED_IMAGE_SENSOR_ID,
 };
 use crate::datasource::{DataSource, SerialEsp32DataSource};
 use crate::persist::{
@@ -97,11 +97,15 @@ pub fn run_command(command: GatewayCommand) -> Result<(), String> {
 
 fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     let state_dir = ensure_state_dir(&run_cfg.state_dir)?;
+    let default_target = resolve_default_target();
     let (mut profile, profile_is_new) = match load_profile(&state_dir)? {
         Some(existing) => (existing, false),
         None => {
             println!("[{}][gateway] First-time setup detected.", ts());
-            let created = prompt_initial_profile(run_cfg.target_override.as_deref())?;
+            let created = prompt_initial_profile(
+                run_cfg.target_override.as_deref(),
+                default_target.as_str(),
+            )?;
             save_profile(&state_dir, &created)?;
             (created, true)
         }
@@ -155,7 +159,7 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     let mut running: HashMap<String, JoinHandle<()>> = HashMap::new();
     loop {
         reap_finished_sessions(&mut running);
-        let ports = list_serial_ports()?;
+        let ports = list_serial_ports(&shared.run_cfg.modbus)?;
         if ports.is_empty() {
             println!("[{}][gateway] No serial ports found, waiting...", ts());
         }
@@ -239,7 +243,12 @@ fn discover_device_for_port(
     let mut outcome = PortDiscoveryOutcome::default();
     let mut first_opened_baud: Option<u32> = None;
     for &baud in &shared.run_cfg.baud_list {
-        let result = match discover_on_port(port, baud, shared.run_cfg.scan_window) {
+        let result = match discover_on_port(
+            port,
+            baud,
+            shared.run_cfg.scan_window,
+            &shared.run_cfg.modbus,
+        ) {
             Ok(v) => v,
             Err(_) => continue,
         };
@@ -377,7 +386,7 @@ fn build_image_upload_context(
 
     let upload_url = match run_cfg.image_upload_url.as_ref() {
         Some(v) => v.clone(),
-        None => derive_image_upload_url(&profile.cloud_target),
+        None => derive_image_upload_url(&profile.cloud_target, run_cfg),
     };
 
     Ok(Some(ImageUploadContext {
@@ -387,14 +396,17 @@ fn build_image_upload_context(
     }))
 }
 
-fn derive_image_upload_url(udp_target: &str) -> String {
+fn derive_image_upload_url(udp_target: &str, run_cfg: &RunConfig) -> String {
     let host = udp_target
         .split(':')
         .next()
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .unwrap_or("127.0.0.1");
-    format!("http://{host}:8088{DEFAULT_IMAGE_UPLOAD_PATH}")
+    format!(
+        "{}://{}:{}{}",
+        run_cfg.image_upload_scheme, host, run_cfg.image_upload_port, run_cfg.image_upload_path
+    )
 }
 
 fn try_upload_cycle_image(
@@ -488,19 +500,20 @@ fn run_device_session_loop(
     image_upload_ctx: Option<ImageUploadContext>,
 ) -> Result<(), String> {
     loop {
-        let mut source = match SerialEsp32DataSource::open(&device.port, device.baud) {
-            Ok(s) => s,
-            Err(err) => {
-                eprintln!(
-                    "[{}][gateway] Failed to open {}@{}: {err}. retrying...",
-                    ts(),
-                    device.port,
-                    device.baud
-                );
-                thread::sleep(Duration::from_millis(DEFAULT_DEVICE_LOOP_SLEEP_MS));
-                return Ok(());
-            }
-        };
+        let mut source =
+            match SerialEsp32DataSource::open(&device.port, device.baud, &shared.run_cfg.modbus) {
+                Ok(s) => s,
+                Err(err) => {
+                    eprintln!(
+                        "[{}][gateway] Failed to open {}@{}: {err}. retrying...",
+                        ts(),
+                        device.port,
+                        device.baud
+                    );
+                    thread::sleep(Duration::from_millis(DEFAULT_DEVICE_LOOP_SLEEP_MS));
+                    return Ok(());
+                }
+            };
         println!("[{}][gateway] Session online: {}", ts(), source.name());
         let socket = UdpSocket::bind("0.0.0.0:0")
             .map_err(|e| format!("Failed to bind local UDP socket: {e}"))?;
@@ -648,7 +661,7 @@ fn register_device(
         if target.trim().is_empty() {
             let prompted_target = prompt_line(
                 "Cloud target ip:port:",
-                Some(DEFAULT_TARGET),
+                Some(resolve_default_target().as_str()),
                 &shared.prompt_lock,
             )?;
             let mut profile = shared
@@ -791,7 +804,7 @@ fn extract_device_key_from_register_ack(ack: &str) -> Option<String> {
 
 fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     ensure_state_dir(&cfg.state_dir)?;
-    let ports = list_serial_ports()?;
+    let ports = list_serial_ports(&cfg.modbus)?;
     if ports.is_empty() {
         println!("[{}][gateway][diag] no serial ports detected", ts());
         return Ok(());
@@ -799,7 +812,7 @@ fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     for port in ports {
         println!("[{}][gateway][diag] port={port}", ts());
         for baud in &cfg.baud_list {
-            match discover_on_port(&port, *baud, cfg.scan_window) {
+            match discover_on_port(&port, *baud, cfg.scan_window, &cfg.modbus) {
                 Ok(found) => {
                     if found.known_sensors.is_empty() && found.unknown_features.is_empty() {
                         continue;
@@ -818,12 +831,15 @@ fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     Ok(())
 }
 
-fn prompt_initial_profile(target_override: Option<&str>) -> Result<GatewayProfile, String> {
+fn prompt_initial_profile(
+    target_override: Option<&str>,
+    default_target: &str,
+) -> Result<GatewayProfile, String> {
     let target = match target_override {
         Some(value) => value.to_string(),
         None => prompt_line(
             "Cloud target ip:port:",
-            Some(DEFAULT_TARGET),
+            Some(default_target),
             &Arc::new(Mutex::new(())),
         )?,
     };
@@ -847,6 +863,10 @@ fn prompt_initial_profile(target_override: Option<&str>) -> Result<GatewayProfil
         last_token: if token.is_empty() { None } else { Some(token) },
         device_key: None,
     })
+}
+
+fn resolve_default_target() -> String {
+    env_non_empty("GATEWAY_DEFAULT_TARGET").unwrap_or_else(|| DEFAULT_TARGET.to_string())
 }
 
 fn prompt_trial_field_info(
@@ -964,6 +984,7 @@ mod tests {
     };
     use crate::config::RunConfig;
     use crate::persist::GatewayProfile;
+    use crate::serial::ModbusConfig;
     use std::collections::{BTreeMap, HashSet};
     use std::fs;
     use std::io::{BufRead, BufReader, Read, Write};
@@ -986,12 +1007,28 @@ mod tests {
 
     #[test]
     fn derive_upload_url_from_udp_target() {
+        let cfg = RunConfig {
+            config_path: None,
+            target_override: None,
+            state_dir: "state".to_string(),
+            scan_interval: Duration::from_secs(1),
+            scan_window: Duration::from_millis(500),
+            ack_timeout: Duration::from_millis(500),
+            baud_list: vec![9600],
+            image_dir: None,
+            image_upload_url: None,
+            image_upload_interval: Duration::from_secs(300),
+            image_upload_scheme: "http".to_string(),
+            image_upload_port: 8088,
+            image_upload_path: "/api/v1/image/upload".to_string(),
+            modbus: ModbusConfig::default(),
+        };
         assert_eq!(
-            derive_image_upload_url("8.134.32.223:9000"),
+            derive_image_upload_url("8.134.32.223:9000", &cfg),
             "http://8.134.32.223:8088/api/v1/image/upload"
         );
         assert_eq!(
-            derive_image_upload_url("10.72.40.186:7777"),
+            derive_image_upload_url("10.72.40.186:7777", &cfg),
             "http://10.72.40.186:8088/api/v1/image/upload"
         );
     }
@@ -1088,6 +1125,10 @@ mod tests {
                 image_dir: Some(root.display().to_string()),
                 image_upload_url: Some(ctx.upload_url.clone()),
                 image_upload_interval: Duration::from_secs(300),
+                image_upload_scheme: "http".to_string(),
+                image_upload_port: 8088,
+                image_upload_path: "/api/v1/image/upload".to_string(),
+                modbus: ModbusConfig::default(),
             },
             state_dir: PathBuf::from("state"),
             profile: Arc::new(Mutex::new(GatewayProfile {
@@ -1102,7 +1143,9 @@ mod tests {
         };
 
         try_upload_cycle_image(&ctx, &mut picker, &device, &shared).expect("upload should succeed");
-        let captured = rx.recv_timeout(Duration::from_secs(3)).expect("captured request body");
+        let captured = rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("captured request body");
         assert!(
             contains_subslice(&captured, &image_bytes),
             "multipart body should contain original image bytes unchanged"

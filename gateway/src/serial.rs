@@ -8,14 +8,44 @@ use std::time::{Duration, Instant};
 
 use serialport::{DataBits, Parity, SerialPort, StopBits};
 
-const MODBUS_SLAVE_ID: u8 = 0x02;
-const MODBUS_FUNC_READ_HOLDING: u8 = 0x03;
-const MODBUS_START_ADDR: u16 = 0x0000;
-const MODBUS_REG_COUNT: u16 = 0x0003;
-const MODBUS_RESPONSE_LEN: usize = 11;
-const MODBUS_SENSOR_ID: &str = "soil_modbus_02";
-const MODBUS_FEATURE: &str = "soil_modbus";
-const DEFAULT_MODBUS_PORT: &str = "/dev/ttyUSB0";
+#[derive(Debug, Clone)]
+pub struct ModbusConfig {
+    pub slave_id: u8,
+    pub function_code: u8,
+    pub start_addr: u16,
+    pub reg_count: u16,
+    pub response_len: usize,
+    pub expected_byte_count: u8,
+    pub sensor_id: String,
+    pub feature: String,
+    pub protocol: String,
+    pub default_port: String,
+    pub poll_interval_ms: u64,
+    pub request_gap_ms: u64,
+    pub response_timeout_ms: u64,
+    pub discovery_response_timeout_ms: u64,
+}
+
+impl Default for ModbusConfig {
+    fn default() -> Self {
+        Self {
+            slave_id: 0x02,
+            function_code: 0x03,
+            start_addr: 0x0000,
+            reg_count: 0x0003,
+            response_len: 11,
+            expected_byte_count: 0x06,
+            sensor_id: "soil_modbus_02".to_string(),
+            feature: "soil_modbus".to_string(),
+            protocol: "modbus.rtu.v1".to_string(),
+            default_port: "/dev/ttyUSB0".to_string(),
+            poll_interval_ms: 1000,
+            request_gap_ms: 80,
+            response_timeout_ms: 900,
+            discovery_response_timeout_ms: 650,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct SensorEvent {
@@ -38,12 +68,13 @@ pub struct SerialEsp32Source {
     serial: Box<dyn SerialPort>,
     port: String,
     baud: u32,
+    cfg: ModbusConfig,
     last_poll_at: Option<Instant>,
     poll_interval: Duration,
 }
 
 impl SerialEsp32Source {
-    pub fn open(port: &str, baud: u32) -> Result<Self, String> {
+    pub fn open(port: &str, baud: u32, cfg: &ModbusConfig) -> Result<Self, String> {
         let serial = serialport::new(port, baud)
             .data_bits(DataBits::Eight)
             .parity(Parity::None)
@@ -56,8 +87,9 @@ impl SerialEsp32Source {
             serial,
             port: port.to_string(),
             baud,
+            cfg: cfg.clone(),
             last_poll_at: None,
-            poll_interval: Duration::from_secs(1),
+            poll_interval: Duration::from_millis(cfg.poll_interval_ms.max(1)),
         })
     }
 
@@ -74,8 +106,12 @@ impl SerialEsp32Source {
         }
         self.last_poll_at = Some(Instant::now());
 
-        let request =
-            build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
+        let request = build_modbus_read_holding_request(
+            self.cfg.slave_id,
+            self.cfg.function_code,
+            self.cfg.start_addr,
+            self.cfg.reg_count,
+        );
         self.serial
             .write_all(&request)
             .map_err(|e| format!("Failed to write Modbus request on {}: {e}", self.port))?;
@@ -84,11 +120,15 @@ impl SerialEsp32Source {
             .map_err(|e| format!("Failed to flush Modbus request on {}: {e}", self.port))?;
 
         // Industrial RS485 sensor typically needs a short processing delay before replying.
-        thread::sleep(Duration::from_millis(80));
+        thread::sleep(Duration::from_millis(self.cfg.request_gap_ms.max(1)));
 
-        let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
-        read_exact_with_deadline(&mut *self.serial, &mut frame, Duration::from_millis(900))?;
-        let (temp_raw, vwc_raw, ec_raw) = parse_modbus_response_frame(&frame)?;
+        let mut frame = vec![0_u8; self.cfg.response_len];
+        read_exact_with_deadline(
+            &mut *self.serial,
+            &mut frame,
+            Duration::from_millis(self.cfg.response_timeout_ms.max(1)),
+        )?;
+        let (temp_raw, vwc_raw, ec_raw) = parse_modbus_response_frame(&frame, &self.cfg)?;
 
         let mut fields = BTreeMap::new();
         fields.insert("vwc".to_string(), format!("{:.1}", (vwc_raw as f32) / 10.0));
@@ -97,8 +137,8 @@ impl SerialEsp32Source {
             format!("{:.1}", (temp_raw as f32) / 10.0),
         );
         fields.insert("ec".to_string(), ec_raw.to_string());
-        fields.insert("protocol".to_string(), "modbus.rtu.v1".to_string());
-        fields.insert("slave_id".to_string(), MODBUS_SLAVE_ID.to_string());
+        fields.insert("protocol".to_string(), self.cfg.protocol.clone());
+        fields.insert("slave_id".to_string(), self.cfg.slave_id.to_string());
 
         let raw_line = frame
             .iter()
@@ -107,8 +147,8 @@ impl SerialEsp32Source {
             .join(" ");
 
         Ok(SensorEvent {
-            sensor_id: MODBUS_SENSOR_ID.to_string(),
-            feature: MODBUS_FEATURE.to_string(),
+            sensor_id: self.cfg.sensor_id.clone(),
+            feature: self.cfg.feature.clone(),
             fields,
             raw_line,
         })
@@ -149,7 +189,7 @@ fn read_exact_with_deadline(
     Ok(())
 }
 
-pub fn list_serial_ports() -> Result<Vec<String>, String> {
+pub fn list_serial_ports(cfg: &ModbusConfig) -> Result<Vec<String>, String> {
     if let Ok(port) = env::var("GATEWAY_MODBUS_PORT") {
         let trimmed = port.trim();
         if !trimmed.is_empty() {
@@ -159,7 +199,7 @@ pub fn list_serial_ports() -> Result<Vec<String>, String> {
 
     #[cfg(target_os = "linux")]
     {
-        let default_port = DEFAULT_MODBUS_PORT.to_string();
+        let default_port = cfg.default_port.clone();
         if let Ok(entries) = fs::read_dir("/dev") {
             for entry in entries.flatten() {
                 let Some(name) = entry.file_name().to_str().map(|v| v.to_string()) else {
@@ -175,7 +215,7 @@ pub fn list_serial_ports() -> Result<Vec<String>, String> {
 
     #[cfg(not(target_os = "linux"))]
     {
-        Ok(vec![DEFAULT_MODBUS_PORT.to_string()])
+        Ok(vec![cfg.default_port.clone()])
     }
 }
 
@@ -183,6 +223,7 @@ pub fn discover_on_port(
     port: &str,
     baud: u32,
     window: Duration,
+    cfg: &ModbusConfig,
 ) -> Result<DiscoveryResult, String> {
     let mut serial = serialport::new(port, baud)
         .data_bits(DataBits::Eight)
@@ -196,8 +237,12 @@ pub fn discover_on_port(
     let mut found = DiscoveryResult::default();
 
     while Instant::now() < deadline {
-        let request =
-            build_modbus_read_holding_request(MODBUS_SLAVE_ID, MODBUS_START_ADDR, MODBUS_REG_COUNT);
+        let request = build_modbus_read_holding_request(
+            cfg.slave_id,
+            cfg.function_code,
+            cfg.start_addr,
+            cfg.reg_count,
+        );
         if let Err(err) = serial.write_all(&request) {
             return Err(format!(
                 "Failed to write Modbus probe on {port}@{baud}: {err}"
@@ -209,17 +254,22 @@ pub fn discover_on_port(
             ));
         }
 
-        thread::sleep(Duration::from_millis(80));
+        thread::sleep(Duration::from_millis(cfg.request_gap_ms.max(1)));
 
-        let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
-        match read_exact_with_deadline(&mut *serial, &mut frame, Duration::from_millis(650)) {
+        let mut frame = vec![0_u8; cfg.response_len];
+        match read_exact_with_deadline(
+            &mut *serial,
+            &mut frame,
+            Duration::from_millis(cfg.discovery_response_timeout_ms.max(1)),
+        ) {
             Ok(()) => {
-                if let Ok((temp_raw, vwc_raw, ec_raw)) = parse_modbus_response_frame(&frame) {
+                if let Ok((temp_raw, vwc_raw, ec_raw)) = parse_modbus_response_frame(&frame, cfg) {
                     found.managed_protocol_detected = true;
-                    found.known_sensors.insert(MODBUS_SENSOR_ID.to_string());
+                    found.known_sensors.insert(cfg.sensor_id.clone());
                     if found.sample_lines.is_empty() {
                         found.sample_lines.push(format!(
-                            "MODBUS slave=2 vwc={:.1} temp_c={:.1} ec={}",
+                            "MODBUS slave={} vwc={:.1} temp_c={:.1} ec={}",
+                            cfg.slave_id,
                             (vwc_raw as f32) / 10.0,
                             (temp_raw as f32) / 10.0,
                             ec_raw
@@ -237,10 +287,15 @@ pub fn discover_on_port(
     Ok(found)
 }
 
-fn build_modbus_read_holding_request(slave_id: u8, start_addr: u16, count: u16) -> [u8; 8] {
+fn build_modbus_read_holding_request(
+    slave_id: u8,
+    function_code: u8,
+    start_addr: u16,
+    count: u16,
+) -> [u8; 8] {
     let mut frame = [0_u8; 8];
     frame[0] = slave_id;
-    frame[1] = MODBUS_FUNC_READ_HOLDING;
+    frame[1] = function_code;
     frame[2] = (start_addr >> 8) as u8;
     frame[3] = (start_addr & 0xFF) as u8;
     frame[4] = (count >> 8) as u8;
@@ -252,33 +307,36 @@ fn build_modbus_read_holding_request(slave_id: u8, start_addr: u16, count: u16) 
     frame
 }
 
-fn parse_modbus_response_frame(frame: &[u8]) -> Result<(u16, u16, u16), String> {
-    if frame.len() != MODBUS_RESPONSE_LEN {
+fn parse_modbus_response_frame(
+    frame: &[u8],
+    cfg: &ModbusConfig,
+) -> Result<(u16, u16, u16), String> {
+    if frame.len() != cfg.response_len {
         return Err(format!(
             "Invalid Modbus response length: expected {}, got {}",
-            MODBUS_RESPONSE_LEN,
+            cfg.response_len,
             frame.len()
         ));
     }
 
-    if frame[0] != MODBUS_SLAVE_ID {
+    if frame[0] != cfg.slave_id {
         return Err(format!(
             "Unexpected slave id in response: expected {}, got {}",
-            MODBUS_SLAVE_ID, frame[0]
+            cfg.slave_id, frame[0]
         ));
     }
 
-    if frame[1] != MODBUS_FUNC_READ_HOLDING {
+    if frame[1] != cfg.function_code {
         return Err(format!(
             "Unexpected function code in response: expected {}, got {}",
-            MODBUS_FUNC_READ_HOLDING, frame[1]
+            cfg.function_code, frame[1]
         ));
     }
 
-    if frame[2] != 0x06 {
+    if frame[2] != cfg.expected_byte_count {
         return Err(format!(
-            "Unexpected byte count in response: expected 6, got {}",
-            frame[2]
+            "Unexpected byte count in response: expected {}, got {}",
+            cfg.expected_byte_count, frame[2]
         ));
     }
 
@@ -316,33 +374,34 @@ fn modbus_crc16(data: &[u8]) -> u16 {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_modbus_read_holding_request, modbus_crc16, parse_modbus_response_frame,
-        MODBUS_RESPONSE_LEN,
+        build_modbus_read_holding_request, modbus_crc16, parse_modbus_response_frame, ModbusConfig,
     };
 
     #[test]
     fn build_request_matches_known_bytes() {
-        let frame = build_modbus_read_holding_request(0x02, 0x0000, 0x0003);
+        let frame = build_modbus_read_holding_request(0x02, 0x03, 0x0000, 0x0003);
         assert_eq!(frame, [0x02, 0x03, 0x00, 0x00, 0x00, 0x03, 0x05, 0xF8]);
     }
 
     #[test]
     fn parse_response_maps_registers() {
-        let mut frame = [0_u8; MODBUS_RESPONSE_LEN];
+        let cfg = ModbusConfig::default();
+        let mut frame = [0_u8; 11];
         frame[..9].copy_from_slice(&[0x02, 0x03, 0x06, 0x01, 0x0D, 0x00, 0xF8, 0x01, 0xB0]);
         let crc = modbus_crc16(&frame[..9]);
         frame[9] = (crc & 0xFF) as u8;
         frame[10] = (crc >> 8) as u8;
 
-        let parsed = parse_modbus_response_frame(&frame).expect("should parse");
+        let parsed = parse_modbus_response_frame(&frame, &cfg).expect("should parse");
         assert_eq!(parsed, (269, 248, 432));
     }
 
     #[test]
     fn parse_response_rejects_bad_crc() {
+        let cfg = ModbusConfig::default();
         let frame = [
             0x02, 0x03, 0x06, 0x01, 0x0D, 0x00, 0xF8, 0x01, 0xB0, 0x00, 0x00,
         ];
-        assert!(parse_modbus_response_frame(&frame).is_err());
+        assert!(parse_modbus_response_frame(&frame, &cfg).is_err());
     }
 }
