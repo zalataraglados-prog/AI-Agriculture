@@ -1,4 +1,3 @@
-
 @layer utilities {
   .glass { @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-xl; }
   .glass-panel { @apply bg-slate-800/70 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl; }

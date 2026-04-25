@@ -1,4 +1,12 @@
-
+/**
+ * Chat & Agent — SSE streaming, multi-turn, session-aware.
+ * Sends POST /api/v1/chat/stream (SSE) with /api/v1/chat fallback.
+ * Uses persistent session_id for multi-turn conversation on server side.
+ *
+ * JSON contract:
+ *   Input:  {message, context, session_id}
+ *   Output: {reply}
+ */
 window.CHAT = (() => {
     const SESSION_ID_KEY = 'agri_session_id';
 
