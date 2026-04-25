@@ -380,7 +380,7 @@ window.UI = (() => {
             if (!Upload.isMobileClient) {
                 cameraBtn.disabled = true;
                 cameraBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                cameraBtn.title = 'Camera capture is mobile-only';
+                cameraBtn.title = window.t('mobile_camera_mobile_only');
             }
 
             const setFileFromInput = (inputEl, inputType) => {
@@ -392,7 +392,7 @@ window.UI = (() => {
 
             cameraBtn.addEventListener('click', () => {
                 if (!Upload.isMobileClient) {
-                    Upload.setStatus('拍照按钮仅支持手机端，请改用“相册图片”。', 'warn');
+                    Upload.setStatus(window.t('mobile_camera_mobile_only'), 'warn');
                     return;
                 }
                 Upload.selectedInputType = 'camera';
@@ -413,12 +413,15 @@ window.UI = (() => {
                     Upload.selectedInputType = 'album';
                     Upload.setProgress(0);
                     Upload.renderSelectedFile();
-                    Upload.setStatus('No image selected.', 'idle');
+                    Upload.setStatus(window.t('no_image_selected'), 'idle');
                 });
             }
             submitBtn.addEventListener('click', () => Upload.submit());
             Upload.renderSelectedFile();
-            Upload.setStatus(Upload.isMobileClient ? 'Ready for mobile camera upload.' : 'Desktop mode: album upload enabled.', 'idle');
+            Upload.setStatus(
+                Upload.isMobileClient ? window.t('mobile_ready_camera') : window.t('mobile_ready_desktop'),
+                'idle'
+            );
         },
 
         setStatus: (message, level = 'idle') => {
@@ -455,7 +458,7 @@ window.UI = (() => {
                     const inputMode = Upload.selectedInputType === 'camera' ? 'camera' : 'album';
                     nameEl.textContent = `${file.name} (${mb} MB, ${inputMode})`;
                 } else {
-                    nameEl.textContent = 'No image selected';
+                    nameEl.textContent = window.t('no_image_selected');
                 }
             }
             if (submitBtn) submitBtn.disabled = !file;
@@ -524,7 +527,7 @@ window.UI = (() => {
 
         submit: async () => {
             if (!Upload.selectedFile) {
-                Upload.setStatus('Please select an image first.', 'warn');
+                Upload.setStatus(window.t('mobile_select_first'), 'warn');
                 return;
             }
             const submitBtn = document.getElementById('mobileUploadSubmitBtn');
@@ -532,23 +535,23 @@ window.UI = (() => {
             Upload.setProgress(0);
             const tag = Upload.resolveTag();
             if (!tag.device_id) {
-                Upload.setStatus('No device_id found. Open page with ?device_id=... or register device first.', 'error');
+                Upload.setStatus(window.t('mobile_no_device_id'), 'error');
                 if (submitBtn) submitBtn.disabled = false;
                 return;
             }
-            Upload.setStatus(`Uploading for ${tag.device_id} ...`, 'loading');
+            Upload.setStatus(`${window.t('mobile_uploading_for')} ${tag.device_id} ...`, 'loading');
             try {
                 const result = await window.API.uploadImage({
                     file: Upload.selectedFile,
                     tag,
                     onProgress: (v) => Upload.setProgress(v),
                 });
-                Upload.setStatus(`Upload success: ${result.upload_id || 'accepted'}`, 'success');
+                Upload.setStatus(`${window.t('mobile_upload_success')}: ${result.upload_id || window.t('accepted')}`, 'success');
                 if (window.APP && typeof window.APP.refreshNow === 'function') {
                     await window.APP.refreshNow();
                 }
             } catch (err) {
-                Upload.setStatus(`Upload failed: ${err.message || err}`, 'error');
+                Upload.setStatus(`${window.t('mobile_upload_failed')}: ${err.message || err}`, 'error');
             } finally {
                 if (submitBtn) submitBtn.disabled = !Upload.selectedFile;
             }

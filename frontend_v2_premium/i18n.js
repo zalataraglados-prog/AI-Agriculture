@@ -85,6 +85,73 @@ window.I18N = (() => {
         }
     };
 
+    const EXTRA_I18N = {
+        zh: {
+            mobile_upload_title: '手机图传上传',
+            mobile_upload_desc: '仅真实链路：图片将通过 /api/v1/image/upload 上传并触发 AI 入库。',
+            mobile_camera: '手机拍照',
+            mobile_album: '相册图片',
+            mobile_clear: '清空',
+            mobile_upload: '上传',
+            no_image_selected: '未选择图片',
+            waiting_image: '等待图片...',
+            upload_ready: '已准备上传。',
+            mobile_camera_mobile_only: '拍照按钮仅支持手机端，请改用相册图片。',
+            mobile_ready_camera: '手机端拍照上传已就绪。',
+            mobile_ready_desktop: '桌面模式：已启用相册上传。',
+            mobile_select_first: '请先选择一张图片。',
+            mobile_no_device_id: '未找到 device_id，请使用 ?device_id=... 打开页面或先注册设备。',
+            mobile_uploading_for: '正在上传到设备',
+            mobile_upload_success: '上传成功',
+            mobile_upload_failed: '上传失败',
+            accepted: '已接收',
+        },
+        en: {
+            mobile_upload_title: 'Mobile Image Upload',
+            mobile_upload_desc: 'Real pipeline only: image uploads through /api/v1/image/upload and triggers AI ingestion.',
+            mobile_camera: 'Camera',
+            mobile_album: 'Album',
+            mobile_clear: 'Clear',
+            mobile_upload: 'Upload',
+            no_image_selected: 'No image selected',
+            waiting_image: 'Waiting image...',
+            upload_ready: 'Ready for upload.',
+            mobile_camera_mobile_only: 'Camera capture is mobile-only. Please use Album.',
+            mobile_ready_camera: 'Ready for mobile camera upload.',
+            mobile_ready_desktop: 'Desktop mode: album upload enabled.',
+            mobile_select_first: 'Please select an image first.',
+            mobile_no_device_id: 'No device_id found. Open page with ?device_id=... or register device first.',
+            mobile_uploading_for: 'Uploading for',
+            mobile_upload_success: 'Upload success',
+            mobile_upload_failed: 'Upload failed',
+            accepted: 'accepted',
+        },
+        ms: {
+            mobile_upload_title: 'Muat Naik Imej Mudah Alih',
+            mobile_upload_desc: 'Rantaian sebenar sahaja: imej dimuat naik melalui /api/v1/image/upload dan mencetuskan kemasukan AI.',
+            mobile_camera: 'Kamera',
+            mobile_album: 'Album',
+            mobile_clear: 'Kosongkan',
+            mobile_upload: 'Muat Naik',
+            no_image_selected: 'Tiada imej dipilih',
+            waiting_image: 'Menunggu imej...',
+            upload_ready: 'Sedia untuk muat naik.',
+            mobile_camera_mobile_only: 'Tangkapan kamera hanya untuk mudah alih. Sila guna Album.',
+            mobile_ready_camera: 'Sedia untuk muat naik kamera mudah alih.',
+            mobile_ready_desktop: 'Mod desktop: muat naik album diaktifkan.',
+            mobile_select_first: 'Sila pilih imej dahulu.',
+            mobile_no_device_id: 'Tiada device_id. Buka dengan ?device_id=... atau daftar peranti dahulu.',
+            mobile_uploading_for: 'Memuat naik untuk',
+            mobile_upload_success: 'Muat naik berjaya',
+            mobile_upload_failed: 'Muat naik gagal',
+            accepted: 'diterima',
+        },
+    };
+    Object.keys(EXTRA_I18N).forEach((lang) => {
+        if (!DICT[lang]) DICT[lang] = {};
+        Object.assign(DICT[lang], EXTRA_I18N[lang]);
+    });
+
     const updateDOM = () => {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
@@ -100,6 +167,7 @@ window.I18N = (() => {
         // Update language display in header
         const display = document.getElementById('currentLangDisplay');
         if (display) display.textContent = currentLang.toUpperCase();
+        document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : currentLang;
     };
 
     return {
