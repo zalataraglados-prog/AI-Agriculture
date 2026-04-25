@@ -3,8 +3,20 @@ const deviceId = (params.get('device_id') || localStorage.getItem('device_id') |
 if (deviceId) localStorage.setItem('device_id', deviceId);
 document.getElementById('ctxDevice').textContent = `设备: ${deviceId || 'all'}`;
 
-const GATEWAY_STALE_MS = 5 * 60 * 1000;
-const DISEASE_THRESHOLD = 0.5;
+const runtime = window.DASHBOARD_CONFIG || {};
+const telemetryCfg = runtime.telemetry || {};
+const sensorsCfg = runtime.sensors || {};
+
+const GATEWAY_STALE_MS = Number(telemetryCfg.gatewayStaleMs) || 5 * 60 * 1000;
+const DISEASE_THRESHOLD = Number(telemetryCfg.diseaseThreshold) || 0.5;
+const REFRESH_MS = Number(telemetryCfg.refreshMs) || 15000;
+const TELEMETRY_LIMIT = Number(telemetryCfg.telemetryLimit) || 300;
+const IMAGE_LIMIT = Number(telemetryCfg.imageLimit) || 50;
+const TELEMETRY_TABLE_ROWS = Number(telemetryCfg.telemetryTableRows) || 10;
+const IMAGE_TABLE_ROWS = Number(telemetryCfg.imageTableRows) || 10;
+const FERTILITY_SENSOR_ID = (sensorsCfg.fertilitySensorId || 'soil_modbus_02').trim();
+const FERTILITY_FIELD = (sensorsCfg.fertilityField || 'ec').trim();
+const FERTILITY_UNIT = (sensorsCfg.fertilityUnit || 'μS/cm').trim();
 
 let fertilityChart;
 let faultTrendChart;
@@ -170,9 +182,9 @@ function sensorFaultDevices(latestMap) {
 
 function fertilitySeries(telemetry) {
   const rows = telemetry
-    .filter(r => r.sensor_id === 'soil_modbus_02')
-    .map(r => ({ tsMs: Date.parse(r.ts || ''), ts: r.ts, ec: asNumber(r?.fields?.ec) }))
-    .filter(x => Number.isFinite(x.tsMs) && x.ec !== null)
+    .filter(r => r.sensor_id === FERTILITY_SENSOR_ID)
+    .map(r => ({ tsMs: Date.parse(r.ts || ''), ts: r.ts, value: asNumber(r?.fields?.[FERTILITY_FIELD]) }))
+    .filter(x => Number.isFinite(x.tsMs) && x.value !== null)
     .sort((a, b) => a.tsMs - b.tsMs);
   return rows;
 }
@@ -232,8 +244,8 @@ function fmtRate(value) {
 }
 
 async function loadData() {
-  const telemetryUrl = apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 300 });
-  const imageUrl = apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: 50 });
+  const telemetryUrl = apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: TELEMETRY_LIMIT });
+  const imageUrl = apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: IMAGE_LIMIT });
   const [telemetry, imageUploads] = await Promise.all([
     fetchJson(telemetryUrl).catch(() => []),
     fetchJson(imageUrl).catch(() => [])
@@ -246,7 +258,7 @@ async function loadData() {
   const faultDeviceSet = new Set([...gatewaySet, ...sensorFault.devices]);
 
   const soilRows = fertilitySeries(telemetry);
-  const avgEc = soilRows.length ? (soilRows.reduce((sum, r) => sum + r.ec, 0) / soilRows.length) : null;
+  const avgEc = soilRows.length ? (soilRows.reduce((sum, r) => sum + r.value, 0) / soilRows.length) : null;
 
   const diseaseRates = imageUploads
     .map(r => fmtRate(r.disease_rate))
@@ -256,12 +268,12 @@ async function loadData() {
     : null;
 
   document.getElementById('valDeviceCount').textContent = latestMap.size || '-';
-  document.getElementById('valAvgEc').textContent = avgEc === null ? '-' : `${avgEc.toFixed(1)} μS/cm`;
+  document.getElementById('valAvgEc').textContent = avgEc === null ? '-' : `${avgEc.toFixed(1)} ${FERTILITY_UNIT}`;
   document.getElementById('valFaultDevices').textContent = faultDeviceSet.size || '0';
   document.getElementById('valAvgDiseaseRate').textContent = avgDiseaseRate === null ? '-' : `${(avgDiseaseRate * 100).toFixed(1)}%`;
 
   fertilityChart.data.labels = soilRows.map(r => formatTime(r.ts));
-  fertilityChart.data.datasets[0].data = soilRows.map(r => r.ec);
+  fertilityChart.data.datasets[0].data = soilRows.map(r => r.value);
   fertilityChart.update();
 
   const faultTrend = faultTrendSeries(telemetry, nowMs);
@@ -271,13 +283,15 @@ async function loadData() {
   faultTrendChart.update();
 
   const telemetryBody = document.getElementById('telemetryBody');
-  const telemetryRows = [...telemetry].sort((a, b) => Date.parse(b.ts || '') - Date.parse(a.ts || '')).slice(0, 10);
+  const telemetryRows = [...telemetry]
+    .sort((a, b) => Date.parse(b.ts || '') - Date.parse(a.ts || ''))
+    .slice(0, TELEMETRY_TABLE_ROWS);
   if (!telemetryRows.length) {
     telemetryBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">暂无数据</td></tr>';
   } else {
     telemetryBody.innerHTML = telemetryRows.map(row => {
       const device = row.device_id || '-';
-      const ec = asNumber(row?.fields?.ec);
+      const ec = asNumber(row?.fields?.[FERTILITY_FIELD]);
       const stale = gatewaySet.has(device);
       const sensorResult = detectSensorFault(row);
       let status = '正常';
@@ -286,7 +300,8 @@ async function loadData() {
       if (stale) {
         status = '网关故障';
         statusCls = 'text-red-700 bg-red-50';
-        detail = '最近5分钟无上报';
+        const staleMinutes = Math.max(1, Math.round(GATEWAY_STALE_MS / 60000));
+        detail = `最近${staleMinutes}分钟无上报`;
       } else if (sensorResult.isFault) {
         status = '传感器故障';
         statusCls = 'text-yellow-700 bg-yellow-50';
@@ -295,7 +310,7 @@ async function loadData() {
       return `<tr class="border-b">
         <td class="py-3 px-2">${formatTime(row.ts)}</td>
         <td class="py-3 px-2">${device}<span class="ml-1 text-xs text-gray-400">${row.sensor_id || ''}</span></td>
-        <td class="py-3 px-2">${ec === null ? '-' : `${ec.toFixed(1)} μS/cm`}</td>
+        <td class="py-3 px-2">${ec === null ? '-' : `${ec.toFixed(1)} ${FERTILITY_UNIT}`}</td>
         <td class="py-3 px-2"><span class="text-xs px-2 py-1 rounded-full ${statusCls}">${status}</span></td>
         <td class="py-3 px-2 text-xs text-gray-600">${detail}</td>
       </tr>`;
@@ -303,7 +318,9 @@ async function loadData() {
   }
 
   const imageBody = document.getElementById('imageBody');
-  const imageRows = [...imageUploads].sort((a, b) => Date.parse(b.captured_at || '') - Date.parse(a.captured_at || '')).slice(0, 10);
+  const imageRows = [...imageUploads]
+    .sort((a, b) => Date.parse(b.captured_at || '') - Date.parse(a.captured_at || ''))
+    .slice(0, IMAGE_TABLE_ROWS);
   if (!imageRows.length) {
     imageBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">暂无数据</td></tr>';
   } else {
@@ -335,7 +352,7 @@ window.onload = async () => {
     data: {
       labels: [],
       datasets: [{
-        label: 'EC(μS/cm)',
+        label: `${FERTILITY_FIELD.toUpperCase()}(${FERTILITY_UNIT})`,
         data: [],
         borderColor: '#16a34a',
         backgroundColor: 'rgba(22,163,74,0.1)',
@@ -377,5 +394,5 @@ window.onload = async () => {
 
   await loadSchema();
   await loadData();
-  setInterval(loadData, 15000);
+  setInterval(loadData, REFRESH_MS);
 };
