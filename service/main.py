@@ -100,15 +100,30 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow the Rust cloud backend to call this service
-cors_origins_env = os.environ.get("CORS_ORIGINS", "*")
+# CORS — allow trusted dashboard/backend origins (override in env)
+cors_origins_env = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:8088,http://127.0.0.1:8088",
+)
 allow_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+allow_credentials = os.environ.get("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+allow_methods = [
+    method.strip()
+    for method in os.environ.get("CORS_ALLOW_METHODS", "GET,POST,OPTIONS").split(",")
+    if method.strip()
+]
+allow_headers = [
+    header.strip()
+    for header in os.environ.get("CORS_ALLOW_HEADERS", "Authorization,Content-Type").split(",")
+    if header.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=allow_credentials,
+    allow_methods=allow_methods,
+    allow_headers=allow_headers,
 )
 
 app.include_router(predict_router)

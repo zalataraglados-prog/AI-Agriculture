@@ -17,8 +17,8 @@ pub(crate) const DEFAULT_TELEMETRY_STORE_PATH: &str = "state/telemetry.jsonl";
 pub(crate) const DEFAULT_IMAGE_STORE_PATH: &str = "state/image_uploads";
 pub(crate) const DEFAULT_IMAGE_INDEX_PATH: &str = "state/image_index.jsonl";
 pub(crate) const DEFAULT_IMAGE_DB_ERROR_STORE_PATH: &str = "state/image_upload_errors.jsonl";
-pub(crate) const DEFAULT_AI_PREDICT_URL: &str = "http://127.0.0.1:8000/api/v1/predict";
-pub(crate) const DEFAULT_OPENCLAW_URL: &str = "http://127.0.0.1:3000";
+pub(crate) const DEFAULT_AI_PREDICT_URL: &str = "http://ai-engine:8000/api/v1/predict";
+pub(crate) const DEFAULT_OPENCLAW_URL: &str = "http://openclaw:3000";
 
 pub(crate) fn default_bind() -> String {
     std::env::var("CLOUD_BIND_ADDR").unwrap_or_else(|_| DEFAULT_BIND.to_string())
@@ -33,27 +33,29 @@ pub(crate) fn default_ack_unknown_sensor() -> String {
 }
 
 pub(crate) fn default_token_store_path() -> String {
-    DEFAULT_TOKEN_STORE_PATH.to_string()
+    std::env::var("TOKEN_STORE_PATH").unwrap_or_else(|_| DEFAULT_TOKEN_STORE_PATH.to_string())
 }
 
 pub(crate) fn default_registry_path() -> String {
-    DEFAULT_REGISTRY_PATH.to_string()
+    std::env::var("REGISTRY_PATH").unwrap_or_else(|_| DEFAULT_REGISTRY_PATH.to_string())
 }
 
 pub(crate) fn default_telemetry_store_path() -> String {
-    DEFAULT_TELEMETRY_STORE_PATH.to_string()
+    std::env::var("TELEMETRY_STORE_PATH")
+        .unwrap_or_else(|_| DEFAULT_TELEMETRY_STORE_PATH.to_string())
 }
 
 pub(crate) fn default_image_store_path() -> String {
-    DEFAULT_IMAGE_STORE_PATH.to_string()
+    std::env::var("IMAGE_STORE_PATH").unwrap_or_else(|_| DEFAULT_IMAGE_STORE_PATH.to_string())
 }
 
 pub(crate) fn default_image_index_path() -> String {
-    DEFAULT_IMAGE_INDEX_PATH.to_string()
+    std::env::var("IMAGE_INDEX_PATH").unwrap_or_else(|_| DEFAULT_IMAGE_INDEX_PATH.to_string())
 }
 
 pub(crate) fn default_image_db_error_store_path() -> String {
-    DEFAULT_IMAGE_DB_ERROR_STORE_PATH.to_string()
+    std::env::var("IMAGE_DB_ERROR_STORE_PATH")
+        .unwrap_or_else(|_| DEFAULT_IMAGE_DB_ERROR_STORE_PATH.to_string())
 }
 
 pub(crate) fn default_ai_predict_url() -> String {
