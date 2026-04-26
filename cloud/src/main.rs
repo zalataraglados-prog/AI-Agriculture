@@ -1,4 +1,5 @@
 mod ai_client;
+mod auth;
 mod cli;
 mod config;
 mod constants;
@@ -174,8 +175,9 @@ mod tests {
 
     #[test]
     fn parse_sensor_payload_ok() {
-        let (sensor, fields) = parse_sensor_kv_payload("dht22:device_id=dev01,temp_c=28.0,hum=48.9")
-            .expect("should parse");
+        let (sensor, fields) =
+            parse_sensor_kv_payload("dht22:device_id=dev01,temp_c=28.0,hum=48.9")
+                .expect("should parse");
         assert_eq!(sensor, "dht22");
         assert_eq!(fields.get("temp_c"), Some(&"28.0".to_string()));
         assert_eq!(fields.get("hum"), Some(&"48.9".to_string()));

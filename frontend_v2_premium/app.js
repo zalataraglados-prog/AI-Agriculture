@@ -4,6 +4,10 @@
  */
 
 window.onload = async () => {
+    if (!window.API.requireAuthOrRedirect()) {
+        return;
+    }
+
     const runtime = window.RUNTIME_CONFIG || {};
     const telemetryCfg = runtime.telemetry || {};
     const refreshMs = Number(telemetryCfg.chartRefreshMs) || 15000;

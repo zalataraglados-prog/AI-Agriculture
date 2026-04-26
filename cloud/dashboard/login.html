@@ -51,6 +51,16 @@
   </div>
 
   <script>
+    const AUTH_STORAGE_KEY = 'agri_auth_session_v1';
+
+    function targetAfterLogin(deviceId) {
+      const q = new URLSearchParams(location.search);
+      const next = (q.get('next') || '').trim();
+      if (next) return next;
+      const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
+      return `index.html${query}`;
+    }
+
     async function doLogin() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
@@ -60,10 +70,30 @@
         msg.textContent = '请输入账号和密码';
         return;
       }
-      msg.textContent = '正在进入系统...';
-      if (deviceId) localStorage.setItem('device_id', deviceId);
-      const q = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
-      location.href = `index.html${q}`;
+      msg.textContent = '正在登录...';
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success || !data?.data?.token) {
+          msg.textContent = data?.message || `登录失败（${res.status}）`;
+          return;
+        }
+
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+          token: `${data.data.token}`.trim(),
+          username: `${data.data.username || username}`.trim(),
+          expires_at_epoch_sec: Number(data.data.expires_at_epoch_sec) || 0,
+        }));
+
+        if (deviceId) localStorage.setItem('device_id', deviceId);
+        location.href = targetAfterLogin(deviceId);
+      } catch (err) {
+        msg.textContent = `登录失败: ${err.message || err}`;
+      }
     }
 
     document.getElementById('loginBtn').addEventListener('click', doLogin);
