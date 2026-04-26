@@ -274,3 +274,45 @@ Notes:
 - `run` reads `control-file` every loop, so frequency changes are applied live.
 - Use `--image-path <file>` to upload a real test image; if omitted, it uses a built-in tiny PNG.
 - Use `--max-uploads <n>` for bounded test runs in CI/local smoke.
+
+## Performance observability (P50/P95/P99)
+
+Cloud now exposes in-process latency breakdown metrics for the critical upload pipeline:
+
+- `GET /api/v1/perf/latency`
+
+Returned stages include:
+- `queue_ms`
+- `read_body_ms`
+- `parse_multipart_ms`
+- `save_file_ms`
+- `db_store_ms`
+- `ai_infer_ms`
+- `db_finalize_ms`
+- `response_build_ms`
+- `total_ms`
+
+Each stage reports rolling-window `p50/p95/p99` plus last sample and count.
+
+Example:
+
+```bash
+curl -s http://127.0.0.1:8088/api/v1/perf/latency | jq .
+```
+
+Recommended quick baseline procedure for issue #60:
+
+```bash
+# 1) start pressure run
+python3 scripts/image_stress_cli.py run \
+  --endpoint http://127.0.0.1:8088/api/v1/image/upload \
+  --device-id dev_perf_01 \
+  --interval-sec 1 \
+  --control-file /tmp/image_stress_control.json
+
+# 2) snapshot perf (in another terminal)
+curl -s http://127.0.0.1:8088/api/v1/perf/latency | jq '.image_upload.total_ms.stats'
+
+# 3) stop pressure
+python3 scripts/image_stress_cli.py stop --control-file /tmp/image_stress_control.json
+```

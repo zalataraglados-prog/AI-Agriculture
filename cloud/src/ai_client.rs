@@ -1,6 +1,6 @@
-use std::path::Path;
 use std::time::Instant;
 
+use reqwest::blocking::Client;
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
@@ -15,34 +15,30 @@ pub(crate) struct AiInferenceOutput {
     pub(crate) advice_code: Option<String>,
 }
 
-pub(crate) fn infer_image_from_file(
+pub(crate) fn infer_image_from_bytes(
+    client: &Client,
     predict_url: &str,
-    image_path: &str,
+    image_bytes: &[u8],
+    filename: Option<&str>,
     image_type: &str,
 ) -> Result<AiInferenceOutput, String> {
-    let bytes = std::fs::read(image_path)
-        .map_err(|e| format!("failed to read image file {}: {e}", image_path))?;
-    let filename = Path::new(image_path)
-        .file_name()
-        .and_then(|v| v.to_str())
-        .unwrap_or("upload.bin")
-        .to_string();
+    if image_bytes.is_empty() {
+        return Err("image bytes are empty".to_string());
+    }
+    let filename = filename.unwrap_or("upload.bin").to_string();
     let content_type = match image_type {
         "png" => "image/png",
         _ => "image/jpeg",
     };
 
-    let part = reqwest::blocking::multipart::Part::bytes(bytes)
+    let part = reqwest::blocking::multipart::Part::bytes(image_bytes.to_vec())
         .file_name(filename)
         .mime_str(content_type)
         .map_err(|e| format!("failed to build multipart file part: {e}"))?;
     let form = reqwest::blocking::multipart::Form::new().part("file", part);
 
     let started = Instant::now();
-    let response = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| format!("failed to create AI HTTP client: {e}"))?
+    let response = client
         .post(predict_url)
         .multipart(form)
         .send()
