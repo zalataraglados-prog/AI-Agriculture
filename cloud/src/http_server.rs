@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use tiny_http::{Header, Method, Response, Server};
 
-use crate::ai_client::{infer_image_from_file, AiInferenceOutput};
+use crate::ai_client::{infer_image_from_bytes, AiInferenceOutput};
 use crate::db::{
     DbManager, ImageInferenceDbRecord, ImageUploadDbRecord, ImageUploadQueryFilter,
     SensorTelemetryQueryFilter,
@@ -26,6 +26,7 @@ use crate::time_util::now_rfc3339;
 
 const QUERY_CACHE_TTL_SECONDS: u64 = 15;
 const QUERY_CACHE_MAX_ENTRIES: usize = 500;
+const PERF_METRIC_WINDOW_SIZE: usize = 2048;
 
 #[derive(Debug, Clone)]
 struct QueryCacheEntry {
@@ -39,6 +40,172 @@ struct QueryCache {
     order: VecDeque<String>,
     ttl: Duration,
     capacity: usize,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+struct StagePercentiles {
+    p50_ms: u64,
+    p95_ms: u64,
+    p99_ms: u64,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+struct PipelineStageReport {
+    count: usize,
+    last_ms: u64,
+    stats: StagePercentiles,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+struct PipelinePerfReport {
+    total_requests: u64,
+    success_requests: u64,
+    failed_requests: u64,
+    queue_ms: PipelineStageReport,
+    read_body_ms: PipelineStageReport,
+    parse_multipart_ms: PipelineStageReport,
+    save_file_ms: PipelineStageReport,
+    db_store_ms: PipelineStageReport,
+    ai_infer_ms: PipelineStageReport,
+    db_finalize_ms: PipelineStageReport,
+    response_build_ms: PipelineStageReport,
+    total_ms: PipelineStageReport,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+struct PerfSnapshotPayload {
+    image_upload: PipelinePerfReport,
+    chat_proxy: PipelinePerfReport,
+    sampled_at: String,
+}
+
+#[derive(Debug, Clone)]
+struct StageMetric {
+    values: VecDeque<u64>,
+    capacity: usize,
+    last_ms: u64,
+}
+
+impl StageMetric {
+    fn new(capacity: usize) -> Self {
+        Self {
+            values: VecDeque::with_capacity(capacity),
+            capacity,
+            last_ms: 0,
+        }
+    }
+
+    fn push(&mut self, value_ms: u64) {
+        self.last_ms = value_ms;
+        self.values.push_back(value_ms);
+        while self.values.len() > self.capacity {
+            self.values.pop_front();
+        }
+    }
+
+    fn report(&self) -> PipelineStageReport {
+        PipelineStageReport {
+            count: self.values.len(),
+            last_ms: self.last_ms,
+            stats: compute_percentiles(&self.values),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PipelinePerfMetrics {
+    total_requests: u64,
+    success_requests: u64,
+    failed_requests: u64,
+    queue_ms: StageMetric,
+    read_body_ms: StageMetric,
+    parse_multipart_ms: StageMetric,
+    save_file_ms: StageMetric,
+    db_store_ms: StageMetric,
+    ai_infer_ms: StageMetric,
+    db_finalize_ms: StageMetric,
+    response_build_ms: StageMetric,
+    total_ms: StageMetric,
+}
+
+impl PipelinePerfMetrics {
+    fn new(capacity: usize) -> Self {
+        Self {
+            total_requests: 0,
+            success_requests: 0,
+            failed_requests: 0,
+            queue_ms: StageMetric::new(capacity),
+            read_body_ms: StageMetric::new(capacity),
+            parse_multipart_ms: StageMetric::new(capacity),
+            save_file_ms: StageMetric::new(capacity),
+            db_store_ms: StageMetric::new(capacity),
+            ai_infer_ms: StageMetric::new(capacity),
+            db_finalize_ms: StageMetric::new(capacity),
+            response_build_ms: StageMetric::new(capacity),
+            total_ms: StageMetric::new(capacity),
+        }
+    }
+
+    fn report(&self) -> PipelinePerfReport {
+        PipelinePerfReport {
+            total_requests: self.total_requests,
+            success_requests: self.success_requests,
+            failed_requests: self.failed_requests,
+            queue_ms: self.queue_ms.report(),
+            read_body_ms: self.read_body_ms.report(),
+            parse_multipart_ms: self.parse_multipart_ms.report(),
+            save_file_ms: self.save_file_ms.report(),
+            db_store_ms: self.db_store_ms.report(),
+            ai_infer_ms: self.ai_infer_ms.report(),
+            db_finalize_ms: self.db_finalize_ms.report(),
+            response_build_ms: self.response_build_ms.report(),
+            total_ms: self.total_ms.report(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PerfMetrics {
+    image_upload: PipelinePerfMetrics,
+    chat_proxy: PipelinePerfMetrics,
+}
+
+impl PerfMetrics {
+    fn new(capacity: usize) -> Self {
+        Self {
+            image_upload: PipelinePerfMetrics::new(capacity),
+            chat_proxy: PipelinePerfMetrics::new(capacity),
+        }
+    }
+
+    fn snapshot(&self) -> PerfSnapshotPayload {
+        PerfSnapshotPayload {
+            image_upload: self.image_upload.report(),
+            chat_proxy: self.chat_proxy.report(),
+            sampled_at: now_rfc3339(),
+        }
+    }
+}
+
+fn compute_percentiles(values: &VecDeque<u64>) -> StagePercentiles {
+    if values.is_empty() {
+        return StagePercentiles::default();
+    }
+    let mut sorted: Vec<u64> = values.iter().copied().collect();
+    sorted.sort_unstable();
+    StagePercentiles {
+        p50_ms: percentile(&sorted, 50),
+        p95_ms: percentile(&sorted, 95),
+        p99_ms: percentile(&sorted, 99),
+    }
+}
+
+fn percentile(sorted: &[u64], p: usize) -> u64 {
+    if sorted.is_empty() {
+        return 0;
+    }
+    let idx = ((sorted.len() - 1) * p) / 100;
+    sorted[idx]
 }
 
 impl QueryCache {
@@ -146,6 +313,21 @@ pub fn start_http_server(
         QUERY_CACHE_MAX_ENTRIES,
         Duration::from_secs(QUERY_CACHE_TTL_SECONDS),
     )));
+    let perf = Arc::new(Mutex::new(PerfMetrics::new(PERF_METRIC_WINDOW_SIZE)));
+    let ai_http_client = Arc::new(
+        reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(20))
+            .pool_max_idle_per_host(8)
+            .build()
+            .expect("Failed to build AI HTTP client"),
+    );
+    let openclaw_http_client = Arc::new(
+        reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .pool_max_idle_per_host(4)
+            .build()
+            .expect("Failed to build OpenClaw HTTP client"),
+    );
     println!(
         "{} [cloud-http] Listening on http://{}",
         now_rfc3339(),
@@ -154,6 +336,7 @@ pub fn start_http_server(
 
     thread::spawn(move || {
         for request in server.incoming_requests() {
+            let accepted_at = Instant::now();
             let url = request.url().to_string();
             let method = request.method().clone();
             let (path, query) = split_query(&url);
@@ -170,10 +353,14 @@ pub fn start_http_server(
             let registry_path = registry_path.clone();
             let db = db.clone();
             let query_cache = query_cache.clone();
+            let perf = perf.clone();
+            let ai_http_client = ai_http_client.clone();
+            let openclaw_http_client = openclaw_http_client.clone();
 
             // Spawn a dedicated worker thread per request so that slow endpoints
             // (AI inference, DB queries) never block static-file serving.
             thread::spawn(move || {
+                let queue_wait_ms = accepted_at.elapsed().as_millis() as u64;
                 if path.starts_with("/api/") {
                     handle_api(
                         request,
@@ -187,8 +374,12 @@ pub fn start_http_server(
                         &openclaw_url,
                         &sensor_schema_payload,
                         &registry_path,
+                        queue_wait_ms,
                         db,
                         query_cache,
+                        perf,
+                        &ai_http_client,
+                        &openclaw_http_client,
                     );
                     return;
                 }
@@ -218,9 +409,8 @@ pub fn start_http_server(
                             let _ = request.respond(response);
                         }
                         Err(_) => {
-                            let _ = request.respond(
-                                Response::from_string("File Error").with_status_code(500),
-                            );
+                            let _ = request
+                                .respond(Response::from_string("File Error").with_status_code(500));
                         }
                     }
                 } else {
@@ -244,8 +434,12 @@ fn handle_api(
     openclaw_url: &str,
     sensor_schema_payload: &str,
     registry_path: &str,
+    queue_wait_ms: u64,
     db: Arc<Mutex<DbManager>>,
     query_cache: Arc<Mutex<QueryCache>>,
+    perf: Arc<Mutex<PerfMetrics>>,
+    ai_http_client: &reqwest::blocking::Client,
+    openclaw_http_client: &reqwest::blocking::Client,
 ) {
     let respond_json = move |json: &str, req: tiny_http::Request| {
         let header = Header::from_bytes(
@@ -265,11 +459,20 @@ fn handle_api(
                 image_index_path,
                 image_db_error_store_path,
                 ai_predict_url,
+                queue_wait_ms,
                 db,
+                perf,
+                ai_http_client,
             );
         }
         (Method::Post, "/api/v1/chat") => {
-            handle_chat_proxy(request, openclaw_url);
+            handle_chat_proxy(
+                request,
+                openclaw_url,
+                queue_wait_ms,
+                perf,
+                openclaw_http_client,
+            );
         }
         (Method::Get, "/api/v1/image/file") => {
             handle_image_file_request(request, query, image_store_path, db);
@@ -279,6 +482,9 @@ fn handle_api(
         }
         (Method::Get, "/api/v1/sensor/schema") => {
             respond_json_with_status(request, 200, sensor_schema_payload);
+        }
+        (Method::Get, "/api/v1/perf/latency") => {
+            handle_perf_query(request, perf);
         }
         (Method::Get, "/api/v1/devices") => {
             handle_devices_query(request, registry_path);
@@ -409,9 +615,28 @@ fn handle_telemetry_query(
     }
 }
 
-fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
+fn handle_chat_proxy(
+    mut request: tiny_http::Request,
+    openclaw_url: &str,
+    queue_wait_ms: u64,
+    perf: Arc<Mutex<PerfMetrics>>,
+    http_client: &reqwest::blocking::Client,
+) {
+    let req_started = Instant::now();
     let mut body = Vec::new();
+    let read_started = Instant::now();
     if let Err(err) = request.as_reader().read_to_end(&mut body) {
+        if let Ok(mut m) = perf.lock() {
+            m.chat_proxy.total_requests += 1;
+            m.chat_proxy.failed_requests += 1;
+            m.chat_proxy.queue_ms.push(queue_wait_ms);
+            m.chat_proxy
+                .read_body_ms
+                .push(read_started.elapsed().as_millis() as u64);
+            m.chat_proxy
+                .total_ms
+                .push(req_started.elapsed().as_millis() as u64);
+        }
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
             status: "error".to_string(),
             message: format!("failed to read request body: {err}"),
@@ -424,6 +649,17 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
     let req: ChatProxyRequest = match serde_json::from_slice::<ChatProxyRequest>(&body) {
         Ok(v) if !v.message.trim().is_empty() => v,
         Ok(_) => {
+            if let Ok(mut m) = perf.lock() {
+                m.chat_proxy.total_requests += 1;
+                m.chat_proxy.failed_requests += 1;
+                m.chat_proxy.queue_ms.push(queue_wait_ms);
+                m.chat_proxy
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.chat_proxy
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: "message must not be empty".to_string(),
@@ -433,6 +669,17 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
             return;
         }
         Err(err) => {
+            if let Ok(mut m) = perf.lock() {
+                m.chat_proxy.total_requests += 1;
+                m.chat_proxy.failed_requests += 1;
+                m.chat_proxy.queue_ms.push(queue_wait_ms);
+                m.chat_proxy
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.chat_proxy
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: format!("invalid json body: {err}"),
@@ -444,15 +691,25 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
     };
 
     let forward_url = format!("{}/api/v1/chat", openclaw_url.trim_end_matches('/'));
-    let upstream = reqwest::blocking::Client::builder()
-        // OpenClaw local agent turn can be slower than normal HTTP calls.
-        .timeout(Duration::from_secs(120))
-        .build()
-        .and_then(|client| client.post(forward_url).json(&req).send());
+    let upstream_started = Instant::now();
+    let upstream = http_client.post(forward_url).json(&req).send();
+    let upstream_ms = upstream_started.elapsed().as_millis() as u64;
 
     let upstream = match upstream {
         Ok(v) => v,
         Err(err) => {
+            if let Ok(mut m) = perf.lock() {
+                m.chat_proxy.total_requests += 1;
+                m.chat_proxy.failed_requests += 1;
+                m.chat_proxy.queue_ms.push(queue_wait_ms);
+                m.chat_proxy
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.chat_proxy.ai_infer_ms.push(upstream_ms);
+                m.chat_proxy
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: format!("openclaw request failed: {err}"),
@@ -469,6 +726,18 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
     let text = match upstream.text() {
         Ok(v) => v,
         Err(err) => {
+            if let Ok(mut m) = perf.lock() {
+                m.chat_proxy.total_requests += 1;
+                m.chat_proxy.failed_requests += 1;
+                m.chat_proxy.queue_ms.push(queue_wait_ms);
+                m.chat_proxy
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.chat_proxy.ai_infer_ms.push(upstream_ms);
+                m.chat_proxy
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: format!("failed to read openclaw response: {err}"),
@@ -482,6 +751,18 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
     };
 
     if !status.is_success() {
+        if let Ok(mut m) = perf.lock() {
+            m.chat_proxy.total_requests += 1;
+            m.chat_proxy.failed_requests += 1;
+            m.chat_proxy.queue_ms.push(queue_wait_ms);
+            m.chat_proxy
+                .read_body_ms
+                .push(read_started.elapsed().as_millis() as u64);
+            m.chat_proxy.ai_infer_ms.push(upstream_ms);
+            m.chat_proxy
+                .total_ms
+                .push(req_started.elapsed().as_millis() as u64);
+        }
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
             status: "error".to_string(),
             message: format!("openclaw returned {}", status.as_u16()),
@@ -492,6 +773,18 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
     }
 
     if let Ok(parsed) = serde_json::from_str::<ChatProxyResponse>(&text) {
+        if let Ok(mut m) = perf.lock() {
+            m.chat_proxy.total_requests += 1;
+            m.chat_proxy.success_requests += 1;
+            m.chat_proxy.queue_ms.push(queue_wait_ms);
+            m.chat_proxy
+                .read_body_ms
+                .push(read_started.elapsed().as_millis() as u64);
+            m.chat_proxy.ai_infer_ms.push(upstream_ms);
+            m.chat_proxy
+                .total_ms
+                .push(req_started.elapsed().as_millis() as u64);
+        }
         let payload =
             serde_json::to_string(&parsed).unwrap_or_else(|_| "{\"reply\":\"\"}".to_string());
         respond_json_with_status(request, 200, &payload);
@@ -508,6 +801,18 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
                     .map(|s| s.to_string())
             })
         {
+            if let Ok(mut m) = perf.lock() {
+                m.chat_proxy.total_requests += 1;
+                m.chat_proxy.success_requests += 1;
+                m.chat_proxy.queue_ms.push(queue_wait_ms);
+                m.chat_proxy
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.chat_proxy.ai_infer_ms.push(upstream_ms);
+                m.chat_proxy
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let payload = serde_json::to_string(&ChatProxyResponse { reply })
                 .unwrap_or_else(|_| "{\"reply\":\"\"}".to_string());
             respond_json_with_status(request, 200, &payload);
@@ -515,6 +820,18 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
         }
     }
 
+    if let Ok(mut m) = perf.lock() {
+        m.chat_proxy.total_requests += 1;
+        m.chat_proxy.failed_requests += 1;
+        m.chat_proxy.queue_ms.push(queue_wait_ms);
+        m.chat_proxy
+            .read_body_ms
+            .push(read_started.elapsed().as_millis() as u64);
+        m.chat_proxy.ai_infer_ms.push(upstream_ms);
+        m.chat_proxy
+            .total_ms
+            .push(req_started.elapsed().as_millis() as u64);
+    }
     let payload = serde_json::to_string(&ImageUploadErrorResponse {
         status: "error".to_string(),
         message: "openclaw response missing reply field".to_string(),
@@ -666,11 +983,23 @@ fn handle_image_upload(
     image_index_path: &str,
     image_db_error_store_path: &str,
     ai_predict_url: &str,
+    queue_wait_ms: u64,
     db: Arc<Mutex<DbManager>>,
+    perf: Arc<Mutex<PerfMetrics>>,
+    ai_http_client: &reqwest::blocking::Client,
 ) {
+    let req_started = Instant::now();
     let tag = match parse_tag(&parse_query(query)) {
         Ok(v) => v,
         Err(err) => {
+            if let Ok(mut m) = perf.lock() {
+                m.image_upload.total_requests += 1;
+                m.image_upload.failed_requests += 1;
+                m.image_upload.queue_ms.push(queue_wait_ms);
+                m.image_upload
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: err,
@@ -691,6 +1020,14 @@ fn handle_image_upload(
         .to_ascii_lowercase()
         .starts_with("multipart/form-data")
     {
+        if let Ok(mut m) = perf.lock() {
+            m.image_upload.total_requests += 1;
+            m.image_upload.failed_requests += 1;
+            m.image_upload.queue_ms.push(queue_wait_ms);
+            m.image_upload
+                .total_ms
+                .push(req_started.elapsed().as_millis() as u64);
+        }
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
             status: "error".to_string(),
             message: "Content-Type must be multipart/form-data".to_string(),
@@ -701,7 +1038,19 @@ fn handle_image_upload(
     }
 
     let mut body = Vec::new();
+    let read_started = Instant::now();
     if let Err(err) = request.as_reader().read_to_end(&mut body) {
+        if let Ok(mut m) = perf.lock() {
+            m.image_upload.total_requests += 1;
+            m.image_upload.failed_requests += 1;
+            m.image_upload.queue_ms.push(queue_wait_ms);
+            m.image_upload
+                .read_body_ms
+                .push(read_started.elapsed().as_millis() as u64);
+            m.image_upload
+                .total_ms
+                .push(req_started.elapsed().as_millis() as u64);
+        }
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
             status: "error".to_string(),
             message: format!("failed to read request body: {err}"),
@@ -711,9 +1060,24 @@ fn handle_image_upload(
         return;
     }
 
+    let parse_started = Instant::now();
     let file_part = match parse_multipart_file(&content_type, &body) {
         Ok(v) => v,
         Err(err) => {
+            if let Ok(mut m) = perf.lock() {
+                m.image_upload.total_requests += 1;
+                m.image_upload.failed_requests += 1;
+                m.image_upload.queue_ms.push(queue_wait_ms);
+                m.image_upload
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .parse_multipart_ms
+                    .push(parse_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: err,
@@ -724,9 +1088,27 @@ fn handle_image_upload(
         }
     };
 
+    let save_started = Instant::now();
     let persisted = match save_image_file(image_store_path, &tag, &file_part) {
         Ok(v) => v,
         Err(err) => {
+            if let Ok(mut m) = perf.lock() {
+                m.image_upload.total_requests += 1;
+                m.image_upload.failed_requests += 1;
+                m.image_upload.queue_ms.push(queue_wait_ms);
+                m.image_upload
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .parse_multipart_ms
+                    .push(parse_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .save_file_ms
+                    .push(save_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let _ = append_image_error_backup(image_db_error_store_path, &tag, &err, None);
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
@@ -741,6 +1123,23 @@ fn handle_image_upload(
     let captured_at = match parse_captured_at_utc(&tag.ts) {
         Ok(v) => v,
         Err(err) => {
+            if let Ok(mut m) = perf.lock() {
+                m.image_upload.total_requests += 1;
+                m.image_upload.failed_requests += 1;
+                m.image_upload.queue_ms.push(queue_wait_ms);
+                m.image_upload
+                    .read_body_ms
+                    .push(read_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .parse_multipart_ms
+                    .push(parse_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .save_file_ms
+                    .push(save_started.elapsed().as_millis() as u64);
+                m.image_upload
+                    .total_ms
+                    .push(req_started.elapsed().as_millis() as u64);
+            }
             let _ =
                 append_image_error_backup(image_db_error_store_path, &tag, &err, Some(&persisted));
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
@@ -768,11 +1167,32 @@ fn handle_image_upload(
         upload_status: "stored".to_string(),
         error_message: None,
     };
+    let db_store_started = Instant::now();
     let db_result = db
         .lock()
         .map_err(|_| "db lock poisoned".to_string())
         .and_then(|mut guard| guard.insert_image_upload(&db_record));
     if let Err(err) = db_result {
+        if let Ok(mut m) = perf.lock() {
+            m.image_upload.total_requests += 1;
+            m.image_upload.failed_requests += 1;
+            m.image_upload.queue_ms.push(queue_wait_ms);
+            m.image_upload
+                .read_body_ms
+                .push(read_started.elapsed().as_millis() as u64);
+            m.image_upload
+                .parse_multipart_ms
+                .push(parse_started.elapsed().as_millis() as u64);
+            m.image_upload
+                .save_file_ms
+                .push(save_started.elapsed().as_millis() as u64);
+            m.image_upload
+                .db_store_ms
+                .push(db_store_started.elapsed().as_millis() as u64);
+            m.image_upload
+                .total_ms
+                .push(req_started.elapsed().as_millis() as u64);
+        }
         let _ = append_image_error_backup(image_db_error_store_path, &tag, &err, Some(&persisted));
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
             status: "error".to_string(),
@@ -785,8 +1205,17 @@ fn handle_image_upload(
         return;
     }
 
-    let infer_result =
-        infer_image_from_file(ai_predict_url, &persisted.saved_path, &persisted.image_type);
+    let ai_started = Instant::now();
+    let infer_result = infer_image_from_bytes(
+        ai_http_client,
+        ai_predict_url,
+        &file_part.body,
+        file_part.filename.as_deref(),
+        &persisted.image_type,
+    );
+    let ai_infer_ms = ai_started.elapsed().as_millis() as u64;
+    let db_finalize_started = Instant::now();
+    let mut pipeline_ok = true;
     match infer_result {
         Ok(ai) => {
             let inference_record = to_inference_record(&persisted.upload_id, captured_at, ai);
@@ -812,6 +1241,7 @@ fn handle_image_upload(
                     &format!("db write inference failed: {err}"),
                     Some(&persisted),
                 );
+                pipeline_ok = false;
             }
         }
         Err(err) => {
@@ -828,6 +1258,7 @@ fn handle_image_upload(
                 });
             let _ =
                 append_image_error_backup(image_db_error_store_path, &tag, &err, Some(&persisted));
+            pipeline_ok = false;
         }
     }
 
@@ -839,6 +1270,7 @@ fn handle_image_upload(
         );
     }
 
+    let response_started = Instant::now();
     let ok = build_upload_ok_response(&tag, &persisted, file_part.filename.as_deref());
     let payload = serde_json::to_string(&ok).unwrap_or_else(|_| {
         serde_json::to_string(&ImageUploadOkResponse {
@@ -851,6 +1283,38 @@ fn handle_image_upload(
         .unwrap_or_else(|_| "{\"status\":\"success\"}".to_string())
     });
     respond_json_with_status(request, 200, &payload);
+
+    if let Ok(mut m) = perf.lock() {
+        m.image_upload.total_requests += 1;
+        if pipeline_ok {
+            m.image_upload.success_requests += 1;
+        } else {
+            m.image_upload.failed_requests += 1;
+        }
+        m.image_upload.queue_ms.push(queue_wait_ms);
+        m.image_upload
+            .read_body_ms
+            .push(read_started.elapsed().as_millis() as u64);
+        m.image_upload
+            .parse_multipart_ms
+            .push(parse_started.elapsed().as_millis() as u64);
+        m.image_upload
+            .save_file_ms
+            .push(save_started.elapsed().as_millis() as u64);
+        m.image_upload
+            .db_store_ms
+            .push(db_store_started.elapsed().as_millis() as u64);
+        m.image_upload.ai_infer_ms.push(ai_infer_ms);
+        m.image_upload
+            .db_finalize_ms
+            .push(db_finalize_started.elapsed().as_millis() as u64);
+        m.image_upload
+            .response_build_ms
+            .push(response_started.elapsed().as_millis() as u64);
+        m.image_upload
+            .total_ms
+            .push(req_started.elapsed().as_millis() as u64);
+    }
 }
 
 fn handle_image_upload_query(
@@ -939,6 +1403,23 @@ fn handle_image_upload_query(
             respond_json_with_status(request, 503, &payload);
         }
     }
+}
+
+fn handle_perf_query(request: tiny_http::Request, perf: Arc<Mutex<PerfMetrics>>) {
+    let snapshot = match perf.lock() {
+        Ok(metrics) => metrics.snapshot(),
+        Err(_) => {
+            respond_json_with_status(
+                request,
+                500,
+                r#"{"status":"error","message":"perf metrics lock poisoned"}"#,
+            );
+            return;
+        }
+    };
+
+    let payload = serde_json::to_string(&snapshot).unwrap_or_else(|_| "{}".to_string());
+    respond_json_with_status(request, 200, &payload);
 }
 
 fn parse_optional_rfc3339(raw: Option<&str>) -> Result<Option<DateTime<Utc>>, String> {
