@@ -12,8 +12,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::config::{DiagConfig, GatewayCommand, RunConfig};
 use crate::constants::{
-    DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_IMAGE_UPLOAD_PATH, DEFAULT_PAYLOAD_SUCCESS,
-    DEFAULT_TARGET, RESERVED_IMAGE_FEATURE, RESERVED_IMAGE_SENSOR_ID,
+    DEFAULT_DEVICE_LOOP_SLEEP_MS, DEFAULT_PAYLOAD_SUCCESS, DEFAULT_TARGET, RESERVED_IMAGE_FEATURE,
+    RESERVED_IMAGE_SENSOR_ID,
 };
 use crate::datasource::{DataSource, SerialEsp32DataSource};
 use crate::persist::{
@@ -97,11 +97,15 @@ pub fn run_command(command: GatewayCommand) -> Result<(), String> {
 
 fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     let state_dir = ensure_state_dir(&run_cfg.state_dir)?;
+    let default_target = resolve_default_target();
     let (mut profile, profile_is_new) = match load_profile(&state_dir)? {
         Some(existing) => (existing, false),
         None => {
             println!("[{}][gateway] First-time setup detected.", ts());
-            let created = prompt_initial_profile(run_cfg.target_override.as_deref())?;
+            let created = prompt_initial_profile(
+                run_cfg.target_override.as_deref(),
+                default_target.as_str(),
+            )?;
             save_profile(&state_dir, &created)?;
             (created, true)
         }
@@ -155,7 +159,7 @@ fn run_managed(run_cfg: RunConfig) -> Result<(), String> {
     let mut running: HashMap<String, JoinHandle<()>> = HashMap::new();
     loop {
         reap_finished_sessions(&mut running);
-        let ports = list_serial_ports()?;
+        let ports = list_serial_ports(&shared.run_cfg.modbus)?;
         if ports.is_empty() {
             println!("[{}][gateway] No serial ports found, waiting...", ts());
         }
@@ -239,7 +243,12 @@ fn discover_device_for_port(
     let mut outcome = PortDiscoveryOutcome::default();
     let mut first_opened_baud: Option<u32> = None;
     for &baud in &shared.run_cfg.baud_list {
-        let result = match discover_on_port(port, baud, shared.run_cfg.scan_window) {
+        let result = match discover_on_port(
+            port,
+            baud,
+            shared.run_cfg.scan_window,
+            &shared.run_cfg.modbus,
+        ) {
             Ok(v) => v,
             Err(_) => continue,
         };
@@ -377,7 +386,7 @@ fn build_image_upload_context(
 
     let upload_url = match run_cfg.image_upload_url.as_ref() {
         Some(v) => v.clone(),
-        None => derive_image_upload_url(&profile.cloud_target),
+        None => derive_image_upload_url(&profile.cloud_target, run_cfg),
     };
 
     Ok(Some(ImageUploadContext {
@@ -387,14 +396,17 @@ fn build_image_upload_context(
     }))
 }
 
-fn derive_image_upload_url(udp_target: &str) -> String {
+fn derive_image_upload_url(udp_target: &str, run_cfg: &RunConfig) -> String {
     let host = udp_target
         .split(':')
         .next()
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .unwrap_or("127.0.0.1");
-    format!("http://{host}:8088{DEFAULT_IMAGE_UPLOAD_PATH}")
+    format!(
+        "{}://{}:{}{}",
+        run_cfg.image_upload_scheme, host, run_cfg.image_upload_port, run_cfg.image_upload_path
+    )
 }
 
 fn try_upload_cycle_image(
@@ -488,19 +500,20 @@ fn run_device_session_loop(
     image_upload_ctx: Option<ImageUploadContext>,
 ) -> Result<(), String> {
     loop {
-        let mut source = match SerialEsp32DataSource::open(&device.port, device.baud) {
-            Ok(s) => s,
-            Err(err) => {
-                eprintln!(
-                    "[{}][gateway] Failed to open {}@{}: {err}. retrying...",
-                    ts(),
-                    device.port,
-                    device.baud
-                );
-                thread::sleep(Duration::from_millis(DEFAULT_DEVICE_LOOP_SLEEP_MS));
-                return Ok(());
-            }
-        };
+        let mut source =
+            match SerialEsp32DataSource::open(&device.port, device.baud, &shared.run_cfg.modbus) {
+                Ok(s) => s,
+                Err(err) => {
+                    eprintln!(
+                        "[{}][gateway] Failed to open {}@{}: {err}. retrying...",
+                        ts(),
+                        device.port,
+                        device.baud
+                    );
+                    thread::sleep(Duration::from_millis(DEFAULT_DEVICE_LOOP_SLEEP_MS));
+                    return Ok(());
+                }
+            };
         println!("[{}][gateway] Session online: {}", ts(), source.name());
         let socket = UdpSocket::bind("0.0.0.0:0")
             .map_err(|e| format!("Failed to bind local UDP socket: {e}"))?;
@@ -646,9 +659,14 @@ fn register_device(
         }
 
         if target.trim().is_empty() {
-            let prompted_target = prompt_line(
+            let target_default = resolve_default_target();
+            let prompted_target = prompt_non_empty_line(
                 "Cloud target ip:port:",
-                Some(DEFAULT_TARGET),
+                if target_default.is_empty() {
+                    None
+                } else {
+                    Some(target_default.as_str())
+                },
                 &shared.prompt_lock,
             )?;
             let mut profile = shared
@@ -791,7 +809,7 @@ fn extract_device_key_from_register_ack(ack: &str) -> Option<String> {
 
 fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     ensure_state_dir(&cfg.state_dir)?;
-    let ports = list_serial_ports()?;
+    let ports = list_serial_ports(&cfg.modbus)?;
     if ports.is_empty() {
         println!("[{}][gateway][diag] no serial ports detected", ts());
         return Ok(());
@@ -799,7 +817,7 @@ fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     for port in ports {
         println!("[{}][gateway][diag] port={port}", ts());
         for baud in &cfg.baud_list {
-            match discover_on_port(&port, *baud, cfg.scan_window) {
+            match discover_on_port(&port, *baud, cfg.scan_window, &cfg.modbus) {
                 Ok(found) => {
                     if found.known_sensors.is_empty() && found.unknown_features.is_empty() {
                         continue;
@@ -818,12 +836,19 @@ fn run_diag(cfg: DiagConfig) -> Result<(), String> {
     Ok(())
 }
 
-fn prompt_initial_profile(target_override: Option<&str>) -> Result<GatewayProfile, String> {
+fn prompt_initial_profile(
+    target_override: Option<&str>,
+    default_target: &str,
+) -> Result<GatewayProfile, String> {
     let target = match target_override {
         Some(value) => value.to_string(),
-        None => prompt_line(
+        None => prompt_non_empty_line(
             "Cloud target ip:port:",
-            Some(DEFAULT_TARGET),
+            if default_target.is_empty() {
+                None
+            } else {
+                Some(default_target)
+            },
             &Arc::new(Mutex::new(())),
         )?,
     };
@@ -847,6 +872,10 @@ fn prompt_initial_profile(target_override: Option<&str>) -> Result<GatewayProfil
         last_token: if token.is_empty() { None } else { Some(token) },
         device_key: None,
     })
+}
+
+fn resolve_default_target() -> String {
+    env_non_empty("GATEWAY_DEFAULT_TARGET").unwrap_or_else(|| DEFAULT_TARGET.to_string())
 }
 
 fn prompt_trial_field_info(
@@ -896,6 +925,20 @@ fn prompt_line(
         return Ok(default.unwrap_or("").to_string());
     }
     Ok(trimmed.to_string())
+}
+
+fn prompt_non_empty_line(
+    message: &str,
+    default: Option<&str>,
+    prompt_lock: &Arc<Mutex<()>>,
+) -> Result<String, String> {
+    loop {
+        let value = prompt_line(message, default, prompt_lock)?;
+        if !value.trim().is_empty() {
+            return Ok(value);
+        }
+        println!("[{}][gateway] value is required for {}", ts(), message);
+    }
 }
 
 fn decode_input_lossy(raw: &[u8]) -> String {
@@ -958,10 +1001,21 @@ pub(crate) fn send_internal_success_probe(
 
 #[cfg(test)]
 mod tests {
-    use super::{derive_image_upload_url, ImageCyclePicker};
-    use std::collections::HashSet;
+    use super::{
+        derive_image_upload_url, try_upload_cycle_image, DiscoveredDevice, ImageCyclePicker,
+        ImageUploadContext, SharedContext,
+    };
+    use crate::config::RunConfig;
+    use crate::persist::GatewayProfile;
+    use crate::serial::ModbusConfig;
+    use std::collections::{BTreeMap, HashSet};
     use std::fs;
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::net::TcpListener;
     use std::path::PathBuf;
+    use std::sync::{mpsc, Arc, Mutex};
+    use std::thread;
+    use std::time::Duration;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn make_temp_dir() -> PathBuf {
@@ -976,12 +1030,28 @@ mod tests {
 
     #[test]
     fn derive_upload_url_from_udp_target() {
+        let cfg = RunConfig {
+            config_path: None,
+            target_override: None,
+            state_dir: "state".to_string(),
+            scan_interval: Duration::from_secs(1),
+            scan_window: Duration::from_millis(500),
+            ack_timeout: Duration::from_millis(500),
+            baud_list: vec![9600],
+            image_dir: None,
+            image_upload_url: None,
+            image_upload_interval: Duration::from_secs(300),
+            image_upload_scheme: "http".to_string(),
+            image_upload_port: 8088,
+            image_upload_path: "/api/v1/image/upload".to_string(),
+            modbus: ModbusConfig::default(),
+        };
         assert_eq!(
-            derive_image_upload_url("8.134.32.223:9000"),
+            derive_image_upload_url("8.134.32.223:9000", &cfg),
             "http://8.134.32.223:8088/api/v1/image/upload"
         );
         assert_eq!(
-            derive_image_upload_url("10.72.40.186:7777"),
+            derive_image_upload_url("10.72.40.186:7777", &cfg),
             "http://10.72.40.186:8088/api/v1/image/upload"
         );
     }
@@ -1008,6 +1078,103 @@ mod tests {
         }
         assert_eq!(second_round.len(), 3);
 
+        fs::remove_dir_all(root).ok();
+    }
+
+    fn contains_subslice(haystack: &[u8], needle: &[u8]) -> bool {
+        if needle.is_empty() {
+            return true;
+        }
+        haystack.windows(needle.len()).any(|w| w == needle)
+    }
+
+    #[test]
+    fn image_upload_multipart_keeps_original_bytes() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+        let addr = listener.local_addr().expect("local addr");
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept");
+            let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
+            let mut content_length = 0usize;
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).expect("read header line");
+                if line == "\r\n" {
+                    break;
+                }
+                if let Some((name, value)) = line.split_once(':') {
+                    if name.eq_ignore_ascii_case("Content-Length") {
+                        content_length = value.trim().parse::<usize>().expect("content length");
+                    }
+                }
+            }
+            let mut body = vec![0_u8; content_length];
+            reader.read_exact(&mut body).expect("read body");
+            tx.send(body).expect("send captured body");
+            let mut writer = stream;
+            let resp = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 20\r\n\r\n{\"status\":\"success\"}";
+            writer.write_all(resp).expect("write response");
+            writer.flush().expect("flush");
+        });
+
+        let root = make_temp_dir();
+        let image_bytes: Vec<u8> = (0..=255).collect();
+        let image_path = root.join("sample.jpg");
+        fs::write(&image_path, &image_bytes).expect("write image");
+
+        let mut picker = ImageCyclePicker::from_dir(&root).expect("create picker");
+        let ctx = ImageUploadContext {
+            image_dir: root.clone(),
+            upload_url: format!("http://{}/api/v1/image/upload", addr),
+            upload_interval: Duration::from_secs(300),
+        };
+        let device = DiscoveredDevice {
+            port: "test-port".to_string(),
+            baud: 9600,
+            sensors: vec!["soil_modbus_02".to_string()],
+            feature_mapping: BTreeMap::new(),
+            device_id: "dev_test_image_integrity".to_string(),
+        };
+        let shared = SharedContext {
+            run_cfg: RunConfig {
+                config_path: None,
+                target_override: None,
+                state_dir: "state".to_string(),
+                scan_interval: Duration::from_secs(1),
+                scan_window: Duration::from_millis(500),
+                ack_timeout: Duration::from_millis(500),
+                baud_list: vec![9600],
+                image_dir: Some(root.display().to_string()),
+                image_upload_url: Some(ctx.upload_url.clone()),
+                image_upload_interval: Duration::from_secs(300),
+                image_upload_scheme: "http".to_string(),
+                image_upload_port: 8088,
+                image_upload_path: "/api/v1/image/upload".to_string(),
+                modbus: ModbusConfig::default(),
+            },
+            state_dir: PathBuf::from("state"),
+            profile: Arc::new(Mutex::new(GatewayProfile {
+                cloud_target: "127.0.0.1:9000".to_string(),
+                farm_location: "lab".to_string(),
+                crop_type: "rice".to_string(),
+                farm_note: "integrity_test".to_string(),
+                last_token: None,
+                device_key: None,
+            })),
+            prompt_lock: Arc::new(Mutex::new(())),
+        };
+
+        try_upload_cycle_image(&ctx, &mut picker, &device, &shared).expect("upload should succeed");
+        let captured = rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("captured request body");
+        assert!(
+            contains_subslice(&captured, &image_bytes),
+            "multipart body should contain original image bytes unchanged"
+        );
+
+        server.join().expect("server thread");
         fs::remove_dir_all(root).ok();
     }
 }

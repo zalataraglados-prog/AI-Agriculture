@@ -1,4 +1,4 @@
-use crate::serial::{SensorEvent, SerialEsp32Source};
+use crate::serial::{ModbusConfig, SensorEvent, SerialEsp32Source};
 
 pub trait DataSource: Send {
     fn name(&self) -> String;
@@ -10,9 +10,9 @@ pub struct SerialEsp32DataSource {
 }
 
 impl SerialEsp32DataSource {
-    pub fn open(port: &str, baud: u32) -> Result<Self, String> {
+    pub fn open(port: &str, baud: u32, modbus: &ModbusConfig) -> Result<Self, String> {
         Ok(Self {
-            source: SerialEsp32Source::open(port, baud)?,
+            source: SerialEsp32Source::open(port, baud, modbus)?,
         })
     }
 }
