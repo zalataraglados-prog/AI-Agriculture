@@ -1,0 +1,31 @@
+[run]
+target = "YOUR_CLOUD_IP:9000"
+state_dir = "state"
+scan_interval_ms = 5000
+scan_window_ms = 1800
+ack_timeout_ms = 3000
+baud_list = [115200, 57600, 9600, 74880]
+image_dir = "sample_images"
+# Prefer full url when cloud http endpoint is fixed:
+# image_upload_url = "http://YOUR_CLOUD_IP:8088/api/v1/image/upload"
+# Or derive from target:
+image_upload_scheme = "http"
+image_upload_port = 8088
+image_upload_path = "/api/v1/image/upload"
+image_interval_ms = 300000
+
+[run.modbus]
+slave_id = 2
+function_code = 3
+start_addr = 0
+reg_count = 3
+response_len = 11
+expected_byte_count = 6
+sensor_id = "soil_modbus_02"
+feature = "soil_modbus"
+protocol = "modbus.rtu.v1"
+default_port = "/dev/ttyUSB0"
+poll_interval_ms = 1000
+request_gap_ms = 80
+response_timeout_ms = 900
+discovery_response_timeout_ms = 650

@@ -2,9 +2,9 @@
 
 Rust gateway for Linux/WSL/OrangePi. Current version is focused on one industrial sensor path:
 
-- Modbus-RTU (RS485), fixed query profile
-- slave id `2`, baud `9600`, parity `None (8N1)`
-- read holding registers `1..3` (request start addr `0`, count `3`)
+- Modbus-RTU (RS485), default query profile
+- default slave id `2`, baud `9600`, parity `None (8N1)`
+- default read holding registers `1..3` (request start addr `0`, count `3`)
 
 - `run`: managed runtime (serial discovery)
 - `diag`: scan and print discovery diagnostics
@@ -13,7 +13,7 @@ Rust gateway for Linux/WSL/OrangePi. Current version is focused on one industria
 ## Quick Start
 
 ```bash
-cargo run -- run --target 127.0.0.1:9000
+cargo run -- run --target <cloud-ip:port>
 ```
 
 If `state/gateway_profile.json` does not exist, the process will prompt for first-time setup and then persist the profile.
@@ -29,7 +29,7 @@ Once a valid response is found, it forwards one normalized event per second.
 
 ```bash
 cargo run -- run \
-  --target 8.134.32.223:9000 \
+  --target <cloud-ip:port> \
   --baud-list 9600 \
   --scan-interval-ms 5000 \
   --scan-window-ms 1800
@@ -47,7 +47,7 @@ Default payload fields:
 You can preload `run` configuration from TOML and still override values on CLI.
 
 ```bash
-cargo run -- run --config config/gateway.toml --target 10.0.0.5:9000
+cargo run -- run --config config/gateway.toml --target <cloud-ip:port>
 ```
 
 `--config` is applied first, then explicit CLI flags take precedence.
@@ -56,14 +56,14 @@ Example `config/gateway.toml`:
 
 ```toml
 [run]
-target = "127.0.0.1:9000"
+target = "YOUR_CLOUD_IP:9000"
 state_dir = "state"
 scan_interval_ms = 5000
 scan_window_ms = 1800
 ack_timeout_ms = 3000
 baud_list = [115200, 57600, 9600, 74880]
 image_dir = "sample_images"
-image_upload_url = "http://8.134.32.223:8088/api/v1/image/upload"
+image_upload_url = "http://YOUR_CLOUD_IP:8088/api/v1/image/upload"
 image_interval_ms = 300000
 ```
 
@@ -71,7 +71,7 @@ Recommended Modbus-only config:
 
 ```toml
 [run]
-target = "127.0.0.1:9000"
+target = "YOUR_CLOUD_IP:9000"
 state_dir = "state"
 scan_interval_ms = 5000
 scan_window_ms = 1800
@@ -86,7 +86,7 @@ baud_list = [9600]
 Managed Modbus mode:
 
 ```bash
-TARGET=8.134.32.223:9000 MODBUS_PORT=/dev/ttyUSB0 BAUD_LIST=9600 ./scripts/run_mq7_gateway.sh
+TARGET=YOUR_CLOUD_IP:9000 MODBUS_PORT=/dev/ttyUSB0 BAUD_LIST=9600 ./scripts/run_mq7_gateway.sh
 ```
 
 Physical/protocol precheck (recommended):
@@ -107,11 +107,21 @@ mbpoll -m rtu -a 2 -b 9600 -P none -r 1 -c 3 -1 /dev/ttyUSB0
 - `--image-dir <dir>`: enable simulated image upload from this directory (recursive scan jpg/jpeg/png)
 - `--image-upload-url <url>`: override cloud image upload API (default derive from `--target` as `http://<host>:8088/api/v1/image/upload`)
 - `--image-interval-ms <ms>`: image upload interval (default `300000`)
+- `--image-upload-scheme <http|https>`: upload URL scheme when deriving from target (default `http`)
+- `--image-upload-port <1-65535>`: upload URL port when deriving from target (default `8088`)
+- `--image-upload-path </api/...>`: upload URL path when deriving from target (default `/api/v1/image/upload`)
 
 Image simulator can also be configured by environment variables:
 - `GATEWAY_IMAGE_DIR`
 - `GATEWAY_IMAGE_UPLOAD_URL`
 - `GATEWAY_IMAGE_UPLOAD_INTERVAL_MS`
+
+Additional environment-based configuration:
+- `GATEWAY_DEFAULT_TARGET` (no built-in fixed target now; set this to prefill first setup)
+- `GATEWAY_STATE_DIR`
+- `GATEWAY_BAUD_LIST`
+- `GATEWAY_IMAGE_UPLOAD_SCHEME`, `GATEWAY_IMAGE_UPLOAD_PORT`, `GATEWAY_IMAGE_UPLOAD_PATH`
+- `GATEWAY_MODBUS_*` (see `.env.example`)
 
 ## Other Subcommands
 

@@ -659,9 +659,14 @@ fn register_device(
         }
 
         if target.trim().is_empty() {
-            let prompted_target = prompt_line(
+            let target_default = resolve_default_target();
+            let prompted_target = prompt_non_empty_line(
                 "Cloud target ip:port:",
-                Some(resolve_default_target().as_str()),
+                if target_default.is_empty() {
+                    None
+                } else {
+                    Some(target_default.as_str())
+                },
                 &shared.prompt_lock,
             )?;
             let mut profile = shared
@@ -837,9 +842,13 @@ fn prompt_initial_profile(
 ) -> Result<GatewayProfile, String> {
     let target = match target_override {
         Some(value) => value.to_string(),
-        None => prompt_line(
+        None => prompt_non_empty_line(
             "Cloud target ip:port:",
-            Some(default_target),
+            if default_target.is_empty() {
+                None
+            } else {
+                Some(default_target)
+            },
             &Arc::new(Mutex::new(())),
         )?,
     };
@@ -916,6 +925,20 @@ fn prompt_line(
         return Ok(default.unwrap_or("").to_string());
     }
     Ok(trimmed.to_string())
+}
+
+fn prompt_non_empty_line(
+    message: &str,
+    default: Option<&str>,
+    prompt_lock: &Arc<Mutex<()>>,
+) -> Result<String, String> {
+    loop {
+        let value = prompt_line(message, default, prompt_lock)?;
+        if !value.trim().is_empty() {
+            return Ok(value);
+        }
+        println!("[{}][gateway] value is required for {}", ts(), message);
+    }
 }
 
 fn decode_input_lossy(raw: &[u8]) -> String {

@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-pub const DEFAULT_TARGET: &str = "127.0.0.1:9000";
+pub const DEFAULT_TARGET: &str = "";
 pub const DEFAULT_SCAN_INTERVAL_MS: u64 = 5000;
 pub const DEFAULT_SCAN_WINDOW_MS: u64 = 1800;
 pub const DEFAULT_ACK_TIMEOUT_MS: u64 = 3000;

@@ -50,6 +50,11 @@ pub struct DiagConfig {
 }
 
 pub fn print_usage(binary: &str) {
+    let target_hint = if DEFAULT_TARGET.is_empty() {
+        "<required on first setup>"
+    } else {
+        DEFAULT_TARGET
+    };
     eprintln!(
         "Usage:
   {binary} run [--config <path>] [--target <ip:port>] [--state-dir <dir>] [--scan-interval-ms <ms>]
@@ -61,7 +66,7 @@ pub fn print_usage(binary: &str) {
   {binary} reset [--state-dir <dir>]
 
 Defaults:
-  run --target uses cached value (fallback {DEFAULT_TARGET})
+  run --target uses cached value (fallback {target_hint})
   --state-dir {DEFAULT_STATE_DIR}
   --scan-interval-ms {DEFAULT_SCAN_INTERVAL_MS}
   --scan-window-ms {DEFAULT_SCAN_WINDOW_MS}
@@ -217,7 +222,11 @@ fn parse_diag_args(raw_args: Vec<String>) -> Result<DiagConfig, String> {
     apply_modbus_env_overrides(&mut modbus);
 
     let mut cfg = DiagConfig {
-        state_dir: DEFAULT_STATE_DIR.to_string(),
+        state_dir: env::var("GATEWAY_STATE_DIR")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| DEFAULT_STATE_DIR.to_string()),
         scan_window: Duration::from_millis(DEFAULT_SCAN_WINDOW_MS),
         baud_list: DEFAULT_BAUD_LIST.to_vec(),
         modbus,
@@ -260,7 +269,11 @@ fn parse_diag_args(raw_args: Vec<String>) -> Result<DiagConfig, String> {
 
 fn parse_reset_args(raw_args: Vec<String>) -> Result<ResetConfig, String> {
     let mut cfg = ResetConfig {
-        state_dir: DEFAULT_STATE_DIR.to_string(),
+        state_dir: env::var("GATEWAY_STATE_DIR")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| DEFAULT_STATE_DIR.to_string()),
     };
 
     let mut args = raw_args.into_iter();
