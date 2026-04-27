@@ -160,6 +160,32 @@ chmod +x scripts/install_openclaw_chat_adapter.sh
 It starts `openclaw-chat-adapter` on `127.0.0.1:3000` and bridges chat requests to:
 `openclaw agent --local --agent main --message ... --json`.
 
+## Auth API (issue #64 baseline)
+
+Auth is session-token based for management/business APIs:
+
+- protected: `/api/v1/*`, `/api/telemetry`
+- excluded from auth gate: `POST /api/v1/image/upload` (kept open for gateway ingress chain)
+
+Endpoints:
+
+- `POST /api/login`
+  - request: `{"username":"...","password":"..."}`
+  - success: `{"success":true,"data":{"token":"...","username":"...","issued_at_epoch_sec":...,"expires_at_epoch_sec":...}}`
+- `GET /api/session`
+  - header: `Authorization: Bearer <token>`
+  - returns current session, or `401` for missing/expired token
+- `POST /api/logout`
+  - header: `Authorization: Bearer <token>`
+  - invalidates current token
+
+Environment variables:
+
+- `CLOUD_AUTH_ENABLED` (default `false`; set `true` to enforce login gate)
+- `CLOUD_AUTH_USERNAME` (default `admin`)
+- `CLOUD_AUTH_PASSWORD` (default `admin123!`)
+- `CLOUD_AUTH_TTL_SEC` (default `28800`, i.e. 8 hours)
+
 ## AI-ag Ops CLI
 
 Install the `AI-ag` command (whitelist ops wrapper described in `doc/AI-ag-agent-skill.md`):

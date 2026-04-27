@@ -142,10 +142,13 @@ window.CHAT = (() => {
 
     const sendMessageToOpenClaw = async (msg) => {
         let response;
+        const token = window.API.getAuthToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
         try {
             response = await fetch('/api/v1/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     message: msg,
                     context: {
@@ -167,6 +170,10 @@ window.CHAT = (() => {
         }
 
         if (!response.ok) {
+            if (window.API.isAuthEnforced?.() && response.status === 401) {
+                window.API.clearAuthSession();
+                window.location.replace('/login.html');
+            }
             const message = data?.message || `chat request failed (${response.status})`;
             setConnectionState(false, message);
             throw new Error(message);
