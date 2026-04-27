@@ -12,6 +12,7 @@ use serde::Serialize;
 use tiny_http::{Header, Method, Response, Server};
 
 use crate::ai_client::{infer_image_from_bytes, AiInferenceOutput};
+use crate::auth::{AuthManager, AuthSession};
 use crate::db::{
     DbManager, ImageInferenceDbRecord, ImageUploadDbRecord, ImageUploadQueryFilter,
     SensorTelemetryQueryFilter,
@@ -296,6 +297,34 @@ struct ChatProxyResponse {
     reply: String,
 }
 
+#[derive(Debug, serde::Deserialize)]
+struct LoginRequest {
+    username: String,
+    password: String,
+}
+
+#[derive(Debug, Serialize)]
+struct LoginResponseData {
+    token: String,
+    username: String,
+    issued_at_epoch_sec: u64,
+    expires_at_epoch_sec: u64,
+}
+
+#[derive(Debug, Serialize)]
+struct LoginResponse {
+    success: bool,
+    message: String,
+    data: Option<LoginResponseData>,
+}
+
+#[derive(Debug, Serialize)]
+struct AuthErrorPayload {
+    status: String,
+    code: String,
+    message: String,
+}
+
 pub fn start_http_server(
     bind_addr: &str,
     image_store_path: String,
@@ -313,6 +342,7 @@ pub fn start_http_server(
         QUERY_CACHE_MAX_ENTRIES,
         Duration::from_secs(QUERY_CACHE_TTL_SECONDS),
     )));
+    let auth_enabled = auth_enabled_from_env();
     let perf = Arc::new(Mutex::new(PerfMetrics::new(PERF_METRIC_WINDOW_SIZE)));
     let ai_http_client = Arc::new(
         reqwest::blocking::Client::builder()
@@ -328,10 +358,16 @@ pub fn start_http_server(
             .build()
             .expect("Failed to build OpenClaw HTTP client"),
     );
+    let auth = Arc::new(Mutex::new(AuthManager::from_env()));
     println!(
         "{} [cloud-http] Listening on http://{}",
         now_rfc3339(),
         bind_addr
+    );
+    println!(
+        "{} [cloud-http] auth_enabled={}",
+        now_rfc3339(),
+        auth_enabled
     );
 
     thread::spawn(move || {
@@ -356,6 +392,8 @@ pub fn start_http_server(
             let perf = perf.clone();
             let ai_http_client = ai_http_client.clone();
             let openclaw_http_client = openclaw_http_client.clone();
+            let auth = auth.clone();
+            let auth_enabled = auth_enabled;
 
             // Spawn a dedicated worker thread per request so that slow endpoints
             // (AI inference, DB queries) never block static-file serving.
@@ -377,6 +415,8 @@ pub fn start_http_server(
                         queue_wait_ms,
                         db,
                         query_cache,
+                        auth,
+                        auth_enabled,
                         perf,
                         &ai_http_client,
                         &openclaw_http_client,
@@ -437,20 +477,67 @@ fn handle_api(
     queue_wait_ms: u64,
     db: Arc<Mutex<DbManager>>,
     query_cache: Arc<Mutex<QueryCache>>,
+    auth: Arc<Mutex<AuthManager>>,
+    auth_enabled: bool,
     perf: Arc<Mutex<PerfMetrics>>,
     ai_http_client: &reqwest::blocking::Client,
     openclaw_http_client: &reqwest::blocking::Client,
 ) {
-    let respond_json = move |json: &str, req: tiny_http::Request| {
-        let header = Header::from_bytes(
-            &b"Content-Type"[..],
-            &b"application/json; charset=utf-8"[..],
-        )
-        .unwrap();
-        let _ = req.respond(Response::from_string(json).with_header(header));
-    };
+    if auth_enabled && requires_auth(&method, path) {
+        match extract_bearer_token(&request) {
+            Some(token) => match auth.lock() {
+                Ok(mut guard) => {
+                    if guard.validate(&token).is_none() {
+                        let payload = serde_json::to_string(&AuthErrorPayload {
+                            status: "error".to_string(),
+                            code: "unauthorized".to_string(),
+                            message: "invalid or expired token".to_string(),
+                        })
+                        .unwrap_or_else(|_| {
+                            "{\"status\":\"error\",\"code\":\"unauthorized\",\"message\":\"invalid or expired token\"}".to_string()
+                        });
+                        respond_json_with_status(request, 401, &payload);
+                        return;
+                    }
+                }
+                Err(_) => {
+                    let payload = serde_json::to_string(&AuthErrorPayload {
+                        status: "error".to_string(),
+                        code: "auth_internal_error".to_string(),
+                        message: "auth state unavailable".to_string(),
+                    })
+                    .unwrap_or_else(|_| {
+                        "{\"status\":\"error\",\"code\":\"auth_internal_error\",\"message\":\"auth state unavailable\"}".to_string()
+                    });
+                    respond_json_with_status(request, 503, &payload);
+                    return;
+                }
+            },
+            None => {
+                let payload = serde_json::to_string(&AuthErrorPayload {
+                    status: "error".to_string(),
+                    code: "unauthorized".to_string(),
+                    message: "missing bearer token".to_string(),
+                })
+                .unwrap_or_else(|_| {
+                    "{\"status\":\"error\",\"code\":\"unauthorized\",\"message\":\"missing bearer token\"}".to_string()
+                });
+                respond_json_with_status(request, 401, &payload);
+                return;
+            }
+        }
+    }
 
     match (method, path) {
+        (Method::Post, "/api/login") => {
+            handle_login(request, auth);
+        }
+        (Method::Post, "/api/logout") => {
+            handle_logout(request, auth);
+        }
+        (Method::Get, "/api/session") => {
+            handle_session_check(request, auth);
+        }
         (Method::Post, "/api/v1/image/upload") => {
             handle_image_upload(
                 request,
@@ -499,16 +586,6 @@ fn handle_api(
                 r#"{"status":"error","message":"deprecated endpoint: /api/send-code"}"#,
             );
         }
-        (Method::Post, "/api/login") => {
-            respond_json(
-                r#"{
-                "success": true, 
-                "message": "login compatibility endpoint", 
-                "data": null
-            }"#,
-                request,
-            );
-        }
         (Method::Get, "/api/dashboard") => {
             respond_json_with_status(
                 request,
@@ -534,6 +611,216 @@ fn handle_api(
             let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
         }
     }
+}
+
+fn requires_auth(method: &Method, path: &str) -> bool {
+    if path == "/api/login" || path == "/api/logout" || path == "/api/session" {
+        return false;
+    }
+    if *method == Method::Post && path == "/api/v1/image/upload" {
+        return false;
+    }
+    path.starts_with("/api/v1/") || path == "/api/telemetry"
+}
+
+fn auth_enabled_from_env() -> bool {
+    std::env::var("CLOUD_AUTH_ENABLED")
+        .ok()
+        .map(|v| {
+            let t = v.trim().to_ascii_lowercase();
+            t == "1" || t == "true" || t == "yes" || t == "on"
+        })
+        .unwrap_or(false)
+}
+
+fn extract_bearer_token(request: &tiny_http::Request) -> Option<String> {
+    let value = request
+        .headers()
+        .iter()
+        .find(|h| h.field.equiv("Authorization"))
+        .map(|h| h.value.as_str().trim().to_string())?;
+    if value.is_empty() {
+        return None;
+    }
+    if value.len() >= 7 && value[..7].eq_ignore_ascii_case("bearer ") {
+        let token = value[7..].trim();
+        if token.is_empty() {
+            return None;
+        }
+        return Some(token.to_string());
+    }
+    None
+}
+
+fn handle_login(mut request: tiny_http::Request, auth: Arc<Mutex<AuthManager>>) {
+    let mut body = Vec::new();
+    if let Err(err) = request.as_reader().read_to_end(&mut body) {
+        let payload = serde_json::to_string(&LoginResponse {
+            success: false,
+            message: format!("failed to read request body: {err}"),
+            data: None,
+        })
+        .unwrap_or_else(|_| {
+            "{\"success\":false,\"message\":\"bad request\",\"data\":null}".to_string()
+        });
+        respond_json_with_status(request, 400, &payload);
+        return;
+    }
+
+    let req = match serde_json::from_slice::<LoginRequest>(&body) {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&LoginResponse {
+                success: false,
+                message: format!("invalid json body: {err}"),
+                data: None,
+            })
+            .unwrap_or_else(|_| {
+                "{\"success\":false,\"message\":\"bad request\",\"data\":null}".to_string()
+            });
+            respond_json_with_status(request, 400, &payload);
+            return;
+        }
+    };
+
+    let login_result = auth
+        .lock()
+        .map_err(|_| "auth state unavailable".to_string())
+        .and_then(|mut guard| guard.login(&req.username, &req.password));
+    match login_result {
+        Ok(session) => {
+            let payload = serde_json::to_string(&LoginResponse {
+                success: true,
+                message: "login ok".to_string(),
+                data: Some(LoginResponseData {
+                    token: session.token,
+                    username: session.username,
+                    issued_at_epoch_sec: session.issued_at_epoch_sec,
+                    expires_at_epoch_sec: session.expires_at_epoch_sec,
+                }),
+            })
+            .unwrap_or_else(|_| {
+                "{\"success\":true,\"message\":\"login ok\",\"data\":null}".to_string()
+            });
+            respond_json_with_status(request, 200, &payload);
+        }
+        Err(err) if err.contains("invalid username or password") => {
+            let payload = serde_json::to_string(&LoginResponse {
+                success: false,
+                message: err,
+                data: None,
+            })
+            .unwrap_or_else(|_| {
+                "{\"success\":false,\"message\":\"invalid username or password\",\"data\":null}"
+                    .to_string()
+            });
+            respond_json_with_status(request, 401, &payload);
+        }
+        Err(err) => {
+            let payload = serde_json::to_string(&LoginResponse {
+                success: false,
+                message: err,
+                data: None,
+            })
+            .unwrap_or_else(|_| {
+                "{\"success\":false,\"message\":\"auth unavailable\",\"data\":null}".to_string()
+            });
+            respond_json_with_status(request, 503, &payload);
+        }
+    }
+}
+
+fn handle_logout(request: tiny_http::Request, auth: Arc<Mutex<AuthManager>>) {
+    let Some(token) = extract_bearer_token(&request) else {
+        let payload = serde_json::to_string(&LoginResponse {
+            success: false,
+            message: "missing bearer token".to_string(),
+            data: None,
+        })
+        .unwrap_or_else(|_| {
+            "{\"success\":false,\"message\":\"missing bearer token\",\"data\":null}".to_string()
+        });
+        respond_json_with_status(request, 401, &payload);
+        return;
+    };
+
+    let removed = auth
+        .lock()
+        .map_err(|_| "auth state unavailable".to_string())
+        .map(|mut guard| guard.logout(&token));
+    match removed {
+        Ok(_) => {
+            let payload = serde_json::to_string(&LoginResponse {
+                success: true,
+                message: "logout ok".to_string(),
+                data: None,
+            })
+            .unwrap_or_else(|_| {
+                "{\"success\":true,\"message\":\"logout ok\",\"data\":null}".to_string()
+            });
+            respond_json_with_status(request, 200, &payload);
+        }
+        Err(err) => {
+            let payload = serde_json::to_string(&LoginResponse {
+                success: false,
+                message: err,
+                data: None,
+            })
+            .unwrap_or_else(|_| {
+                "{\"success\":false,\"message\":\"auth unavailable\",\"data\":null}".to_string()
+            });
+            respond_json_with_status(request, 503, &payload);
+        }
+    }
+}
+
+fn handle_session_check(request: tiny_http::Request, auth: Arc<Mutex<AuthManager>>) {
+    let Some(token) = extract_bearer_token(&request) else {
+        let payload = serde_json::to_string(&AuthErrorPayload {
+            status: "error".to_string(),
+            code: "unauthorized".to_string(),
+            message: "missing bearer token".to_string(),
+        })
+        .unwrap_or_else(|_| {
+            "{\"status\":\"error\",\"code\":\"unauthorized\",\"message\":\"missing bearer token\"}"
+                .to_string()
+        });
+        respond_json_with_status(request, 401, &payload);
+        return;
+    };
+
+    let session = auth
+        .lock()
+        .map_err(|_| "auth state unavailable".to_string())
+        .ok()
+        .and_then(|mut guard| guard.validate(&token));
+    let Some(AuthSession {
+        username,
+        issued_at_epoch_sec,
+        expires_at_epoch_sec,
+        ..
+    }) = session
+    else {
+        let payload = serde_json::to_string(&AuthErrorPayload {
+            status: "error".to_string(),
+            code: "unauthorized".to_string(),
+            message: "invalid or expired token".to_string(),
+        })
+        .unwrap_or_else(|_| {
+            "{\"status\":\"error\",\"code\":\"unauthorized\",\"message\":\"invalid or expired token\"}".to_string()
+        });
+        respond_json_with_status(request, 401, &payload);
+        return;
+    };
+
+    let payload = serde_json::json!({
+        "status": "ok",
+        "username": username,
+        "issued_at_epoch_sec": issued_at_epoch_sec,
+        "expires_at_epoch_sec": expires_at_epoch_sec
+    })
+    .to_string();
+    respond_json_with_status(request, 200, &payload);
 }
 
 fn handle_telemetry_query(
