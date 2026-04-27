@@ -386,7 +386,11 @@ pub fn start_http_server(
 
                 let mut file_path = path;
                 if file_path == "/" {
-                    file_path = "/index.html".to_string();
+                    file_path = "/portal/index.html".to_string();
+                } else if file_path == "/rice" || file_path == "/rice/" {
+                    file_path = "/rice/rice_dashboard.html".to_string();
+                } else if file_path == "/oil_palm" || file_path == "/oil_palm/" {
+                    file_path = "/oil_palm/index.html".to_string();
                 }
 
                 let path = resolve_static_file_path(&file_path);
@@ -1601,7 +1605,7 @@ fn split_query(url: &str) -> (&str, &str) {
 
 fn resolve_static_file_path(file_path: &str) -> PathBuf {
     let normalized = file_path.trim_start_matches('/');
-    let preferred = PathBuf::from("frontend_v2_premium").join(normalized);
+    let preferred = PathBuf::from("frontend").join(normalized);
     if preferred.exists() {
         return preferred;
     }

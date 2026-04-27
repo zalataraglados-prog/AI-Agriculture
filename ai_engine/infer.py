@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import sys
 from pathlib import Path
@@ -6,22 +6,22 @@ from pathlib import Path
 from PIL import Image
 
 try:
-    from service.core.rice_leaf_classifier import RiceLeafClassifier
-    from service.adapters.image_adapter import load_image_from_path
+    from ai_engine.crops.rice.inference.rice_leaf_classifier import RiceLeafClassifier
+    from ai_engine.common.adapters.image_adapter import load_image_from_path
 except ModuleNotFoundError:
-    # Support running `python service/infer.py` from the project root.
+    # Support running `python ai_engine/infer.py` from the project root.
     project_root = Path(__file__).resolve().parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from service.core.rice_leaf_classifier import RiceLeafClassifier
-    from service.adapters.image_adapter import load_image_from_path
+    from ai_engine.crops.rice.inference.rice_leaf_classifier import RiceLeafClassifier
+    from ai_engine.common.adapters.image_adapter import load_image_from_path
 
 
 def predict_image_file(
     image_path: str,
     checkpoint_path: str,
-    labels_file: str = "models/rice_leaf_classifier/labels.json",
-    config_file: str = "models/rice_leaf_classifier/config.yaml",
+    labels_file: str = "models/rice/rice_leaf_classifier/labels.json",
+    config_file: str = "models/rice/rice_leaf_classifier/config.yaml",
     top_k: int = 3
 ):
     image = load_image_from_path(image_path)
@@ -43,11 +43,11 @@ def main():
     )
     parser.add_argument(
         "--labels-file",
-        default="models/rice_leaf_classifier/labels.json"
+        default="models/rice/rice_leaf_classifier/labels.json"
     )
     parser.add_argument(
         "--config-file",
-        default="models/rice_leaf_classifier/config.yaml"
+        default="models/rice/rice_leaf_classifier/config.yaml"
     )
     parser.add_argument(
         "--top-k",

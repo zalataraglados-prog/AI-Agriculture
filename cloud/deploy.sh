@@ -10,9 +10,9 @@ SERVICE_NAME="${SERVICE_NAME:-ai-agri-cloud-receiver}"
 BIND_ADDR="${BIND_ADDR:-0.0.0.0:9000}"
 CONFIG_PATH="${CONFIG_PATH:-${INSTALL_ROOT}/config/sensors.toml}"
 OVERWRITE_CONFIG="${OVERWRITE_CONFIG:-0}"
-STATIC_SOURCE_FRONTEND="${STATIC_SOURCE_FRONTEND:-${SCRIPT_DIR}/../frontend_v2_premium}"
+STATIC_SOURCE_FRONTEND="${STATIC_SOURCE_FRONTEND:-${SCRIPT_DIR}/../frontend}"
 STATIC_SOURCE_DASHBOARD="${STATIC_SOURCE_DASHBOARD:-${SCRIPT_DIR}/dashboard}"
-STATIC_TARGET_FRONTEND="${STATIC_TARGET_FRONTEND:-${INSTALL_ROOT}/frontend_v2_premium}"
+STATIC_TARGET_FRONTEND="${STATIC_TARGET_FRONTEND:-${INSTALL_ROOT}/frontend}"
 STATIC_TARGET_DASHBOARD="${STATIC_TARGET_DASHBOARD:-${INSTALL_ROOT}/dashboard}"
 
 if ! command -v cargo >/dev/null 2>&1; then
@@ -51,7 +51,7 @@ else
 fi
 
 if [[ -d "${STATIC_SOURCE_FRONTEND}" ]]; then
-  echo "[deploy] Syncing frontend_v2_premium to ${STATIC_TARGET_FRONTEND}"
+  echo "[deploy] Syncing frontend to ${STATIC_TARGET_FRONTEND}"
   if command -v rsync >/dev/null 2>&1; then
     $SUDO rsync -a --delete "${STATIC_SOURCE_FRONTEND}/" "${STATIC_TARGET_FRONTEND}/"
   else

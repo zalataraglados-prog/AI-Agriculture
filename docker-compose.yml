@@ -1,38 +1,27 @@
 # ==============================================================
 # Smart Farm AI Engine — Local Development Compose
 # ==============================================================
-# Usage:
-#   docker compose build
-#   docker compose up -d
-#   curl http://localhost:8000/api/v1/health
-#   docker compose logs -f ai-engine
-#   docker compose down
-# ==============================================================
-
 services:
   ai-engine:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - CROP_PROFILE=${CROP_PROFILE:-rice}
     container_name: ${AI_ENGINE_CONTAINER_NAME:-smart-farm-ai-engine}
     ports:
       - "${AI_ENGINE_PORT:-8000}:8000"
     volumes:
-      # Mount model weights directory (read-only).
-      # Place your best_model.pth inside models/rice_leaf_classifier/
       - ./models:/app/models:ro
+      - ./datasets:/app/datasets:ro
     environment:
-      - MODEL_CHECKPOINT_PATH=/app/models/rice_leaf_classifier/best_model.pth
-      - MODEL_LABELS_FILE=/app/models/rice_leaf_classifier/labels.json
-      - MODEL_CONFIG_FILE=/app/models/rice_leaf_classifier/config.yaml
+      - CROP_PROFILE=${CROP_PROFILE:-rice}
+      - MODEL_CHECKPOINT_PATH=/app/models/rice/rice_leaf_classifier/best_model.pth
+      - MODEL_LABELS_FILE=/app/models/rice/rice_leaf_classifier/labels.json
+      - MODEL_CONFIG_FILE=/app/models/rice/rice_leaf_classifier/config.yaml
+      - MODEL_ADVICE_FILE=/app/models/rice/rice_leaf_classifier/advice_map.yaml
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
-        ]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 30s
       timeout: 5s
       start_period: 30s
