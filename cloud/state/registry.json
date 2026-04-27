@@ -1,0 +1,92 @@
+{
+  "devices": {
+    "dev__dev_ttyusb0_1776354456": {
+      "device_id": "dev__dev_ttyusb0_1776354456",
+      "location": "test plot",
+      "crop_type": "air",
+      "farm_note": "only a tmp",
+      "sensors": [
+        "soil_modbus_02"
+      ],
+      "feature_mapping": {
+        "soil_modbus_02": "soil_modbus_02"
+      },
+      "registered_at_epoch_sec": 1777018479,
+      "device_key_hash": "355cc86da79c64c245371e4e3000ba40c4d66d0b7a9bc494779962e919cab2c1",
+      "credential_revoked": false,
+      "credential_issued_at_epoch_sec": 1777018479
+    },
+    "dev__dev_ttyusb0_1775567729": {
+      "device_id": "dev__dev_ttyusb0_1775567729",
+      "location": "test plot",
+      "crop_type": "air",
+      "farm_note": "only a tmp",
+      "sensors": [
+        "mq7"
+      ],
+      "feature_mapping": {
+        "adc": "adc",
+        "pcf8591": "pcf8591",
+        "mq7": "mq7",
+        "dht22": "dht22"
+      },
+      "registered_at_epoch_sec": 1775567730,
+      "device_key_hash": "",
+      "credential_revoked": false,
+      "credential_issued_at_epoch_sec": 0
+    },
+    "dev_native_gpio_1776176922": {
+      "device_id": "dev_native_gpio_1776176922",
+      "location": "test plot",
+      "crop_type": "air",
+      "farm_note": "only a tmp",
+      "sensors": [
+        "needle_ph7",
+        "needle_pc11"
+      ],
+      "feature_mapping": {
+        "needle_ph7": "needle_ph7",
+        "needle_pc11": "needle_pc11"
+      },
+      "registered_at_epoch_sec": 1776246160,
+      "device_key_hash": "",
+      "credential_revoked": false,
+      "credential_issued_at_epoch_sec": 0
+    },
+    "dev__dev_ttyusb0_1775568602": {
+      "device_id": "dev__dev_ttyusb0_1775568602",
+      "location": "test plot",
+      "crop_type": "air",
+      "farm_note": "only a tmp",
+      "sensors": [
+        "adc"
+      ],
+      "feature_mapping": {
+        "pcf8591": "pcf8591",
+        "dht22": "dht22",
+        "adc": "adc",
+        "mq7": "mq7"
+      },
+      "registered_at_epoch_sec": 1775568618,
+      "device_key_hash": "",
+      "credential_revoked": false,
+      "credential_issued_at_epoch_sec": 0
+    },
+    "gw_dual_1776535513": {
+      "device_id": "gw_dual_1776535513",
+      "location": "lab-gateway",
+      "crop_type": "tomato",
+      "farm_note": "dual_test",
+      "sensors": [
+        "soil_modbus_02"
+      ],
+      "feature_mapping": {
+        "soil_modbus_02": "soil_modbus_02"
+      },
+      "registered_at_epoch_sec": 1776535515,
+      "device_key_hash": "4daef1dd7695c1fef2d0f7f2c263edb9f18932879d51ce39f82a4a1f42ef04f6",
+      "credential_revoked": false,
+      "credential_issued_at_epoch_sec": 1776535515
+    }
+  }
+}

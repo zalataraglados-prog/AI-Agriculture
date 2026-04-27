@@ -69,13 +69,29 @@ window.UI = (() => {
         }
     };
 
+    const renderSchemaNotice = () => {
+        const notice = document.getElementById('schemaNotice');
+        if (!notice) return;
+        if (window.API.isSchemaFallback && window.API.isSchemaFallback()) {
+            notice.classList.remove('hidden');
+            notice.textContent = 'Schema API unavailable, using fallback mapping (soil_modbus_02 / dht22).';
+            return;
+        }
+        notice.classList.add('hidden');
+    };
+
     const renderSensorGrid = (telemetry) => {
         const sensorGrid = document.getElementById('sensorGrid');
         if (!sensorGrid) return;
+        renderSchemaNotice();
 
         let data = Array.isArray(telemetry) ? telemetry : [];
 
         const uniqueSensors = Array.from(new Set(data.map((r) => r.sensor_id).filter(Boolean)));
+        if (!uniqueSensors.length) {
+            sensorGrid.innerHTML = `<div class="col-span-full text-center text-xs text-slate-500 py-8">${window.t('no_data')}</div>`;
+            return;
+        }
         sensorGrid.innerHTML = uniqueSensors
             .map((sid) => {
                 const latest = data.find((r) => r.sensor_id === sid);
@@ -169,6 +185,52 @@ window.UI = (() => {
         `;
     };
 
+    const inferCaptureMode = (row) => {
+        const explicit = `${row?.capture_mode || ''}`.trim().toLowerCase();
+        if (explicit === 'manual' || explicit === 'auto') return explicit;
+        const note = `${row?.farm_note || ''}`.toLowerCase();
+        if (note.includes('capture_mode=manual')) return 'manual';
+        if (note.includes('capture_mode=auto')) return 'auto';
+        return 'auto';
+    };
+
+    const renderDiagnosisCard = (r, captureMode) => {
+        const state = r.upload_status || 'stored';
+        const diseaseRate = typeof r.disease_rate === 'number' ? `${(r.disease_rate * 100).toFixed(1)}%` : '-';
+        const card =
+            state === 'failed'
+                ? { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20', badge: 'FAILED' }
+                : state === 'inferred'
+                    ? { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', badge: 'INFERRED' }
+                    : { bg: 'bg-white/5', text: 'text-slate-400', border: 'border-white/5', badge: 'STORED' };
+        const modeClass = captureMode === 'manual'
+            ? 'bg-sky-500/15 text-sky-300 border-sky-400/30'
+            : 'bg-violet-500/15 text-violet-300 border-violet-400/30';
+        const modeLabel = captureMode === 'manual' ? 'MANUAL' : 'AUTO';
+        const imgUrl = r.upload_id
+            ? `/api/v1/image/file?upload_id=${encodeURIComponent(r.upload_id)}`
+            : (r.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(r.saved_path)}` : '');
+        const safeUploadId = `${r.upload_id || ''}`.replace(/'/g, "\\'");
+        return `
+            <div class="p-4 border ${card.border} ${card.bg} rounded-xl mb-3">
+                <div class="flex justify-between items-start mb-2 gap-2">
+                    <p class="text-[10px] text-slate-400 font-mono">${formatDate(r.captured_at || r.ts)}</p>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[9px] uppercase font-bold px-2 py-0.5 border rounded-full ${modeClass}">${modeLabel}</span>
+                        <span class="text-[10px] ${card.text} uppercase font-bold">${card.badge}</span>
+                    </div>
+                </div>
+                <h4 class="text-sm font-bold text-white mb-1.5">${r.predicted_class || window.t('processing')}</h4>
+                <p class="text-[11px] text-slate-300 mb-2">${window.t('disease_rate')}: <span class="${card.text} font-semibold">${diseaseRate}</span></p>
+                <div class="h-28 w-full bg-black/30 rounded-lg overflow-hidden border border-white/10 cursor-pointer" onclick="UI.openImagePreview('${imgUrl}', '${safeUploadId}')">
+                    ${imgUrl
+                        ? `<img src="${imgUrl}" alt="${safeUploadId}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-xs text-slate-500&quot;>${window.t('img_fail')}</div>';" />`
+                        : '<div class="w-full h-full flex items-center justify-center text-xs text-slate-500">' + window.t('no_data') + '</div>'}
+                </div>
+            </div>
+        `;
+    };
+
     const renderDiagnosis = (imageUploads) => {
         const aiContainer = document.getElementById('aiDiagnosisContainer');
         if (!aiContainer) return;
@@ -180,37 +242,27 @@ window.UI = (() => {
             return;
         }
 
-        aiContainer.innerHTML = latestImageUploads
-            .map((r) => {
-                const state = r.upload_status || 'stored';
-                const diseaseRate = typeof r.disease_rate === 'number' ? `${(r.disease_rate * 100).toFixed(1)}%` : '-';
-                const card =
-                    state === 'failed'
-                        ? { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20', badge: 'FAILED' }
-                        : state === 'inferred'
-                            ? { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', badge: 'INFERRED' }
-                            : { bg: 'bg-white/5', text: 'text-slate-400', border: 'border-white/5', badge: 'STORED' };
-                const imgUrl = r.upload_id
-                    ? `/api/v1/image/file?upload_id=${encodeURIComponent(r.upload_id)}`
-                    : (r.saved_path ? `/api/v1/image/file?saved_path=${encodeURIComponent(r.saved_path)}` : '');
-                const safeUploadId = `${r.upload_id || ''}`.replace(/'/g, "\\'");
-                return `
-                    <div class="p-4 border ${card.border} ${card.bg} rounded-xl mb-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <p class="text-[10px] text-slate-400 font-mono">${formatDate(r.captured_at || r.ts)}</p>
-                            <span class="text-[10px] ${card.text} uppercase font-bold">${card.badge}</span>
-                        </div>
-                        <h4 class="text-sm font-bold text-white mb-2">${r.predicted_class || window.t('processing')}</h4>
-                        <p class="text-[11px] text-slate-300 mb-2">${window.t('disease_rate')}: <span class="${card.text} font-semibold">${diseaseRate}</span></p>
-                        <div class="h-28 w-full bg-black/30 rounded-lg overflow-hidden border border-white/10 cursor-pointer" onclick="UI.openImagePreview('${imgUrl}', '${safeUploadId}')">
-                            ${imgUrl
-                                ? `<img src="${imgUrl}" alt="${safeUploadId}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-xs text-slate-500&quot;>${window.t('img_fail')}</div>';" />`
-                                : '<div class="w-full h-full flex items-center justify-center text-xs text-slate-500">' + window.t('no_data') + '</div>'}
-                        </div>
-                    </div>
-                `;
-            })
-            .join('');
+        const manualRows = latestImageUploads.filter((row) => inferCaptureMode(row) === 'manual');
+        const autoRows = latestImageUploads.filter((row) => inferCaptureMode(row) !== 'manual');
+        const sectionHtml = (title, icon, rows, mode) => `
+            <div class="border border-white/10 rounded-xl p-3 bg-black/20">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-[10px] uppercase tracking-widest font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa ${icon}"></i>${title}
+                    </h4>
+                    <span class="text-[10px] text-slate-400 font-mono">${rows.length}</span>
+                </div>
+                ${
+                    rows.length
+                        ? rows.slice(0, 6).map((row) => renderDiagnosisCard(row, mode)).join('')
+                        : `<div class="text-[11px] text-slate-500 p-3 text-center">${window.t('no_data')}</div>`
+                }
+            </div>
+        `;
+        aiContainer.innerHTML = [
+            sectionHtml('Manual Capture', 'fa-mobile', manualRows, 'manual'),
+            sectionHtml('Auto Pipeline', 'fa-random', autoRows, 'auto'),
+        ].join('');
     };
 
     const openImagePreview = (url, title = '') => {
@@ -307,6 +359,202 @@ window.UI = (() => {
         }
     };
 
+    const Upload = {
+        selectedFile: null,
+        activeDeviceId: '',
+        selectedInputType: 'album',
+        isMobileClient: false,
+
+        init: (deviceId = '') => {
+            Upload.activeDeviceId = (deviceId || localStorage.getItem('device_id') || '').trim();
+            const cameraInput = document.getElementById('mobileUploadCameraInput');
+            const fileInput = document.getElementById('mobileUploadFileInput');
+            const cameraBtn = document.getElementById('mobileUploadCameraBtn');
+            const albumBtn = document.getElementById('mobileUploadAlbumBtn');
+            const clearBtn = document.getElementById('mobileUploadClearBtn');
+            const submitBtn = document.getElementById('mobileUploadSubmitBtn');
+            if (!cameraInput || !fileInput || !cameraBtn || !albumBtn || !submitBtn) return;
+
+            Upload.isMobileClient = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+                || window.matchMedia('(max-width: 900px)').matches;
+            if (!Upload.isMobileClient) {
+                cameraBtn.disabled = true;
+                cameraBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                cameraBtn.title = 'Camera capture is mobile-only';
+            }
+
+            const setFileFromInput = (inputEl, inputType) => {
+                Upload.selectedInputType = inputType;
+                const [file] = inputEl.files || [];
+                Upload.selectedFile = file || null;
+                Upload.renderSelectedFile();
+            };
+
+            cameraBtn.addEventListener('click', () => {
+                if (!Upload.isMobileClient) {
+                    Upload.setStatus('拍照按钮仅支持手机端，请改用“相册图片”。', 'warn');
+                    return;
+                }
+                Upload.selectedInputType = 'camera';
+                cameraInput.click();
+            });
+            albumBtn.addEventListener('click', () => {
+                Upload.selectedInputType = 'album';
+                fileInput.click();
+            });
+            cameraInput.addEventListener('change', () => setFileFromInput(cameraInput, 'camera'));
+            fileInput.addEventListener('change', () => setFileFromInput(fileInput, 'album'));
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    Upload.selectedFile = null;
+                    fileInput.value = '';
+                    cameraInput.value = '';
+                    Upload.selectedInputType = 'album';
+                    Upload.setProgress(0);
+                    Upload.renderSelectedFile();
+                    Upload.setStatus('No image selected.', 'idle');
+                });
+            }
+            submitBtn.addEventListener('click', () => Upload.submit());
+            Upload.renderSelectedFile();
+            Upload.setStatus(Upload.isMobileClient ? 'Ready for mobile camera upload.' : 'Desktop mode: album upload enabled.', 'idle');
+        },
+
+        setStatus: (message, level = 'idle') => {
+            const statusEl = document.getElementById('mobileUploadStatus');
+            if (!statusEl) return;
+            const palette = {
+                idle: 'text-slate-400',
+                loading: 'text-emerald-300',
+                success: 'text-emerald-400',
+                error: 'text-rose-400',
+                warn: 'text-amber-300',
+            };
+            statusEl.className = `text-[11px] ${palette[level] || palette.idle}`;
+            statusEl.textContent = message;
+        },
+
+        setProgress: (value) => {
+            const bar = document.getElementById('mobileUploadProgressBar');
+            const label = document.getElementById('mobileUploadProgressText');
+            const v = Math.max(0, Math.min(100, Number(value) || 0));
+            if (bar) bar.style.width = `${v}%`;
+            if (label) label.textContent = `${v}%`;
+        },
+
+        renderSelectedFile: () => {
+            const nameEl = document.getElementById('mobileUploadFileName');
+            const preview = document.getElementById('mobileUploadPreview');
+            const emptyState = document.getElementById('mobileUploadPreviewEmpty');
+            const submitBtn = document.getElementById('mobileUploadSubmitBtn');
+            const file = Upload.selectedFile;
+            if (nameEl) {
+                if (file) {
+                    const mb = (file.size / (1024 * 1024)).toFixed(2);
+                    const inputMode = Upload.selectedInputType === 'camera' ? 'camera' : 'album';
+                    nameEl.textContent = `${file.name} (${mb} MB, ${inputMode})`;
+                } else {
+                    nameEl.textContent = 'No image selected';
+                }
+            }
+            if (submitBtn) submitBtn.disabled = !file;
+            if (!preview || !emptyState) return;
+            if (!file) {
+                preview.src = '';
+                preview.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            const blobUrl = URL.createObjectURL(file);
+            preview.src = blobUrl;
+            preview.onload = () => URL.revokeObjectURL(blobUrl);
+            preview.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+        },
+
+        buildTaggedFarmNote: (baseNote) => {
+            const note = `${baseNote || ''}`.trim();
+            const inputMode = Upload.selectedInputType === 'camera' ? 'camera' : 'album';
+            const marker = `capture_mode=manual;capture_input=${inputMode}`;
+            if (!note) return marker;
+            if (note.includes('capture_mode=')) {
+                return note.replace(/capture_mode=[^;|\s]+(;capture_input=[^;|\s]+)?/i, marker);
+            }
+            return `${note} | ${marker}`;
+        },
+
+        resolveTag: () => {
+            const now = new Date().toISOString();
+            let deviceId = (localStorage.getItem('device_id') || Upload.activeDeviceId || '').trim();
+            let location = '';
+            let cropType = '';
+            let farmNote = '';
+
+            const allDevices = HomePositioning.devicesData?.devices || [];
+            let pickedDevice = null;
+            if (deviceId) {
+                pickedDevice = allDevices.find((d) => d.device_id === deviceId) || null;
+            }
+            if (!pickedDevice) {
+                pickedDevice = allDevices.find((d) => {
+                    if (HomePositioning.selectedCropType && d.crop_type !== HomePositioning.selectedCropType) return false;
+                    if (HomePositioning.selectedLocation && d.location !== HomePositioning.selectedLocation) return false;
+                    return true;
+                }) || allDevices[0] || null;
+            }
+            if (pickedDevice) {
+                deviceId = pickedDevice.device_id || deviceId;
+                location = pickedDevice.location || '';
+                cropType = pickedDevice.crop_type || '';
+                farmNote = pickedDevice.farm_note || '';
+                localStorage.setItem('device_id', deviceId);
+            }
+            farmNote = Upload.buildTaggedFarmNote(farmNote);
+            return {
+                device_id: deviceId,
+                ts: now,
+                location,
+                crop_type: cropType,
+                farm_note: farmNote,
+                capture_mode: 'manual',
+                capture_input: Upload.selectedInputType === 'camera' ? 'camera' : 'album',
+            };
+        },
+
+        submit: async () => {
+            if (!Upload.selectedFile) {
+                Upload.setStatus('Please select an image first.', 'warn');
+                return;
+            }
+            const submitBtn = document.getElementById('mobileUploadSubmitBtn');
+            if (submitBtn) submitBtn.disabled = true;
+            Upload.setProgress(0);
+            const tag = Upload.resolveTag();
+            if (!tag.device_id) {
+                Upload.setStatus('No device_id found. Open page with ?device_id=... or register device first.', 'error');
+                if (submitBtn) submitBtn.disabled = false;
+                return;
+            }
+            Upload.setStatus(`Uploading for ${tag.device_id} ...`, 'loading');
+            try {
+                const result = await window.API.uploadImage({
+                    file: Upload.selectedFile,
+                    tag,
+                    onProgress: (v) => Upload.setProgress(v),
+                });
+                Upload.setStatus(`Upload success: ${result.upload_id || 'accepted'}`, 'success');
+                if (window.APP && typeof window.APP.refreshNow === 'function') {
+                    await window.APP.refreshNow();
+                }
+            } catch (err) {
+                Upload.setStatus(`Upload failed: ${err.message || err}`, 'error');
+            } finally {
+                if (submitBtn) submitBtn.disabled = !Upload.selectedFile;
+            }
+        },
+    };
+
     const Charts = {
         chartInstances: new Map(),
         selectedCrop: null,
@@ -363,7 +611,9 @@ window.UI = (() => {
             const schema = window.API.getSchema();
             const sensorList = document.getElementById('sensorSelectionList');
             if (sensorList) {
-                let sids = Array.from(schema.keys()).filter(sid => sid !== 'mq7' && sid !== 'pcf8591');
+                const telemetrySensors = Array.from(new Set(window.API.getTelemetry().map((r) => r.sensor_id).filter(Boolean)));
+                let sids = Array.from(new Set([...schema.keys(), ...telemetrySensors]));
+                sids.sort();
                 sensorList.innerHTML = sids.map(sid => `
                     <label class="sensor-pill cursor-pointer group">
                         <input type="checkbox" value="${sid}" class="hidden peer" checked />
@@ -477,12 +727,13 @@ window.UI = (() => {
                 const queryEnd = endTime ? new Date(endTime) : new Date();
                 // Keep devices registered within 7 days before the end of the query window.
                 // This skips obviously stale shadow IDs without affecting real multi-device deployments.
-                const PRUNE_WINDOW_MS = 7 * 24 * 3600 * 1000;
+                const runtime = window.RUNTIME_CONFIG || {};
+                const pruneWindowMs = Number(runtime?.telemetry?.chartPruneWindowMs) || 7 * 24 * 3600 * 1000;
                 const matchedDevices = Charts._devicesData.devices.filter(d => {
                     if (d.crop_type !== Charts.selectedCrop || d.location !== Charts.selectedLocation) return false;
                     if (!d.registered_at_epoch_sec) return true;
                     const registeredAt = d.registered_at_epoch_sec * 1000;
-                    return (queryEnd.getTime() - registeredAt) < PRUNE_WINDOW_MS;
+                    return (queryEnd.getTime() - registeredAt) < pruneWindowMs;
                 });
                 deviceIds = matchedDevices.map(d => d.device_id);
                 // If all were pruned (e.g. user queries very old data), fall back to all matches
@@ -540,10 +791,34 @@ window.UI = (() => {
                     .filter((r) => r.sensor_id === sid)
                     .sort((a, b) => new Date(a.ts || 0).getTime() - new Date(b.ts || 0).getTime());
                 const schema = window.API.getSchema().get(sid);
-                if (!schema || sensorData.length === 0) return;
+                if (sensorData.length === 0) return;
 
-                schema.fields.forEach((fieldSpec, fieldName) => {
-                    const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'i32'];
+                let fieldSpecs = [];
+                if (schema && schema.fields instanceof Map && schema.fields.size > 0) {
+                    fieldSpecs = Array.from(schema.fields.entries()).map(([fieldName, fieldSpec]) => ({
+                        fieldName,
+                        fieldSpec,
+                    }));
+                } else {
+                    const inferred = new Set();
+                    sensorData.forEach((row) => {
+                        Object.entries(row?.fields || {}).forEach(([fieldName, value]) => {
+                            if (!Number.isFinite(Number(value))) return;
+                            inferred.add(fieldName);
+                        });
+                    });
+                    fieldSpecs = Array.from(inferred).map((fieldName) => ({
+                        fieldName,
+                        fieldSpec: {
+                            label: fieldName,
+                            unit: '',
+                            data_type: 'f64',
+                        },
+                    }));
+                }
+
+                fieldSpecs.forEach(({ fieldName, fieldSpec }) => {
+                    const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'u64', 'i32', 'i64'];
                     if (!numericTypes.includes(`${fieldSpec.data_type || ''}`.toLowerCase())) return;
 
                     const points = sensorData
@@ -848,6 +1123,7 @@ window.UI = (() => {
         openSensorDetail,
         openImagePreview,
         HomePositioning,
+        Upload,
         Charts,
         Health,
         setEnvChart: (c) => envChart = c,
@@ -1089,15 +1365,61 @@ window.UI = (() => {
                 if (modal) modal.classList.remove('show-modal');
             },
 
-            handleMainSubmit: async (e) => {
+                        handleMainSubmit: async (e) => {
                 if (e) e.preventDefault();
                 if (UI.AI.isTyping) return;
+
                 const input = document.getElementById('aiMainInput');
                 const msg = input.value.trim();
                 if (!msg) return;
+
+                UI.AI.addMessage('user', msg);
                 input.value = '';
-                // Delegate to CHAT.handleSubmit for streaming + session_id
-                window.CHAT.handleSubmit({ preventDefault: () => {}, msg: msg });
+
+                UI.AI.isTyping = true;
+
+                // Create streaming bubble with cursor dots
+                const msgContainer = document.getElementById('aiMainMessages');
+                if (msgContainer) {
+                    const dotDiv = document.createElement('div');
+                    dotDiv.id = 'ai-streaming-dots';
+                    dotDiv.className = 'flex w-full mt-2 space-x-3 max-w-xs';
+                    dotDiv.innerHTML = `
+                        <div class="p-3 bg-slate-800/80 rounded-xl msg-ai flex items-center gap-2 border border-white/5">
+                            <span class="chat-cursor-dot"></span>
+                            <span class="chat-cursor-dot"></span>
+                            <span class="chat-cursor-dot"></span>
+                        </div>
+                    `;
+                    msgContainer.appendChild(dotDiv);
+                    msgContainer.scrollTop = msgContainer.scrollHeight;
+                }
+
+                try {
+                    const stack = UI.AI.instructionList.join('\n');
+                    const fullPrompt = stack ? `${stack}\n\nClient Input: ${msg}` : msg;
+                    const reply = await window.CHAT.sendMessageToOpenClaw(fullPrompt, (partial) => {
+                        // Real-time streaming update in the dots bubble
+                        const dots = document.getElementById('ai-streaming-dots');
+                        if (dots) {
+                            dots.innerHTML = '<div class="p-3 bg-slate-800/80 rounded-xl msg-ai leading-relaxed border border-white/5"><div class="markdown-body content-streaming">' + window.CHAT.renderMarkdown(partial) + '<span class="chat-cursor-inline">|</span></div></div>';
+                            const container = document.getElementById('aiMainMessages');
+                            if (container) container.scrollTop = container.scrollHeight;
+                        }
+                    });
+
+                    // Remove cursor dots
+                    const dots = document.getElementById('ai-streaming-dots');
+                    if (dots && dots.parentNode) dots.parentNode.removeChild(dots);
+
+                    UI.AI.addMessage('ai', reply || '(empty response)');
+                } catch (err) {
+                    const dots = document.getElementById('ai-streaming-dots');
+                    if (dots && dots.parentNode) dots.parentNode.removeChild(dots);
+                    UI.AI.addMessage('ai', `服务暂时离线: ${err.message}`);
+                } finally {
+                    UI.AI.isTyping = false;
+                }
             },
 
             updateTokenUI: () => {
