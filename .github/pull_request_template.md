@@ -23,10 +23,18 @@
 <!-- 勾选受影响模块，可多选 -->
 <!-- Check impacted modules (multiple choice) -->
 
-- [ ] gateway
+- [ ] frontend/portal
+- [ ] frontend/rice
+- [ ] frontend/oil_palm
+- [ ] ai_engine/common
+- [ ] ai_engine/crops/rice
+- [ ] ai_engine/crops/oil_palm
+- [ ] models
+- [ ] datasets
 - [ ] cloud
 - [ ] deploy/script
 - [ ] docs
+- [ ] tests
 
 ## 测试说明 / Testing
 <!-- 给出“可复现”的测试命令和结果摘要 -->
