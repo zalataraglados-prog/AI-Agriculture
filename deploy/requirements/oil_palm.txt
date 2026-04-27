@@ -1,0 +1,4 @@
+# Oil Palm-specific dependencies
+# YOLOv8 and related tools
+ultralytics
+opencv-python-headless

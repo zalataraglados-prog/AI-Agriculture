@@ -1,0 +1,7 @@
+# Rice-specific dependencies (Inference & Training)
+# torch and torchvision are usually handled via --index-url (see Dockerfile)
+torch
+torchvision
+scikit-learn
+tqdm
+matplotlib
