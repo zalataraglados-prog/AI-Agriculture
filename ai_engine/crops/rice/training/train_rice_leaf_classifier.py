@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import random
 import time
@@ -172,23 +172,23 @@ def main():
     parser = argparse.ArgumentParser(description="Train rice leaf classifier")
     parser.add_argument(
         "--train-samples",
-        default="outputs/rice_leaf_classifier/data/train_samples.json"
+        default="datasets/outputs/rice/rice_leaf_classifier/data/train_samples.json"
     )
     parser.add_argument(
         "--val-samples",
-        default="outputs/rice_leaf_classifier/data/val_samples.json"
+        default="datasets/outputs/rice/rice_leaf_classifier/data/val_samples.json"
     )
     parser.add_argument(
         "--labels-file",
-        default="models/rice_leaf_classifier/labels.json"
+        default="models/rice/rice_leaf_classifier/labels.json"
     )
     parser.add_argument(
         "--config-file",
-        default="models/rice_leaf_classifier/config.yaml"
+        default="models/rice/rice_leaf_classifier/config.yaml"
     )
     parser.add_argument(
         "--save-dir",
-        default="outputs/rice_leaf_classifier/checkpoints"
+        default="datasets/outputs/rice/rice_leaf_classifier/checkpoints"
     )
 
     args = parser.parse_args()

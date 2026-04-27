@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 from collections import Counter
 from pathlib import Path
@@ -163,12 +163,12 @@ def main():
     )
     parser.add_argument(
         "--labels-file",
-        default="models/rice_leaf_classifier/labels.json",
+        default="models/rice/rice_leaf_classifier/labels.json",
         help="Path to labels.json"
     )
     parser.add_argument(
         "--output-dir",
-        default="outputs/rice_leaf_classifier/data",
+        default="datasets/outputs/rice/rice_leaf_classifier/data",
         help="Directory to save converted samples"
     )
     parser.add_argument(
@@ -191,9 +191,9 @@ def main():
 
     args = parser.parse_args()
 
-    # 如果没传参数，就用默认路径（开发用）
+    # 濡傛灉娌′紶鍙傛暟锛屽氨鐢ㄩ粯璁よ矾寰勶紙寮€鍙戠敤锛?
     if args.dataset_root is None:
-        args.dataset_root = "local_data/rice_leaf_spot_disease_annotated_dataset"
+        args.dataset_root = "datasets/raw/rice_leaf_spot_disease_annotated_dataset"
 
 
     class_names = load_class_names(args.labels_file)

@@ -1,8 +1,8 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 from PIL import Image
 
-from scripts.prepare_rice_cls_dataset import collect_classification_samples
+from ai_engine.crops.rice.training.prepare_rice_cls_dataset import collect_classification_samples
 
 
 def create_dummy_image(path: Path):

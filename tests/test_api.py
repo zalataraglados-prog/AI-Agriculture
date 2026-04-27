@@ -1,4 +1,4 @@
-"""Integration tests for the FastAPI prediction API.
+﻿"""Integration tests for the FastAPI prediction API.
 
 These tests use a mock classifier to avoid depending on a real
 PyTorch checkpoint, making them runnable in CI without GPU or
@@ -69,7 +69,7 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(
     not torch_available,
-    reason="PyTorch not installed — skipping API integration tests",
+    reason="PyTorch not installed 鈥?skipping API integration tests",
 )
 
 
@@ -88,8 +88,8 @@ async def client():
     """Create an HTTPX ASGI client with the model injected."""
     mock_classifier = _make_mock_classifier()
 
-    from service.api.v1.predict import set_classifier
-    from service.main import app
+    from ai_engine.api.v1.predict import set_classifier
+    from ai_engine.main import app
 
     set_classifier(mock_classifier)
     transport = httpx.ASGITransport(app=app)
@@ -119,7 +119,7 @@ class TestHealthEndpoint:
 
 
 # ------------------------------------------------------------------
-# Test: Predict endpoint — happy path
+# Test: Predict endpoint 鈥?happy path
 # ------------------------------------------------------------------
 
 class TestPredictEndpoint:
@@ -161,7 +161,7 @@ class TestPredictEndpoint:
 
 
 # ------------------------------------------------------------------
-# Test: Predict endpoint — error cases
+# Test: Predict endpoint 鈥?error cases
 # ------------------------------------------------------------------
 
 class TestPredictErrors:

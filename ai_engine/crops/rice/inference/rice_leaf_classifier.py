@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 import yaml
 from pathlib import Path
@@ -11,7 +11,7 @@ import torchvision
 from PIL import Image
 from torchvision import transforms
 
-from service.core.base_predictor import BasePredictor
+from ai_engine.common.base_predictor import BasePredictor
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +54,9 @@ class RiceLeafClassifier(BasePredictor):
     def __init__(
         self,
         checkpoint_path: str,
-        labels_file: str = "models/rice_leaf_classifier/labels.json",
-        config_file: str = "models/rice_leaf_classifier/config.yaml",
-        advice_file: str = "models/rice_leaf_classifier/advice_map.yaml",
+        labels_file: str = "models/rice/rice_leaf_classifier/labels.json",
+        config_file: str = "models/rice/rice_leaf_classifier/config.yaml",
+        advice_file: str = "models/rice/rice_leaf_classifier/advice_map.yaml",
         device: str = None
     ):
         self.class_names: List[str] = load_json(labels_file)

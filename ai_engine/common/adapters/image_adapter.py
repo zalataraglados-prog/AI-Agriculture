@@ -1,17 +1,17 @@
-"""Image adapter — L2 firewall between external I/O and pure inference.
+﻿"""Image adapter 鈥?L2 firewall between external I/O and pure inference.
 
 Every image that enters the core engine MUST pass through one of
 the ``load_image_*`` functions below.  This guarantees:
 
 1. A consistent ``PIL.Image.Image`` in RGB mode.
-2. Validated, non-empty data — the core layer can trust its input.
+2. Validated, non-empty data 鈥?the core layer can trust its input.
 3. Logging of image metadata *without* leaking sensitive file paths.
 
 Architecture constraint
 -----------------------
 This module belongs to **L2 (Adapter Layer)**.  It may use ``PIL``
 and standard-library I/O but MUST NOT import ``fastapi`` or any
-web-framework symbol.  The FastAPI ``UploadFile`` ➜ bytes conversion
+web-framework symbol.  The FastAPI ``UploadFile`` 鉃?bytes conversion
 happens in L1 (API layer), which then delegates to
 :func:`load_image_from_bytes` here.
 """
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class ImageLoadError(Exception):
     """Raised when an image cannot be loaded or decoded.
 
-    The message is intentionally kept user-safe — it references
+    The message is intentionally kept user-safe 鈥?it references
     only the file *name* (not the full path) to avoid leaking
     server-side directory structure.
     """
@@ -67,7 +67,7 @@ def load_image_from_path(image_path: str) -> Image.Image:
 
     try:
         img = Image.open(path).convert("RGB")
-        logger.info("Loaded image from path: %s (%d×%d)", path.name, img.width, img.height)
+        logger.info("Loaded image from path: %s (%d脳%d)", path.name, img.width, img.height)
         return img
     except UnidentifiedImageError:
         raise ImageLoadError(f"Cannot decode image: {path.name}")
@@ -98,7 +98,7 @@ def load_image_from_bytes(data: bytes) -> Image.Image:
 
     try:
         img = Image.open(io.BytesIO(data)).convert("RGB")
-        logger.info("Loaded image from bytes (%d×%d)", img.width, img.height)
+        logger.info("Loaded image from bytes (%d脳%d)", img.width, img.height)
         return img
     except UnidentifiedImageError:
         raise ImageLoadError("Cannot decode image from provided bytes")

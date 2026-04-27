@@ -1,4 +1,4 @@
-"""Pydantic models that define the AI inference contract.
+﻿"""Pydantic models that define the AI inference contract.
 
 These schemas are the **single source of truth** for the JSON
 structure exchanged with the Rust cloud backend.
@@ -6,7 +6,7 @@ structure exchanged with the Rust cloud backend.
 Design decisions
 ----------------
 * ``PredictionResponse.results`` is always a ``List`` even when
-  there is only one image — this avoids a breaking schema change
+  there is only one image 鈥?this avoids a breaking schema change
   when batch inference is introduced later.
 * Every ``PredictionResult`` carries a ``metadata`` dict and an
   optional ``geometry`` dict, reserved for Phase 2/3 features
@@ -47,9 +47,9 @@ class PredictionResult(BaseModel):
     model_version : str
         Semantic version tag of the model that produced the result.
     metadata : dict
-        Reserved — will carry LLM-generated advice in Phase 3.
+        Reserved 鈥?will carry LLM-generated advice in Phase 3.
     geometry : dict or None
-        Reserved — will carry bounding-box / mask data in Phase 2.
+        Reserved 鈥?will carry bounding-box / mask data in Phase 2.
     """
 
     predicted_class: str
@@ -83,7 +83,7 @@ class ErrorResponse(BaseModel):
     """Returned when inference fails gracefully.
 
     The API layer MUST catch exceptions raised by the core engine
-    and convert them into this format — never expose a raw 500.
+    and convert them into this format 鈥?never expose a raw 500.
     """
 
     status: str = "error"

@@ -1,6 +1,6 @@
-import pytest
+﻿import pytest
 from pydantic import ValidationError
-from service.schemas.prediction import PredictionResult, PredictionResponse, PredictionItem
+from ai_engine.common.schemas.prediction import PredictionResult, PredictionResponse, PredictionItem
 
 
 def test_prediction_result_schema():

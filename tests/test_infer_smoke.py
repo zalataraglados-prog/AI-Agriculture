@@ -1,4 +1,4 @@
-import json
+﻿import json
 import sys
 import yaml
 from pathlib import Path
@@ -10,8 +10,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from service.core.rice_leaf_classifier import build_model
-from service.infer import predict_image_file
+from ai_engine.crops.rice.inference.rice_leaf_classifier import build_model
+from ai_engine.infer import predict_image_file
 
 
 def test_predict_image_file_returns_expected_keys(tmp_path):

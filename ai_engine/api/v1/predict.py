@@ -1,4 +1,4 @@
-"""Prediction endpoint — POST /api/v1/predict
+﻿"""Prediction endpoint 鈥?POST /api/v1/predict
 
 This module is part of **L1 (API Layer)**.  Its sole responsibilities
 are:
@@ -15,8 +15,8 @@ import logging
 
 from fastapi import APIRouter, File, UploadFile
 
-from service.adapters.image_adapter import load_image_from_bytes
-from service.schemas.prediction import (
+from ai_engine.common.adapters.image_adapter import load_image_from_bytes
+from ai_engine.common.schemas.prediction import (
     ErrorResponse,
     PredictionItem,
     PredictionResponse,
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/v1", tags=["prediction"])
 
 # ------------------------------------------------------------------
 # Module-level reference to the pre-loaded model.
-# Populated by ``service.main`` at startup — see ``lifespan()``.
+# Populated by ``ai_engine.main`` at startup 鈥?see ``lifespan()``.
 # ------------------------------------------------------------------
 _classifier = None
 
@@ -43,7 +43,7 @@ def set_classifier(classifier) -> None:
 def _get_classifier():
     """Return the pre-loaded classifier or raise if not ready."""
     if _classifier is None:
-        raise RuntimeError("Model not loaded — the service is not ready")
+        raise RuntimeError("Model not loaded 鈥?the service is not ready")
     return _classifier
 
 
@@ -72,7 +72,7 @@ async def predict(file: UploadFile = File(...)):
     # L1: read raw bytes from the upload
     image_bytes = await file.read()
 
-    # L2: adapter converts bytes → PIL.Image
+    # L2: adapter converts bytes 鈫?PIL.Image
     image = load_image_from_bytes(image_bytes)
 
     # L3: core engine runs inference
