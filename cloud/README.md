@@ -181,6 +181,7 @@ Endpoints:
 
 Environment variables:
 
+- `CLOUD_AUTH_ENABLED` (default `false`; set `true` to enforce login gate)
 - `CLOUD_AUTH_USERNAME` (default `admin`)
 - `CLOUD_AUTH_PASSWORD` (default `admin123!`)
 - `CLOUD_AUTH_TTL_SEC` (default `28800`, i.e. 8 hours)

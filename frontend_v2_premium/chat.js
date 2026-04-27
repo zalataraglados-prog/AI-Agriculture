@@ -170,7 +170,7 @@ window.CHAT = (() => {
         }
 
         if (!response.ok) {
-            if (response.status === 401) {
+            if (window.API.isAuthEnforced?.() && response.status === 401) {
                 window.API.clearAuthSession();
                 window.location.replace('/login.html');
             }

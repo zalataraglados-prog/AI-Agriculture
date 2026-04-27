@@ -5,6 +5,8 @@
 window.API = (() => {
     const AUTH_STORAGE_KEY = 'agri_auth_session_v1';
     const runtime = window.RUNTIME_CONFIG || {};
+    const authCfg = runtime.auth || {};
+    const AUTH_ENFORCED = authCfg.enabled === true;
     const telemetryCfg = runtime.telemetry || {};
     const uploadCfg = runtime.imageUpload || {};
     const GATEWAY_STALE_MS = Number(telemetryCfg.gatewayStaleMs) || 5 * 60 * 1000;
@@ -90,6 +92,7 @@ window.API = (() => {
     };
 
     const requireAuthOrRedirect = () => {
+        if (!AUTH_ENFORCED) return true;
         const token = getAuthToken();
         if (!token) {
             redirectToLogin();
@@ -99,6 +102,7 @@ window.API = (() => {
     };
 
     const authHeaders = (baseHeaders = {}) => {
+        if (!AUTH_ENFORCED) return { ...baseHeaders };
         const token = getAuthToken();
         if (!token) return { ...baseHeaders };
         return {
@@ -110,7 +114,7 @@ window.API = (() => {
     const fetchJson = async (url, init = {}) => {
         const headers = authHeaders(init.headers || {});
         const res = await fetch(url, { cache: 'no-store', ...init, headers });
-        if (res.status === 401) {
+        if (AUTH_ENFORCED && res.status === 401) {
             clearAuthSession();
             redirectToLogin();
             throw new Error('HTTP 401');
@@ -457,6 +461,7 @@ window.API = (() => {
         clearAuthSession,
         getAuthToken,
         requireAuthOrRedirect,
+        isAuthEnforced: () => AUTH_ENFORCED,
         apiUrl,
         loadSchema,
         getSchema: () => schemaBySensor,

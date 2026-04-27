@@ -342,6 +342,7 @@ pub fn start_http_server(
         QUERY_CACHE_MAX_ENTRIES,
         Duration::from_secs(QUERY_CACHE_TTL_SECONDS),
     )));
+    let auth_enabled = auth_enabled_from_env();
     let perf = Arc::new(Mutex::new(PerfMetrics::new(PERF_METRIC_WINDOW_SIZE)));
     let ai_http_client = Arc::new(
         reqwest::blocking::Client::builder()
@@ -362,6 +363,11 @@ pub fn start_http_server(
         "{} [cloud-http] Listening on http://{}",
         now_rfc3339(),
         bind_addr
+    );
+    println!(
+        "{} [cloud-http] auth_enabled={}",
+        now_rfc3339(),
+        auth_enabled
     );
 
     thread::spawn(move || {
@@ -387,6 +393,7 @@ pub fn start_http_server(
             let ai_http_client = ai_http_client.clone();
             let openclaw_http_client = openclaw_http_client.clone();
             let auth = auth.clone();
+            let auth_enabled = auth_enabled;
 
             // Spawn a dedicated worker thread per request so that slow endpoints
             // (AI inference, DB queries) never block static-file serving.
@@ -409,6 +416,7 @@ pub fn start_http_server(
                         db,
                         query_cache,
                         auth,
+                        auth_enabled,
                         perf,
                         &ai_http_client,
                         &openclaw_http_client,
@@ -470,11 +478,12 @@ fn handle_api(
     db: Arc<Mutex<DbManager>>,
     query_cache: Arc<Mutex<QueryCache>>,
     auth: Arc<Mutex<AuthManager>>,
+    auth_enabled: bool,
     perf: Arc<Mutex<PerfMetrics>>,
     ai_http_client: &reqwest::blocking::Client,
     openclaw_http_client: &reqwest::blocking::Client,
 ) {
-    if requires_auth(&method, path) {
+    if auth_enabled && requires_auth(&method, path) {
         match extract_bearer_token(&request) {
             Some(token) => match auth.lock() {
                 Ok(mut guard) => {
@@ -612,6 +621,16 @@ fn requires_auth(method: &Method, path: &str) -> bool {
         return false;
     }
     path.starts_with("/api/v1/") || path == "/api/telemetry"
+}
+
+fn auth_enabled_from_env() -> bool {
+    std::env::var("CLOUD_AUTH_ENABLED")
+        .ok()
+        .map(|v| {
+            let t = v.trim().to_ascii_lowercase();
+            t == "1" || t == "true" || t == "yes" || t == "on"
+        })
+        .unwrap_or(false)
 }
 
 fn extract_bearer_token(request: &tiny_http::Request) -> Option<String> {
