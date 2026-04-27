@@ -28,6 +28,7 @@ window.onload = async () => {
     window.UI.HomePositioning.init();
     window.UI.Upload.init(activeDeviceId);
     window.UI.AI.init();
+    window.CHAT?.setConnectionState?.(true);
     await updateAppLoop(activeDeviceId);
 
     window.APP = {

@@ -177,7 +177,7 @@
                               </div>
                               <div>
                                   <h3 class="text-sm font-bold text-white tracking-wider">Agri-AI <span class="font-light text-emerald-300">OpenClaw</span></h3>
-                                  <p class="text-[10px] text-emerald-400/70" data-i18n="support_online">鍦ㄧ嚎鍗忓姪涓?/p>
+                                  <p id="chatConnectionStatus" class="text-[10px] text-emerald-400/70" data-i18n="support_online">鍦ㄧ嚎鍗忓姪涓?/p>
                               </div>
                               <div class="ml-auto flex items-center gap-2">
                                   <button onclick="UI.AI.createNewSession()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition-all flex items-center justify-center border border-white/5" title="鏂板缓浼氳瘽">
@@ -323,8 +323,8 @@
                   <div class="glass-panel flex flex-col overflow-hidden col-span-1 lg:col-span-2 relative">
                       <div class="p-4 bg-white/5 border-b border-white/10 flex items-center justify-between px-6">
                           <div class="flex items-center gap-3">
-                              <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                              <span class="text-sm font-bold tracking-wider text-white" data-i18n="immersive_chat">娌夋蹈寮忓璇濈珯</span>
+                              <div id="aiConnectionDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                              <span id="aiConnectionText" class="text-sm font-bold tracking-wider text-white" data-i18n="immersive_chat">娌夋蹈寮忓璇濈珯</span>
                           </div>
                           <button onclick="UI.switchView('view-home')" class="text-xs text-slate-400 hover:text-white transition-all uppercase tracking-widest flex items-center gap-2">
                              <i class="fa fa-arrow-left"></i> <span data-i18n="back_overview">杩斿洖姒傝</span>

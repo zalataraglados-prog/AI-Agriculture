@@ -1391,7 +1391,7 @@ window.UI = (() => {
                     UI.AI.addMessage('ai', reply);
                 } catch (err) {
                     UI.AI.hideLoading();
-                    UI.AI.addMessage('ai', `服务暂时离线: ${err.message}`);
+                    window.CHAT.handleRequestError(err);
                 } finally {
                     UI.AI.isTyping = false;
                 }

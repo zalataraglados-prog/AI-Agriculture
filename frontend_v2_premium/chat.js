@@ -3,6 +3,8 @@
  */
 window.CHAT = (() => {
     let isAiTyping = false;
+    let aiConnected = true;
+    let lastDisconnectReason = '';
 
     const escapeHtml = (text) => `${text || ''}`
         .replace(/&/g, '&amp;')
@@ -104,18 +106,58 @@ window.CHAT = (() => {
         if (loading) loading.remove();
     };
 
+    const setConnectionState = (connected, reason = '') => {
+        aiConnected = !!connected;
+        if (!connected && reason) lastDisconnectReason = reason;
+        if (connected) lastDisconnectReason = '';
+
+        const homeStatus = document.getElementById('chatConnectionStatus');
+        if (homeStatus) {
+            homeStatus.classList.toggle('text-emerald-400', aiConnected);
+            homeStatus.classList.toggle('text-rose-400', !aiConnected);
+            homeStatus.textContent = aiConnected
+                ? (window.t?.('support_online') || 'Online')
+                : `AI offline${lastDisconnectReason ? `: ${lastDisconnectReason}` : ''}`;
+        }
+
+        const aiDot = document.getElementById('aiConnectionDot');
+        if (aiDot) {
+            aiDot.classList.toggle('bg-emerald-500', aiConnected);
+            aiDot.classList.toggle('bg-rose-500', !aiConnected);
+            aiDot.classList.toggle('animate-pulse', aiConnected);
+        }
+
+        const aiText = document.getElementById('aiConnectionText');
+        if (aiText) {
+            aiText.textContent = aiConnected
+                ? (window.t?.('immersive_chat') || 'Immersive Chat Station')
+                : 'AI Offline';
+        }
+    };
+
+    const handleRequestError = (err) => {
+        const msg = `${err?.message || err || 'unknown error'}`;
+        setConnectionState(false, msg);
+    };
+
     const sendMessageToOpenClaw = async (msg) => {
-        const response = await fetch('/api/v1/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: msg,
-                context: {
-                    source: 'frontend_v2_premium',
-                    ts: new Date().toISOString(),
-                },
-            }),
-        });
+        let response;
+        try {
+            response = await fetch('/api/v1/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: msg,
+                    context: {
+                        source: 'frontend_v2_premium',
+                        ts: new Date().toISOString(),
+                    },
+                }),
+            });
+        } catch (_err) {
+            setConnectionState(false, 'network error');
+            throw new Error('network error');
+        }
 
         let data = null;
         try {
@@ -126,13 +168,16 @@ window.CHAT = (() => {
 
         if (!response.ok) {
             const message = data?.message || `chat request failed (${response.status})`;
+            setConnectionState(false, message);
             throw new Error(message);
         }
 
         if (!data?.reply || typeof data.reply !== 'string') {
+            setConnectionState(false, 'invalid upstream reply');
             throw new Error('chat response missing reply');
         }
 
+        setConnectionState(true);
         return data.reply;
     };
 
@@ -159,7 +204,7 @@ window.CHAT = (() => {
             window.UI.AI.addMessage('ai', reply);
         } catch (err) {
             window.UI.AI.hideLoading();
-            window.UI.AI.addMessage('ai', `服务暂时离线: ${err.message}`);
+            handleRequestError(err);
         } finally {
             window.UI.AI.isTyping = false;
         }
@@ -168,6 +213,8 @@ window.CHAT = (() => {
     return {
         handleSubmit,
         sendMessageToOpenClaw,
+        handleRequestError,
+        setConnectionState,
         renderMarkdown,
         escapeHtml
     };
