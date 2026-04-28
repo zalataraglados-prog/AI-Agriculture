@@ -10,13 +10,14 @@ from PIL import Image
 
 try:
     import torch
-    _torch_available = True
-except ImportError:
-    _torch_available = False
+    import torchvision
+    _torch_stack_available = True
+except Exception:
+    _torch_stack_available = False
 
 pytestmark = pytest.mark.skipif(
-    not _torch_available,
-    reason="PyTorch not installed — skipping inference smoke tests",
+    not _torch_stack_available,
+    reason="Torch/Torchvision stack not available — skipping inference smoke tests",
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -32,7 +33,7 @@ def _import_torch_modules():
     return build_model, predict_image_file
 
 
-@pytest.mark.skipif(not _torch_available, reason="PyTorch not installed")
+@pytest.mark.skipif(not _torch_stack_available, reason="Torch stack not available")
 def test_predict_image_file_returns_expected_keys(tmp_path, _import_torch_modules):
     build_model, predict_image_file = _import_torch_modules
     labels = [
