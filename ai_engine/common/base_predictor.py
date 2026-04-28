@@ -3,7 +3,7 @@
 To add a new crop (e.g. corn, oil-palm), create a subclass of
 ``BasePredictor`` and implement :meth:`predict` and
 :meth:`get_model_info`.  No changes to ``main.py`` or routing
-logic should be necessary 鈥?new models are loaded via
+logic should be necessary —new models are loaded via
 configuration, not hard-coded branches.
 
 Architecture constraint
@@ -40,7 +40,7 @@ class BasePredictor(ABC):
         Parameters
         ----------
         image : PIL.Image.Image
-            An RGB image 鈥?the adapter layer is responsible for
+            An RGB image —the adapter layer is responsible for
             decoding and colour-space conversion *before* this
             method is called.
         top_k : int, optional
@@ -56,8 +56,8 @@ class BasePredictor(ABC):
             - ``confidence`` (float)
             - ``topk`` (list[dict])
             - ``model_version`` (str)
-            - ``metadata`` (dict)   鈥?reserved for future LLM advice
-            - ``geometry`` (dict | None) 鈥?reserved for BBox / Mask
+            - ``metadata`` (dict)   —reserved for future LLM advice
+            - ``geometry`` (dict | None) —reserved for BBox / Mask
         """
         ...
 

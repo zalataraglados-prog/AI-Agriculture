@@ -69,7 +69,7 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(
     not torch_available,
-    reason="PyTorch not installed 鈥?skipping API integration tests",
+    reason="PyTorch not installed —skipping API integration tests",
 )
 
 
@@ -119,7 +119,7 @@ class TestHealthEndpoint:
 
 
 # ------------------------------------------------------------------
-# Test: Predict endpoint 鈥?happy path
+# Test: Predict endpoint —happy path
 # ------------------------------------------------------------------
 
 class TestPredictEndpoint:
@@ -197,7 +197,7 @@ class TestOilPalmMockEndpoints:
 
 
 # ------------------------------------------------------------------
-# Test: Predict endpoint 鈥?error cases
+# Test: Predict endpoint —error cases
 # ------------------------------------------------------------------
 
 class TestPredictErrors:

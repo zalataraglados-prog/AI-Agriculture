@@ -1,10 +1,10 @@
-"""Image adapter 鈥?L2 firewall between external I/O and pure inference.
+"""Image adapter —L2 firewall between external I/O and pure inference.
 
 Every image that enters the core engine MUST pass through one of
 the ``load_image_*`` functions below.  This guarantees:
 
 1. A consistent ``PIL.Image.Image`` in RGB mode.
-2. Validated, non-empty data 鈥?the core layer can trust its input.
+2. Validated, non-empty data —the core layer can trust its input.
 3. Logging of image metadata *without* leaking sensitive file paths.
 
 Architecture constraint
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class ImageLoadError(Exception):
     """Raised when an image cannot be loaded or decoded.
 
-    The message is intentionally kept user-safe 鈥?it references
+    The message is intentionally kept user-safe —it references
     only the file *name* (not the full path) to avoid leaking
     server-side directory structure.
     """

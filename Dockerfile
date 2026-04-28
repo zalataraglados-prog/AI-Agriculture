@@ -41,9 +41,9 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy application code
+# Copy application code (models are NOT baked in — mount via volume at runtime)
 COPY ai_engine/ ./ai_engine/
-COPY models/ ./models/
+# Models directory is expected to be mounted: -v ./models:/app/models:ro
 
 # Environment variables
 ARG CROP_PROFILE=rice
