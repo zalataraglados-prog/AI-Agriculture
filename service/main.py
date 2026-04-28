@@ -58,6 +58,7 @@ MODEL_ADVICE_FILE = os.environ.get(
     "MODEL_ADVICE_FILE",
     "models/rice_leaf_classifier/advice_map.yaml",
 )
+CROP_PROFILE = os.environ.get("CROP_PROFILE", "rice").strip().lower() or "rice"
 
 
 # ------------------------------------------------------------------
@@ -71,20 +72,35 @@ async def lifespan(app: FastAPI):
     rather than silently serving broken requests.
     """
     logger.info("=== Smart Farm AI Engine starting ===")
+    logger.info("Crop Profile: %s", CROP_PROFILE)
     logger.info("Checkpoint : %s", MODEL_CHECKPOINT_PATH)
     logger.info("Labels     : %s", MODEL_LABELS_FILE)
     logger.info("Config     : %s", MODEL_CONFIG_FILE)
     logger.info("Advice Map : %s", MODEL_ADVICE_FILE)
 
-    classifier = RiceLeafClassifier(
-        checkpoint_path=MODEL_CHECKPOINT_PATH,
-        labels_file=MODEL_LABELS_FILE,
-        config_file=MODEL_CONFIG_FILE,
-        advice_file=MODEL_ADVICE_FILE,
-    )
-    set_classifier(classifier)
+    if CROP_PROFILE == "rice":
+        try:
+            classifier = RiceLeafClassifier(
+                checkpoint_path=MODEL_CHECKPOINT_PATH,
+                labels_file=MODEL_LABELS_FILE,
+                config_file=MODEL_CONFIG_FILE,
+                advice_file=MODEL_ADVICE_FILE,
+            )
+        except Exception:
+            logger.exception(
+                "Rice model initialization failed for CROP_PROFILE=rice; "
+                "failing startup to avoid reporting a false healthy state."
+            )
+            raise
+        set_classifier(classifier)
+    else:
+        logger.warning(
+            "Skipping rice model preload because CROP_PROFILE=%s. "
+            "Rice endpoints will remain unavailable in this profile.",
+            CROP_PROFILE,
+        )
 
-    logger.info("Model loaded successfully — service is ready.")
+    logger.info("Startup initialization completed — service is ready.")
     yield
     logger.info("=== Smart Farm AI Engine shutting down ===")
 
