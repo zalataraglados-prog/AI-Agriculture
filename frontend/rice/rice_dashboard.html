@@ -88,7 +88,7 @@
           </div>
           <div id="nav-health" class="sidebar-item nav-target" data-view="view-health" onclick="UI.switchView('view-health', this)">
               <i class="fa fa-heartbeat text-xl w-6 text-center"></i>
-              <span class="nav-label font-bold tracking-widest text-sm" data-i18n="nav_health">设�?健康�?/span>
+              <span class="nav-label font-bold tracking-widest text-sm" data-i18n="nav_health">设备健康度</span>
           </div>
       </nav>
 
@@ -106,7 +106,7 @@
       <header class="glass-panel sticky top-4 mx-4 md:mx-8 z-50 flex items-center justify-between px-6 py-4">
           <div class="flex items-center gap-4">
               <h1 class="text-xl font-bold text-white tracking-wide">AI-Agri <span class="text-emerald-400 font-light">Nexus</span></h1>
-              <p class="text-xs text-slate-400"><i class="fa fa-circle text-emerald-500 animate-pulse text-[8px] mr-1"></i><span data-i18n="sys_running">系统运�?�?/span></p>
+              <p class="text-xs text-slate-400"><i class="fa fa-circle text-emerald-500 animate-pulse text-[8px] mr-1"></i><span data-i18n="sys_running">系统运行中</span></p>
           </div>
           <div class="flex items-center gap-6">
               <div class="hidden md:flex flex-col items-end">
@@ -121,7 +121,7 @@
                   </div>
                   <div class="absolute right-0 top-full mt-2 w-32 bg-slate-800 border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
                       <div class="p-1.5 flex flex-col gap-1">
-                          <button onclick="window.I18N.setLanguage('zh'); document.getElementById('currentLangDisplay').textContent='ZH'" class="text-left w-full px-3 py-2 text-xs text-slate-300 hover:text-emerald-400 hover:bg-white/5 rounded-lg transition-colors font-medium">ZH - �?��</button>
+                          <button onclick="window.I18N.setLanguage('zh'); document.getElementById('currentLangDisplay').textContent='ZH'" class="text-left w-full px-3 py-2 text-xs text-slate-300 hover:text-emerald-400 hover:bg-white/5 rounded-lg transition-colors font-medium">ZH - 中文</button>
                           <button onclick="window.I18N.setLanguage('en'); document.getElementById('currentLangDisplay').textContent='EN'" class="text-left w-full px-3 py-2 text-xs text-slate-300 hover:text-emerald-400 hover:bg-white/5 rounded-lg transition-colors font-medium">EN - English</button>
                           <button onclick="window.I18N.setLanguage('ms'); document.getElementById('currentLangDisplay').textContent='MS'" class="text-left w-full px-3 py-2 text-xs text-slate-300 hover:text-emerald-400 hover:bg-white/5 rounded-lg transition-colors font-medium">MS - Melayu</button>
                       </div>
@@ -136,7 +136,7 @@
                   <div class="dashboard-left">
                       <!-- Cloud Status -->
                       <div class="glass-panel p-6">
-                          <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-cloud text-blue-400"></i><span data-i18n="cloud_status">云�?服务器状�?/span></h2>
+                          <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-cloud text-blue-400"></i><span data-i18n="cloud_status">云端服务器状态</span></h2>
                           <div id="cloudStatusContainer">
                               <div class="status-indicator">
                                   <span class="text-xs text-slate-300">Telemetry Gateway (Rust)</span>
