@@ -1,52 +1,50 @@
-# AI 妯″潡璇存槑
+# AI Module Notes
 
-鏈洰褰曠敤浜庣淮鎶?AI 妯″潡鐩稿叧鏂囨。锛屽寘鎷細
-- API 璇存槑
-- 妯″瀷鏂规
-- 鏁版嵁璇存槑
-- 閮ㄧ讲璇存槑
+This folder documents the AI module, including:
+
+- API notes
+- model/training notes
+- data notes
+- deployment notes
 
 ## Current Stage
-- Task: Image Classification (NOT object detection)
-- Dataset: Rice Leaf Spot Disease Annotated Dataset (YOLO format)
-- Model: ResNet18
+
+- Task: image classification (not object detection)
+- Dataset: Rice Leaf Spot Disease Annotated Dataset (YOLO format source, converted for classification)
+- Baseline model: ResNet18
 - Classes: 8
-- Input Size: 224
+- Input size: 224
+
 ## Workflow
-### 1. Prepare Dataset (Detection 鈫?Classification)
+
+### 1) Prepare dataset (detection -> classification)
+
 ```bash
 python scripts/prepare_rice_cls_dataset.py --dataset-root "local_data/rice_leaf_spot_disease_annotated_dataset"
 ```
 
-### 2. Train Model
+### 2) Train
 
-  python scripts/train_rice_leaf_classifier.py
-
-### 3. Run Inference
 ```bash
-python service/infer.py \
-    --image-path "your_image.jpg" \
-    --checkpoint-path "outputs/rice_leaf_classifier/checkpoints/best_model.pth"
+python scripts/train_rice_leaf_classifier.py
 ```
 
-Important Notes
----------------
+### 3) Run inference
 
-* The dataset is NOT included in this repository.
-
-* Place dataset under:
+```bash
+python -m ai_engine.infer \
+  --image-path "your_image.jpg" \
+  --checkpoint-path "outputs/rice_leaf_classifier/checkpoints/best_model.pth"
 ```
-  local_data/
-```
-* This project currently uses classification baseline.
 
-* Bounding boxes are ignored in this stage.
+## Notes
 
-Future Work
------------
+- Dataset files are not included in this repository.
+- Place local datasets under `local_data/`.
+- Current baseline ignores bounding boxes for classification stage.
 
-* Object detection (YOLO / Faster R-CNN)
+## Future
 
-* Multi-label classification
-
-* Multi-crop support
+- Object detection (YOLO / Faster R-CNN)
+- Multi-label classification
+- Multi-crop support

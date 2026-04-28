@@ -88,7 +88,7 @@ async def client():
     """Create an HTTPX ASGI client with the model injected."""
     mock_classifier = _make_mock_classifier()
 
-    from ai_engine.api.v1.predict import set_classifier
+    from ai_engine.crops.rice.inference.api import set_classifier
     from ai_engine.main import app
 
     set_classifier(mock_classifier)
@@ -115,7 +115,7 @@ class TestHealthEndpoint:
         data = (await client.get("/api/v1/health")).json()
         assert data["status"] == "ok"
         assert data["service"] == "smart-farm-ai-engine"
-        assert "model" in data
+        assert "crop_profile" in data
 
 
 # ------------------------------------------------------------------
@@ -158,6 +158,42 @@ class TestPredictEndpoint:
         for item in topk:
             assert "label" in item
             assert "score" in item
+
+    @pytest.mark.anyio
+    async def test_rice_predict_endpoint_works(self, client):
+        image_bytes = _create_test_image_bytes()
+        response = await client.post(
+            "/api/v1/rice/predict",
+            files={"file": ("test.jpg", image_bytes, "image/jpeg")},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+
+
+class TestOilPalmMockEndpoints:
+    @pytest.mark.anyio
+    async def test_oil_palm_analyze_image_mock(self, client):
+        image_bytes = _create_test_image_bytes()
+        response = await client.post(
+            "/api/v1/oil-palm/analyze-image",
+            files={"file": ("test.jpg", image_bytes, "image/jpeg")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["crop"] == "oil_palm"
+        assert data["status"] == "mock"
+
+    @pytest.mark.anyio
+    async def test_oil_palm_analyze_session_mock(self, client):
+        response = await client.post("/api/v1/oil-palm/analyze-session")
+        assert response.status_code == 200
+        assert response.json()["status"] == "mock"
+
+    @pytest.mark.anyio
+    async def test_oil_palm_analyze_uav_mission_mock(self, client):
+        response = await client.post("/api/v1/oil-palm/analyze-uav-mission")
+        assert response.status_code == 200
+        assert response.json()["status"] == "mock"
 
 
 # ------------------------------------------------------------------
