@@ -1,4 +1,4 @@
-/**
+﻿/**
  * App Orchestrator
  * Entry point that initializes modules and manages the data loop.
  */
@@ -14,47 +14,45 @@ window.onload = async () => {
     const params = new URLSearchParams(window.location.search);
     let activeDeviceId = (params.get('device_id') || localStorage.getItem('device_id') || '').trim();
     if (activeDeviceId) localStorage.setItem('device_id', activeDeviceId);
-    
-    const ctxTitle = document.getElementById('ctxDevice');
-    if (ctxTitle) ctxTitle.textContent = `Node: ${activeDeviceId || 'GLOBAL'}`;
 
-    // 1. Initialize Global UI Components (Clock)
+    const setCtxDeviceLabel = (deviceId) => {
+        const ctxTitle = document.getElementById('ctxDevice');
+        if (ctxTitle) ctxTitle.textContent = `Node: ${deviceId || 'GLOBAL'}`;
+    };
+    setCtxDeviceLabel(activeDeviceId);
+
     setInterval(() => {
         const clock = document.getElementById('clock');
         if (clock) clock.innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
     }, 1000);
 
-    // 2. Initialize Charts
     initCharts();
 
-    // 3. Load Schema & Initial Data
     await window.API.loadSchema();
     window.UI.HomePositioning.init();
     window.UI.Upload.init(activeDeviceId);
     window.UI.AI.init();
-    await updateAppLoop(activeDeviceId);
+    await updateAppLoop(activeDeviceId, setCtxDeviceLabel);
 
     window.APP = {
         refreshNow: async () => {
             activeDeviceId = (localStorage.getItem('device_id') || activeDeviceId || '').trim();
-            await updateAppLoop(activeDeviceId);
+            await updateAppLoop(activeDeviceId, setCtxDeviceLabel);
         },
     };
 
-    // 4. Start Interval
     setInterval(() => {
         activeDeviceId = (localStorage.getItem('device_id') || activeDeviceId || '').trim();
-        updateAppLoop(activeDeviceId);
+        updateAppLoop(activeDeviceId, setCtxDeviceLabel);
     }, refreshMs);
 
-    // Initial Resize
     window.UI.switchView('view-home');
 };
 
-async function initCharts() {
-    Chart.defaults.color = "rgba(255,255,255,0.4)";
-    Chart.defaults.font.family = "Inter";
-    
+function initCharts() {
+    Chart.defaults.color = 'rgba(255,255,255,0.4)';
+    Chart.defaults.font.family = 'Inter';
+
     const ctx1 = document.getElementById('envChart');
     if (ctx1) {
         const gradEc = ctx1.getContext('2d').createLinearGradient(0, 0, 0, 300);
@@ -66,14 +64,14 @@ async function initCharts() {
             data: {
                 labels: [],
                 datasets: [{
-                    label: '土壤肥力 EC (μS/cm)',
+                    label: 'Soil Fertility EC (uS/cm)',
                     data: [],
                     borderColor: '#10b981',
                     backgroundColor: gradEc,
                     borderWidth: 2,
                     tension: 0.4,
-                    fill: true
-                }]
+                    fill: true,
+                }],
             },
             options: {
                 responsive: true,
@@ -81,31 +79,61 @@ async function initCharts() {
                 plugins: { legend: { display: false } },
                 scales: {
                     x: { grid: { display: false } },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' } }
-                }
-            }
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                },
+            },
         });
         window.UI.setEnvChart(chart);
     }
 }
 
-async function updateAppLoop(deviceId) {
+async function updateAppLoop(deviceId, setCtxDeviceLabel) {
     try {
-        const telUrl = window.API.apiUrl('/api/v1/telemetry', { device_id: deviceId, limit: 300 });
-        const imgUrl = window.API.apiUrl('/api/v1/image/uploads', { device_id: deviceId, limit: 50 });
-        
-        const [telemetry, imageUploads] = await Promise.all([
-            window.API.fetchJson(telUrl).catch(() => []),
-            window.API.fetchJson(imgUrl).catch(() => [])
+        let effectiveDeviceId = (deviceId || '').trim();
+        const telemetryQuery = effectiveDeviceId ? { device_id: effectiveDeviceId, limit: 300 } : { limit: 300 };
+        const uploadQuery = effectiveDeviceId ? { device_id: effectiveDeviceId, limit: 50 } : { limit: 50 };
+
+        let [telemetry, imageUploads] = await Promise.all([
+            window.API.fetchJson(window.API.apiUrl('/api/v1/telemetry', telemetryQuery)).catch(() => []),
+            window.API.fetchJson(window.API.apiUrl('/api/v1/image/uploads', uploadQuery)).catch(() => []),
         ]);
+
+        if (effectiveDeviceId && (!Array.isArray(telemetry) || telemetry.length === 0)) {
+            const globalTelemetry = await window.API
+                .fetchJson(window.API.apiUrl('/api/v1/telemetry', { limit: 300 }))
+                .catch(() => []);
+
+            if (Array.isArray(globalTelemetry) && globalTelemetry.length > 0) {
+                telemetry = globalTelemetry;
+                const fallbackDeviceId = `${globalTelemetry[0]?.device_id || ''}`.trim();
+                if (fallbackDeviceId) {
+                    effectiveDeviceId = fallbackDeviceId;
+                    localStorage.setItem('device_id', fallbackDeviceId);
+                    imageUploads = await window.API
+                        .fetchJson(window.API.apiUrl('/api/v1/image/uploads', { device_id: fallbackDeviceId, limit: 50 }))
+                        .catch(() => imageUploads);
+                }
+            }
+        }
+
+        if (!effectiveDeviceId && Array.isArray(telemetry) && telemetry.length > 0) {
+            const inferredDeviceId = `${telemetry[0]?.device_id || ''}`.trim();
+            if (inferredDeviceId) {
+                effectiveDeviceId = inferredDeviceId;
+                localStorage.setItem('device_id', inferredDeviceId);
+            }
+        }
+
+        if (typeof setCtxDeviceLabel === 'function') {
+            setCtxDeviceLabel(effectiveDeviceId);
+        }
 
         window.API.setTelemetry(telemetry);
         window.UI.setImageUploads(imageUploads);
         window.UI.renderSensorGrid(telemetry);
         renderDiagnosis(imageUploads);
-
     } catch (e) {
-        console.error("App Loop Error:", e);
+        console.error('App Loop Error:', e);
     }
 }
 
@@ -115,7 +143,6 @@ function renderDiagnosis(imageUploads) {
     }
 }
 
-// Global modal helpers
 window.openModal = () => {
     const m = document.getElementById('imageModal');
     if (m) m.classList.remove('opacity-0', 'pointer-events-none');
