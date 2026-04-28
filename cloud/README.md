@@ -160,6 +160,20 @@ chmod +x scripts/install_openclaw_chat_adapter.sh
 It starts `openclaw-chat-adapter` on `127.0.0.1:3000` and bridges chat requests to:
 `openclaw agent --local --agent main --message ... --json`.
 
+Adapter performance knobs (for cold-start mitigation):
+
+- `CHAT_ADAPTER_WORKERS` (default `2`): bounded concurrent CLI workers
+- `CHAT_ADAPTER_TIMEOUT_SEC` (default `180`)
+- `CHAT_ADAPTER_CWD` (default `/opt/ai-agriculture/cloud`)
+- startup warmup is enabled by default (can disable with `--no-warmup`)
+
+Example:
+
+```bash
+CHAT_ADAPTER_WORKERS=4 CHAT_ADAPTER_TIMEOUT_SEC=90 \
+python3 scripts/openclaw_chat_adapter.py --host 127.0.0.1 --port 3000
+```
+
 ## Auth API (issue #64 baseline)
 
 Auth is session-token based for management/business APIs:
@@ -294,6 +308,28 @@ python3 scripts/image_stress_cli.py set-rate --hz 1 --control-file /tmp/image_st
 python3 scripts/image_stress_cli.py set-rate --interval-sec 0.2 --control-file /tmp/image_stress_control.json
 python3 scripts/image_stress_cli.py show-rate --control-file /tmp/image_stress_control.json
 python3 scripts/image_stress_cli.py stop --control-file /tmp/image_stress_control.json
+```
+
+## Chat stress CLI (hot frequency + staircase)
+
+Run continuously and every 5 seconds reduce interval by 0.1 seconds (never auto-stop):
+
+```bash
+python3 scripts/chat_stress_cli.py run \
+  --url http://127.0.0.1:9001/api/v1/chat \
+  --interval-sec 1.0 \
+  --stair-enable \
+  --stair-every-sec 5 \
+  --stair-delta-sec 0.1 \
+  --control-file /tmp/chat_stress_control.json
+```
+
+Hot-control commands:
+
+```bash
+python3 scripts/chat_stress_cli.py set-rate --interval-sec 0.5 --control-file /tmp/chat_stress_control.json
+python3 scripts/chat_stress_cli.py show --control-file /tmp/chat_stress_control.json
+python3 scripts/chat_stress_cli.py stop --control-file /tmp/chat_stress_control.json
 ```
 
 Notes:

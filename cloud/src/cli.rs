@@ -14,7 +14,6 @@ pub(crate) fn print_usage(binary: &str) {
                [--ack-mismatch <payload>] [--ack-unknown-sensor <payload>]
                [--token-store <path>] [--registry <path>] [--database-url <dsn>]
                [--expected <legacy-payload>] [--ack-match <legacy-ack>]
-
   {binary} token [--config <path>] [--token-store <path>]
 
 Defaults:
@@ -29,10 +28,9 @@ Defaults:
   --database-url from CLI/env/config (required)
 
 Notes:
-  1) Default subcommand is 'run'.
-  2) Registration format: register:{{json}}
-  3) Data must include device_id=<id>.
-"
+  1) Default subcommand is `run`.
+  2) Registration packet format is `register:{{json}}`.
+  3) Telemetry payload should contain `device_id=<id>`, otherwise cloud may return `ack:unregistered`."
     );
 }
 
