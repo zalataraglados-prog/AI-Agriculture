@@ -30,6 +30,20 @@ const QUERY_CACHE_TTL_SECONDS: u64 = 15;
 const QUERY_CACHE_MAX_ENTRIES: usize = 500;
 const PERF_METRIC_WINDOW_SIZE: usize = 2048;
 
+fn env_usize(key: &str, default_value: usize) -> usize {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(default_value)
+}
+
+fn env_u64(key: &str, default_value: u64) -> u64 {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(default_value)
+}
+
 #[derive(Debug, Clone)]
 struct QueryCacheEntry {
     value: String,
@@ -346,17 +360,22 @@ pub fn start_http_server(
     )));
     let auth_enabled = auth_enabled_from_env();
     let perf = Arc::new(Mutex::new(PerfMetrics::new(PERF_METRIC_WINDOW_SIZE)));
+    let ai_timeout_sec = env_u64("CLOUD_HTTP_AI_TIMEOUT_SEC", 20);
+    let ai_pool_idle = env_usize("CLOUD_HTTP_AI_POOL_MAX_IDLE_PER_HOST", 8);
+    let openclaw_timeout_sec = env_u64("CLOUD_HTTP_OPENCLAW_TIMEOUT_SEC", 120);
+    let openclaw_pool_idle = env_usize("CLOUD_HTTP_OPENCLAW_POOL_MAX_IDLE_PER_HOST", 4);
+
     let ai_http_client = Arc::new(
         reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(20))
-            .pool_max_idle_per_host(8)
+            .timeout(Duration::from_secs(ai_timeout_sec))
+            .pool_max_idle_per_host(ai_pool_idle)
             .build()
             .expect("Failed to build AI HTTP client"),
     );
     let openclaw_http_client = Arc::new(
         reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(120))
-            .pool_max_idle_per_host(4)
+            .timeout(Duration::from_secs(openclaw_timeout_sec))
+            .pool_max_idle_per_host(openclaw_pool_idle)
             .build()
             .expect("Failed to build OpenClaw HTTP client"),
     );
@@ -370,6 +389,14 @@ pub fn start_http_server(
         "{} [cloud-http] auth_enabled={}",
         now_rfc3339(),
         auth_enabled
+    );
+    println!(
+        "{} [cloud-http] ai_timeout_sec={} ai_pool_idle={} openclaw_timeout_sec={} openclaw_pool_idle={}",
+        now_rfc3339(),
+        ai_timeout_sec,
+        ai_pool_idle,
+        openclaw_timeout_sec,
+        openclaw_pool_idle
     );
 
     thread::spawn(move || {
