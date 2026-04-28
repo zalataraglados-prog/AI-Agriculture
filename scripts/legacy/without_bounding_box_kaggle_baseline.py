@@ -1,4 +1,4 @@
-﻿import kagglehub
+import kagglehub
 hadiurrahmannabil_rice_leaf_spot_disease_annotated_dataset_path = kagglehub.dataset_download('hadiurrahmannabil/rice-leaf-spot-disease-annotated-dataset')
 
 print('Data source import complete.')

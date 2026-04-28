@@ -59,7 +59,7 @@ if [[ -d "${STATIC_SOURCE_FRONTEND}" ]]; then
     $SUDO cp -a "${STATIC_SOURCE_FRONTEND}/." "${STATIC_TARGET_FRONTEND}/"
   fi
 else
-  echo "[deploy] WARNING: frontend_v2_premium not found at ${STATIC_SOURCE_FRONTEND}"
+  echo "[deploy] WARNING: frontend/rice not found at ${STATIC_SOURCE_FRONTEND}"
 fi
 
 if [[ -d "${STATIC_SOURCE_DASHBOARD}" ]]; then

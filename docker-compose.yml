@@ -12,6 +12,7 @@ services:
     ports:
       - "${AI_ENGINE_PORT:-8000}:8000"
     volumes:
+      # Option A: Mount models and datasets from host to keep image size small
       - ./models:/app/models:ro
       - ./datasets:/app/datasets:ro
     environment:

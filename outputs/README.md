@@ -8,16 +8,16 @@ The directory structure is intentionally kept in version control, but the genera
 
 ```text
 outputs/
-└─ rice_leaf_classifier/
-   ├─ data/
-   │  ├─ all_samples.json
-   │  ├─ train_samples.json
-   │  ├─ val_samples.json
-   │  └─ prepare_stats.json
-   └─ checkpoints/
-      ├─ best_model.pth
-      ├─ final_model.pth
-      └─ training_history.json
+鈹斺攢 rice_leaf_classifier/
+   鈹溾攢 data/
+   鈹? 鈹溾攢 all_samples.json
+   鈹? 鈹溾攢 train_samples.json
+   鈹? 鈹溾攢 val_samples.json
+   鈹? 鈹斺攢 prepare_stats.json
+   鈹斺攢 checkpoints/
+      鈹溾攢 best_model.pth
+      鈹溾攢 final_model.pth
+      鈹斺攢 training_history.json
 ```
 
 ## File Meanings

@@ -1,44 +1,44 @@
 # Service
 
-该目录包含 AI 推理模块的完整四层架构实现。
+鐠囥儳娲拌ぐ鏇炲瘶閸?AI 閹恒劎鎮婂Ο鈥虫健閻ㄥ嫬鐣弫鏉戞磽鐏炲倹鐏﹂弸鍕杽閻滆埇鈧?
 
-## 目录结构
+## 閻╊喖缍嶇紒鎾寸€?
 
-*   `api/`: **(L1) 接口层** — FastAPI 路由与 HTTP 状态码处理。仅做路由分发，严禁包含推理逻辑。
-    *   `v1/predict.py`: `POST /api/v1/predict` 和 `GET /api/v1/health`。
-*   `adapters/`: **(L2) 适配器层** — 处理外部输入（文件路径、字节流），转化为 core 层可直接使用的内部结构 (PIL.Image)。
-*   `core/`: **(L3) 核心推理层** — 纯 Python 算法逻辑。所有模型继承自 `base_predictor.py` 中的 `BasePredictor`。严禁导入 FastAPI。
-*   `schemas/`: **契约层** — Pydantic 数据结构定义。所有模块间的数据传递均以此为准。
-*   `main.py`: FastAPI 应用入口。负责模型预加载、CORS 配置和全局异常处理。
-*   `infer.py`: 本地单图推理 CLI 工具（不依赖 FastAPI）。
+*   `api/`: **(L1) 閹恒儱褰涚仦?* 閳?FastAPI 鐠侯垳鏁辨稉?HTTP 閻樿埖鈧胶鐖滄径鍕倞閵嗗倷绮庨崑姘崇熅閻㈠崬鍨庨崣鎴礉娑撱儳顩﹂崠鍛儓閹恒劎鎮婇柅鏄忕帆閵?
+    *   `v1/predict.py`: `POST /api/v1/predict` 閸?`GET /api/v1/health`閵?
+*   `adapters/`: **(L2) 闁倿鍘ら崳銊ョ湴** 閳?婢跺嫮鎮婃径鏍劥鏉堟挸鍙嗛敍鍫熸瀮娴犳儼鐭惧鍕┾偓浣哥摟閼哄倹绁﹂敍澶涚礉鏉烆剙瀵叉稉?core 鐏炲倸褰查惄瀛樺复娴ｈ法鏁ら惃鍕敶闁劎绮ㄩ弸?(PIL.Image)閵?
+*   `core/`: **(L3) 閺嶇绺鹃幒銊ф倞鐏?* 閳?缁?Python 缁犳纭堕柅鏄忕帆閵嗗倹澧嶉張澶嬆侀崹瀣埛閹佃儻鍤?`base_predictor.py` 娑擃厾娈?`BasePredictor`閵嗗倷寮楃粋浣割嚤閸?FastAPI閵?
+*   `schemas/`: **婵傛垹瀹崇仦?* 閳?Pydantic 閺佺増宓佺紒鎾寸€€规矮绠熼妴鍌涘閺堝膩閸ф妫块惃鍕殶閹诡喕绱堕柅鎺戞綆娴犮儲顒濇稉鍝勫櫙閵?
+*   `main.py`: FastAPI 鎼存梻鏁ら崗銉ュ經閵嗗倽绀嬬拹锝喣侀崹瀣暕閸旂姾娴囬妴涓哋RS 闁板秶鐤嗛崪灞藉弿鐏炩偓瀵倸鐖舵径鍕倞閵?
+*   `infer.py`: 閺堫剙婀撮崡鏇炴禈閹恒劎鎮?CLI 瀹搞儱鍙块敍鍫滅瑝娓氭繆绂?FastAPI閿涘鈧?
 
-## 启动服务
+## 閸氼垰濮╅張宥呭
 
 ```bash
-# 开发模式（自动重载）
-uvicorn service.main:app --reload --host 0.0.0.0 --port 8000
+# 瀵偓閸欐垶膩瀵骏绱欓懛顏勫З闁插秷娴囬敍?
+uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 环境变量
+### 閻滎垰顣ㄩ崣姗€鍣?
 
-| 变量名 | 说明 | 默认值 |
+| 閸欐﹢鍣洪崥?| 鐠囧瓨妲?| 姒涙顓婚崐?|
 |--------|------|--------|
-| `MODEL_CHECKPOINT_PATH` | 模型权重文件路径 | `models/rice_leaf_classifier/best_model.pth` |
-| `MODEL_LABELS_FILE` | 标签文件路径 | `models/rice_leaf_classifier/labels.json` |
-| `MODEL_CONFIG_FILE` | 模型配置路径 | `models/rice_leaf_classifier/config.yaml` |
+| `MODEL_CHECKPOINT_PATH` | 濡€崇€烽弶鍐櫢閺傚洣娆㈢捄顖氱窞 | `models/rice/rice_leaf_classifier/best_model.pth` |
+| `MODEL_LABELS_FILE` | 閺嶅洨顒烽弬鍥︽鐠侯垰绶?| `models/rice/rice_leaf_classifier/labels.json` |
+| `MODEL_CONFIG_FILE` | 濡€崇€烽柊宥囩枂鐠侯垰绶?| `models/rice/rice_leaf_classifier/config.yaml` |
 
-## API 端点
+## API 缁旑垳鍋?
 
 ### POST /api/v1/predict
 
-上传一张 JPEG/PNG 图片，返回病害分类结果。
+娑撳﹣绱舵稉鈧?JPEG/PNG 閸ュ墽澧栭敍宀冪箲閸ョ偟姊剧€瑰啿鍨庣猾鑽ょ波閺嬫嚎鈧?
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/predict \
   -F "file=@test_image.jpg"
 ```
 
-**成功响应 (200)**:
+**閹存劕濮涢崫宥呯安 (200)**:
 ```json
 {
   "status": "success",
@@ -60,7 +60,7 @@ curl -X POST http://localhost:8000/api/v1/predict \
 }
 ```
 
-**错误响应 (422/500)**:
+**闁挎瑨顕ら崫宥呯安 (422/500)**:
 ```json
 {
   "status": "error",
@@ -70,7 +70,7 @@ curl -X POST http://localhost:8000/api/v1/predict \
 
 ### GET /api/v1/health
 
-健康检查，用于 Docker/K8s 探针。
+閸嬨儱鎮嶅Λ鈧弻銉礉閻劋绨?Docker/K8s 閹恒垽鎷￠妴?
 
 ```json
 {
@@ -86,7 +86,7 @@ curl -X POST http://localhost:8000/api/v1/predict \
 }
 ```
 
-## 本地 CLI 推理
+## 閺堫剙婀?CLI 閹恒劎鎮?
 
 ```bash
 python service/infer.py \

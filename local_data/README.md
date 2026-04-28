@@ -54,18 +54,18 @@ Typical manual setup:
 
 ```text
 local_data/
-└─ rice_leaf_spot_disease_annotated_dataset/
-   ├─ README.txt
-   ├─ data.yaml
-   ├─ train/
-   │  ├─ images/
-   │  └─ labels/
-   ├─ valid/
-   │  ├─ images/
-   │  └─ labels/
-   └─ test/
-      ├─ images/
-      └─ labels/
+鈹斺攢 rice_leaf_spot_disease_annotated_dataset/
+   鈹溾攢 README.txt
+   鈹溾攢 data.yaml
+   鈹溾攢 train/
+   鈹? 鈹溾攢 images/
+   鈹? 鈹斺攢 labels/
+   鈹溾攢 valid/
+   鈹? 鈹溾攢 images/
+   鈹? 鈹斺攢 labels/
+   鈹斺攢 test/
+      鈹溾攢 images/
+      鈹斺攢 labels/
 ```
 
 ## Directory Meanings

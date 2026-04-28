@@ -1,4 +1,4 @@
-﻿"""Smart Farm AI Engine 鈥?FastAPI application entry point.
+"""Smart Farm AI Engine 閳?FastAPI application entry point.
 
 Start the server with::
 
@@ -8,11 +8,11 @@ Configuration
 -------------
 The following environment variables are recognised:
 
-* ``MODEL_CHECKPOINT_PATH``  鈥?path to the ``.pth`` checkpoint file.
+* ``MODEL_CHECKPOINT_PATH``  閳?path to the ``.pth`` checkpoint file.
   Defaults to ``models/rice/rice_leaf_classifier/best_model.pth`` when unset.
-* ``MODEL_LABELS_FILE``      鈥?path to ``labels.json``.
+* ``MODEL_LABELS_FILE``      閳?path to ``labels.json``.
   Defaults to ``models/rice/rice_leaf_classifier/labels.json``.
-* ``MODEL_CONFIG_FILE``      鈥?path to ``config.yaml``.
+* ``MODEL_CONFIG_FILE``      閳?path to ``config.yaml``.
   Defaults to ``models/rice/rice_leaf_classifier/config.yaml``.
 """
 
@@ -25,8 +25,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ai_engine.common.adapters.image_adapter import ImageLoadError
-from ai_engine.api.v1.predict import router as predict_router, set_classifier
-from ai_engine.crops.rice.inference.rice_leaf_classifier import RiceLeafClassifier
+from ai_engine.crops.rice.inference.api import router as rice_router, set_classifier
+from ai_engine.crops.oil_palm.inference.api import router as oil_palm_router
 
 # ------------------------------------------------------------------
 # Logging
@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # Environment-based configuration
 # ------------------------------------------------------------------
+
+CROP_PROFILE = os.environ.get("CROP_PROFILE", "rice").lower()
 
 MODEL_CHECKPOINT_PATH = os.environ.get(
     "MODEL_CHECKPOINT_PATH",
@@ -61,30 +63,28 @@ MODEL_ADVICE_FILE = os.environ.get(
 
 
 # ------------------------------------------------------------------
-# Lifespan 鈥?model preloading at startup
+# Lifespan 閳?model preloading at startup
 # ------------------------------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load the AI model at startup.  If loading fails, the process
-    exits immediately so the error surfaces in logs / health probes
-    rather than silently serving broken requests.
-    """
-    logger.info("=== Smart Farm AI Engine starting ===")
-    logger.info("Checkpoint : %s", MODEL_CHECKPOINT_PATH)
-    logger.info("Labels     : %s", MODEL_LABELS_FILE)
-    logger.info("Config     : %s", MODEL_CONFIG_FILE)
-    logger.info("Advice Map : %s", MODEL_ADVICE_FILE)
-
-    classifier = RiceLeafClassifier(
-        checkpoint_path=MODEL_CHECKPOINT_PATH,
-        labels_file=MODEL_LABELS_FILE,
-        config_file=MODEL_CONFIG_FILE,
-        advice_file=MODEL_ADVICE_FILE,
-    )
-    set_classifier(classifier)
-
-    logger.info("Model loaded successfully 鈥?service is ready.")
+    """Load the AI model at startup based on CROP_PROFILE."""
+    logger.info("=== Smart Farm AI Engine starting [%s] ===", CROP_PROFILE)
+    
+    if CROP_PROFILE == "rice":
+        from ai_engine.crops.rice.inference.rice_leaf_classifier import RiceLeafClassifier
+        logger.info("Loading Rice Model Assets...")
+        classifier = RiceLeafClassifier(
+            checkpoint_path=MODEL_CHECKPOINT_PATH,
+            labels_file=MODEL_LABELS_FILE,
+            config_file=MODEL_CONFIG_FILE,
+            advice_file=MODEL_ADVICE_FILE,
+        )
+        set_classifier(classifier)
+        logger.info("Rice model loaded successfully.")
+    elif CROP_PROFILE == "oil_palm":
+        logger.info("Oil Palm mode: Using mock/future YOLOv8 predictor.")
+    
     yield
     logger.info("=== Smart Farm AI Engine shutting down ===")
 
@@ -94,13 +94,13 @@ async def lifespan(app: FastAPI):
 # ------------------------------------------------------------------
 
 app = FastAPI(
-    title="Smart Farm AI Engine",
+    title=f"Smart Farm AI Engine ({CROP_PROFILE.upper()})",
     description="AI inference micro-service for crop disease detection.",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
-# CORS 鈥?allow trusted dashboard/backend origins (override in env)
+# CORS 閳?allow trusted dashboard/backend origins (override in env)
 cors_origins_env = os.environ.get(
     "CORS_ORIGINS",
     "http://localhost:8088,http://127.0.0.1:8088",
@@ -126,16 +126,17 @@ app.add_middleware(
     allow_headers=allow_headers,
 )
 
-app.include_router(predict_router)
+app.include_router(rice_router, prefix="/api/v1")
+app.include_router(oil_palm_router, prefix="/api/v1")
 
 
 # ------------------------------------------------------------------
-# Global exception handlers 鈥?graceful degradation
+# Global exception handlers 閳?graceful degradation
 # ------------------------------------------------------------------
 
 @app.exception_handler(ImageLoadError)
 async def image_load_error_handler(request: Request, exc: ImageLoadError):
-    """Image could not be decoded 鈥?client's fault (422)."""
+    """Image could not be decoded 閳?client's fault (422)."""
     logger.warning("ImageLoadError: %s", exc)
     return JSONResponse(
         status_code=422,
@@ -145,7 +146,7 @@ async def image_load_error_handler(request: Request, exc: ImageLoadError):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Catch-all for unexpected errors 鈥?never expose a raw 500."""
+    """Catch-all for unexpected errors 閳?never expose a raw 500."""
     logger.error("Unhandled exception on %s %s: %s", request.method, request.url.path, exc, exc_info=True)
     return JSONResponse(
         status_code=500,

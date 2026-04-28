@@ -1,27 +1,27 @@
 # AI-Agriculture
-智慧农业系统方案 - 新一代 AI + 农业平台。
+鏅烘収鍐滀笟绯荤粺鏂规 - 鏂颁竴浠?AI + 鍐滀笟骞冲彴銆?
 
-当前仓库以 `cloud` Rust 接收端为核心，支持基于配置的传感器数据规则校验与 ACK 回传。
+褰撳墠浠撳簱浠?`cloud` Rust 鎺ユ敹绔负鏍稿績锛屾敮鎸佸熀浜庨厤缃殑浼犳劅鍣ㄦ暟鎹鍒欐牎楠屼笌 ACK 鍥炰紶銆?
 
 ## Quick Start
-- 负责采集（固定负载）并通过 UDP 上报。
-- 使用 Rust 编写，适配 Linux/WSL 场景。
+- 璐熻矗閲囬泦锛堝浐瀹氳礋杞斤級骞堕€氳繃 UDP 涓婃姤銆?
+- 浣跨敤 Rust 缂栧啓锛岄€傞厤 Linux/WSL 鍦烘櫙銆?
 
-### 1. 环境要求
+### 1. 鐜瑕佹眰
 
-- Rust 工具链（建议 stable，Edition 2021）
-- Cargo（随 Rust 一起安装）
-- Bash（用于运行脚本；Windows 可用 Git Bash / WSL）
+- Rust 宸ュ叿閾撅紙寤鸿 stable锛孍dition 2021锛?
+- Cargo锛堥殢 Rust 涓€璧峰畨瑁咃級
+- Bash锛堢敤浜庤繍琛岃剼鏈紱Windows 鍙敤 Git Bash / WSL锛?
 
-### 2. 本地运行 cloud 接收端
+### 2. 鏈湴杩愯 cloud 鎺ユ敹绔?
 
 ```bash
 cd cloud
 cargo run -- --config config/sensors.toml --bind ${CLOUD_BIND_ADDR:-0.0.0.0:9000} --timeout-ms 0
 ```
-*(注：可通过配置 `CLOUD_BIND_ADDR` 环境变量或 `sensors.toml` 更改端口与IP。网关侧及串口波特率配置详见网关子仓文档。)*
+*(娉細鍙€氳繃閰嶇疆 `CLOUD_BIND_ADDR` 鐜鍙橀噺鎴?`sensors.toml` 鏇存敼绔彛涓嶪P銆傜綉鍏充晶鍙婁覆鍙ｆ尝鐗圭巼閰嶇疆璇﹁缃戝叧瀛愪粨鏂囨。銆?*
 
-### 3. 本地配置冒烟测试（脚本）
+### 3. 鏈湴閰嶇疆鍐掔儫娴嬭瘯锛堣剼鏈級
 
 ```bash
 cd cloud
@@ -29,65 +29,65 @@ chmod +x scripts/local_config_smoke_test.sh
 ./scripts/local_config_smoke_test.sh
 ```
 
-### 4. 运行自动化测试
+### 4. 杩愯鑷姩鍖栨祴璇?
 
 ```bash
 cd cloud
 cargo test
 ```
 
-## 技术栈与依赖清单
+## 鎶€鏈爤涓庝緷璧栨竻鍗?
 
-### 语言与运行时
+### 璇█涓庤繍琛屾椂
 
-- Rust（Edition 2021）
+- Rust锛圗dition 2021锛?
 
-### 主要依赖（`cloud/Cargo.toml`）
+### 涓昏渚濊禆锛坄cloud/Cargo.toml`锛?
 
-- `serde`（含 `derive`）
+- `serde`锛堝惈 `derive`锛?
 - `toml`
 
-### 部署相关
+### 閮ㄧ讲鐩稿叧
 
-- `cloud/deploy.sh`：Linux 服务器一键部署脚本
-- systemd（可选，脚本会优先使用）
+- `cloud/deploy.sh`锛歀inux 鏈嶅姟鍣ㄤ竴閿儴缃茶剼鏈?
+- systemd锛堝彲閫夛紝鑴氭湰浼氫紭鍏堜娇鐢級
 
-## 目录结构（核心）
+## 鐩綍缁撴瀯锛堟牳蹇冿級
 
-- `cloud/`：云端 UDP 接收器（Rust）
-- `cloud/config/sensors.toml`：传感器规则配置
-- `cloud/scripts/local_config_smoke_test.sh`：本地脚本 smoke test
-- `cloud/tests/`：集成测试目录
-- `doc/`：协作与流程文档
+- `cloud/`锛氫簯绔?UDP 鎺ユ敹鍣紙Rust锛?
+- `cloud/config/sensors.toml`锛氫紶鎰熷櫒瑙勫垯閰嶇疆
+- `cloud/scripts/local_config_smoke_test.sh`锛氭湰鍦拌剼鏈?smoke test
+- `cloud/tests/`锛氶泦鎴愭祴璇曠洰褰?
+- `doc/`锛氬崗浣滀笌娴佺▼鏂囨。
 
-## 测试说明
+## 娴嬭瘯璇存槑
 
-- 单元测试：位于 `cloud/src/main.rs` 中
-- 集成 smoke 测试：位于 `cloud/tests/smoke_e2e.rs`
+- 鍗曞厓娴嬭瘯锛氫綅浜?`cloud/src/main.rs` 涓?
+- 闆嗘垚 smoke 娴嬭瘯锛氫綅浜?`cloud/tests/smoke_e2e.rs`
 
-## AI 模块补充说明
+## AI 妯″潡琛ュ厖璇存槑
 
-- `service/`：本地模型加载与单张图片推理逻辑，详见 `service/README.md`
-- `scripts/`：数据集整理、训练等脚本，详见 `scripts/README.md`
-- `tests/`：AI 模块的 `pytest` 测试代码
-- `models/`：分类模型的配置文件、标签文件与说明
-- `local_data/`：本地数据说明与数据集目录
-- `outputs/`：训练输出与模型产物目录
+- `service/`锛氭湰鍦版ā鍨嬪姞杞戒笌鍗曞紶鍥剧墖鎺ㄧ悊閫昏緫锛岃瑙?`service/README.md`
+- `scripts/`锛氭暟鎹泦鏁寸悊銆佽缁冪瓑鑴氭湰锛岃瑙?`scripts/README.md`
+- `tests/`锛欰I 妯″潡鐨?`pytest` 娴嬭瘯浠ｇ爜
+- `models/`锛氬垎绫绘ā鍨嬬殑閰嶇疆鏂囦欢銆佹爣绛炬枃浠朵笌璇存槑
+- `local_data/`锛氭湰鍦版暟鎹鏄庝笌鏁版嵁闆嗙洰褰?
+- `outputs/`锛氳缁冭緭鍑轰笌妯″瀷浜х墿鐩綍
 
-## Python 依赖与测试补充
+## Python 渚濊禆涓庢祴璇曡ˉ鍏?
 
-如需运行 AI 相关脚本或测试，可在仓库根目录执行：
+濡傞渶杩愯 AI 鐩稿叧鑴氭湰鎴栨祴璇曪紝鍙湪浠撳簱鏍圭洰褰曟墽琛岋細
 
 ```bash
 pip install -r requirements.txt
 pytest -q
 ```
 
-补充说明：
+琛ュ厖璇存槑锛?
 
-- 根目录已提供 `pytest.ini`，可直接在仓库根目录运行 `pytest`，无需额外设置 `PYTHONPATH`
-- 如仅需运行 AI 模块测试，可使用 `pytest -q tests`
-- `tests/test_infer_smoke.py` 依赖 `torch` 与 `torchvision`
+- 鏍圭洰褰曞凡鎻愪緵 `pytest.ini`锛屽彲鐩存帴鍦ㄤ粨搴撴牴鐩綍杩愯 `pytest`锛屾棤闇€棰濆璁剧疆 `PYTHONPATH`
+- 濡備粎闇€杩愯 AI 妯″潡娴嬭瘯锛屽彲浣跨敤 `pytest -q tests`
+- `tests/test_infer_smoke.py` 渚濊禆 `torch` 涓?`torchvision`
 
 ## Configuration-First Deployment Notes
 
@@ -115,4 +115,4 @@ Acceptance rule:
 
 ## License
 
-本项目使用 MIT License，详见根目录 `LICENSE`。
+鏈」鐩娇鐢?MIT License锛岃瑙佹牴鐩綍 `LICENSE`銆?

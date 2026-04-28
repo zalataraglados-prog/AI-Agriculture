@@ -1,10 +1,10 @@
-# AI 模块说明
+# AI 妯″潡璇存槑
 
-本目录用于维护 AI 模块相关文档，包括：
-- API 说明
-- 模型方案
-- 数据说明
-- 部署说明
+鏈洰褰曠敤浜庣淮鎶?AI 妯″潡鐩稿叧鏂囨。锛屽寘鎷細
+- API 璇存槑
+- 妯″瀷鏂规
+- 鏁版嵁璇存槑
+- 閮ㄧ讲璇存槑
 
 ## Current Stage
 - Task: Image Classification (NOT object detection)
@@ -13,7 +13,7 @@
 - Classes: 8
 - Input Size: 224
 ## Workflow
-### 1. Prepare Dataset (Detection → Classification)
+### 1. Prepare Dataset (Detection 鈫?Classification)
 ```bash
 python scripts/prepare_rice_cls_dataset.py --dataset-root "local_data/rice_leaf_spot_disease_annotated_dataset"
 ```

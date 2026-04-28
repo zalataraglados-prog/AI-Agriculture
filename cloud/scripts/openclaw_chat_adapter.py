@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """OpenClaw HTTP chat adapter.
 
 Exposes POST /api/v1/chat with JSON {message, context?}

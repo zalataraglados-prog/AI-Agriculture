@@ -1,4 +1,4 @@
-﻿"""Integration tests for the FastAPI prediction API.
+"""Integration tests for the FastAPI prediction API.
 
 These tests use a mock classifier to avoid depending on a real
 PyTorch checkpoint, making them runnable in CI without GPU or

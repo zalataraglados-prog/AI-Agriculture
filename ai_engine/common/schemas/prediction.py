@@ -1,4 +1,4 @@
-﻿"""Pydantic models that define the AI inference contract.
+"""Pydantic models that define the AI inference contract.
 
 These schemas are the **single source of truth** for the JSON
 structure exchanged with the Rust cloud backend.

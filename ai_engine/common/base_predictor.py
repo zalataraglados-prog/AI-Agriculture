@@ -1,4 +1,4 @@
-﻿"""Abstract base class for all crop/disease prediction models.
+"""Abstract base class for all crop/disease prediction models.
 
 To add a new crop (e.g. corn, oil-palm), create a subclass of
 ``BasePredictor`` and implement :meth:`predict` and

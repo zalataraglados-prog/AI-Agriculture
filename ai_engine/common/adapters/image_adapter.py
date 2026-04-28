@@ -1,4 +1,4 @@
-﻿"""Image adapter 鈥?L2 firewall between external I/O and pure inference.
+"""Image adapter 鈥?L2 firewall between external I/O and pure inference.
 
 Every image that enters the core engine MUST pass through one of
 the ``load_image_*`` functions below.  This guarantees:

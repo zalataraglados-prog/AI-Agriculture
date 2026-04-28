@@ -1,4 +1,4 @@
-﻿import json
+import json
 import sys
 import yaml
 from pathlib import Path

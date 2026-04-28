@@ -4,10 +4,10 @@ async function doLogin() {
   const deviceId = document.getElementById('deviceId').value.trim();
   const msg = document.getElementById('msg');
   if (!username || !password) {
-    msg.textContent = '请输入账号和密码';
+    msg.textContent = '璇疯緭鍏ヨ处鍙峰拰瀵嗙爜';
     return;
   }
-  msg.textContent = '正在登录...';
+  msg.textContent = '姝ｅ湪鐧诲綍...';
   try {
     const res = await fetch('/api/login', {
       method: 'POST',
@@ -21,9 +21,9 @@ async function doLogin() {
       location.href = `index.html${q}`;
       return;
     }
-    msg.textContent = data.message || '登录失败';
+    msg.textContent = data.message || '鐧诲綍澶辫触';
   } catch (e) {
-    msg.textContent = `登录失败: ${e.message}`;
+    msg.textContent = `鐧诲綍澶辫触: ${e.message}`;
   }
 }
 

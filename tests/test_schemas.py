@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from pydantic import ValidationError
 from ai_engine.common.schemas.prediction import PredictionResult, PredictionResponse, PredictionItem
 

@@ -1,4 +1,4 @@
-﻿import io
+import io
 import pytest
 from PIL import Image
 from ai_engine.common.adapters.image_adapter import load_image_from_path, load_image_from_bytes, ImageLoadError

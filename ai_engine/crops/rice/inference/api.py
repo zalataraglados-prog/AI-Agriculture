@@ -1,4 +1,4 @@
-﻿"""Prediction endpoint 鈥?POST /api/v1/predict
+"""Prediction endpoint 閳?POST /api/v1/predict
 
 This module is part of **L1 (API Layer)**.  Its sole responsibilities
 are:
@@ -25,11 +25,11 @@ from ai_engine.common.schemas.prediction import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1", tags=["prediction"])
+router = APIRouter(tags=["rice"])
 
 # ------------------------------------------------------------------
 # Module-level reference to the pre-loaded model.
-# Populated by ``ai_engine.main`` at startup 鈥?see ``lifespan()``.
+# Populated by ``ai_engine.main`` at startup 閳?see ``lifespan()``.
 # ------------------------------------------------------------------
 _classifier = None
 
@@ -43,7 +43,7 @@ def set_classifier(classifier) -> None:
 def _get_classifier():
     """Return the pre-loaded classifier or raise if not ready."""
     if _classifier is None:
-        raise RuntimeError("Model not loaded 鈥?the service is not ready")
+        raise RuntimeError("Model not loaded 閳?the service is not ready")
     return _classifier
 
 
@@ -54,16 +54,20 @@ def _get_classifier():
 @router.post(
     "/predict",
     response_model=PredictionResponse,
+    include_in_schema=False
+)
+async def legacy_predict(file: UploadFile = File(...)):
+    """Legacy endpoint for backward compatibility."""
+    return await predict(file)
+
+@router.post(
+    "/rice/predict",
+    response_model=PredictionResponse,
     responses={
         422: {"model": ErrorResponse, "description": "Invalid image or request"},
         500: {"model": ErrorResponse, "description": "Internal inference error"},
     },
-    summary="Predict crop disease from an image",
-    description=(
-        "Upload a single JPEG/PNG image.  The service returns the "
-        "predicted disease class, confidence score, and top-k "
-        "alternative predictions."
-    ),
+    summary="Predict rice disease (Modular Endpoint)",
 )
 async def predict(file: UploadFile = File(...)):
     """Receive an image and return disease classification results."""
@@ -72,7 +76,7 @@ async def predict(file: UploadFile = File(...)):
     # L1: read raw bytes from the upload
     image_bytes = await file.read()
 
-    # L2: adapter converts bytes 鈫?PIL.Image
+    # L2: adapter converts bytes 閳?PIL.Image
     image = load_image_from_bytes(image_bytes)
 
     # L3: core engine runs inference
@@ -96,7 +100,6 @@ async def predict(file: UploadFile = File(...)):
 @router.get(
     "/health",
     summary="Service health check",
-    description="Returns service status and model availability.  Used by Docker / orchestrator health probes.",
 )
 async def health():
     """Return service health status."""
@@ -105,6 +108,6 @@ async def health():
     return {
         "status": "ok",
         "service": "smart-farm-ai-engine",
-        "version": "0.1.0",
+        "crop": "rice",
         "model": model_info,
     }

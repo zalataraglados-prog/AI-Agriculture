@@ -16,7 +16,7 @@
     sensors: {
       fertilitySensorId: "soil_modbus_02",
       fertilityField: "ec",
-      fertilityUnit: "μS/cm"
+      fertilityUnit: "渭S/cm"
     }
   };
 

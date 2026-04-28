@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from typing import Any, Dict
 from PIL import Image
 from ai_engine.common.base_predictor import BasePredictor

@@ -215,7 +215,7 @@ The script will:
 1. Build release binary
 2. Install it under `${INSTALL_ROOT}/bin`
 3. Keep existing config by default (install default only if missing; set `OVERWRITE_CONFIG=1` to replace)
-4. Sync static files (`frontend_v2_premium` as primary, `dashboard` as fallback)
+4. Sync static files (`frontend/rice` as primary, `dashboard` as fallback)
 5. Prefer systemd service deployment (fallback to `nohup` if systemd is unavailable)
 
 ## Quick test from another machine

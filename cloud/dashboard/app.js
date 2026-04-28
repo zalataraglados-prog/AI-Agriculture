@@ -1,4 +1,4 @@
-﻿const params = new URLSearchParams(location.search);
+const params = new URLSearchParams(location.search);
 const deviceId = (params.get('device_id') || localStorage.getItem('device_id') || '').trim();
 if (deviceId) localStorage.setItem('device_id', deviceId);
 document.getElementById('ctxDevice').textContent = `设备: ${deviceId || 'all'}`;
