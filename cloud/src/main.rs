@@ -8,6 +8,7 @@ mod http_server;
 mod image_upload;
 mod model;
 mod payload;
+mod presence;
 mod registry;
 mod server;
 mod telemetry;
@@ -21,6 +22,7 @@ use cli::{parse_args, print_usage};
 use config::{load_runtime_config, resolve_token_store_path_for_token_command};
 use db::DbManager;
 use model::CliCommand;
+use presence::PresenceTracker;
 use server::run;
 use time_util::now_rfc3339;
 use token::current_hour_token;
@@ -53,6 +55,7 @@ fn main() {
                     std::process::exit(2);
                 }
             };
+            let presence = Arc::new(Mutex::new(PresenceTracker::default()));
 
             // 鍚姩 HTTP 鍚庡彴鍜屽墠绔华琛ㄧ洏鏈嶅姟 (绔彛 8088)
             http_server::start_http_server(
@@ -65,9 +68,10 @@ fn main() {
                 cfg.sensor_rules.clone(),
                 cfg.registry_path.clone(),
                 db.clone(),
+                presence.clone(),
             );
 
-            if let Err(err) = run(&cfg, db) {
+            if let Err(err) = run(&cfg, db, presence) {
                 eprintln!("{} [cloud] ERROR: {err}", now_rfc3339());
                 std::process::exit(1);
             }
