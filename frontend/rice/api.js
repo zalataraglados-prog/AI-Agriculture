@@ -3,7 +3,10 @@
  */
 
 window.API = (() => {
+    const AUTH_STORAGE_KEY = 'agri_auth_session_v1';
     const runtime = window.RUNTIME_CONFIG || {};
+    const authCfg = runtime.auth || {};
+    const AUTH_ENFORCED = authCfg.enabled === true;
     const telemetryCfg = runtime.telemetry || {};
     const uploadCfg = runtime.imageUpload || {};
     const GATEWAY_STALE_MS = Number(telemetryCfg.gatewayStaleMs) || 5 * 60 * 1000;
@@ -38,8 +41,84 @@ window.API = (() => {
         ],
     };
 
-    const fetchJson = async (url) => {
-        const res = await fetch(url, { cache: 'no-store' });
+    const readAuthSession = () => {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return null;
+        try {
+            const parsed = JSON.parse(raw);
+            if (!parsed?.token || !parsed?.expires_at_epoch_sec) return null;
+            return parsed;
+        } catch (_err) {
+            return null;
+        }
+    };
+
+    const clearAuthSession = () => {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+    };
+
+    const getAuthToken = () => {
+        const session = readAuthSession();
+        if (!session) return null;
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (Number(session.expires_at_epoch_sec) <= nowSec) {
+            clearAuthSession();
+            return null;
+        }
+        return `${session.token}`.trim() || null;
+    };
+
+    const setAuthSession = (data) => {
+        if (!data?.token || !data?.expires_at_epoch_sec) {
+            throw new Error('invalid auth session payload');
+        }
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+            token: `${data.token}`.trim(),
+            username: `${data.username || ''}`.trim(),
+            expires_at_epoch_sec: Number(data.expires_at_epoch_sec) || 0,
+        }));
+    };
+
+    const redirectToLogin = () => {
+        const current = window.location.pathname || '/';
+        if (current.endsWith('/login.html')) return;
+        const q = new URLSearchParams(window.location.search);
+        const deviceId = (q.get('device_id') || localStorage.getItem('device_id') || '').trim();
+        const next = `${window.location.pathname || '/index.html'}${window.location.search || ''}`;
+        const login = new URL('/login.html', window.location.origin);
+        if (deviceId) login.searchParams.set('device_id', deviceId);
+        login.searchParams.set('next', next);
+        window.location.replace(login.toString());
+    };
+
+    const requireAuthOrRedirect = () => {
+        if (!AUTH_ENFORCED) return true;
+        const token = getAuthToken();
+        if (!token) {
+            redirectToLogin();
+            return false;
+        }
+        return true;
+    };
+
+    const authHeaders = (baseHeaders = {}) => {
+        if (!AUTH_ENFORCED) return { ...baseHeaders };
+        const token = getAuthToken();
+        if (!token) return { ...baseHeaders };
+        return {
+            ...baseHeaders,
+            Authorization: `Bearer ${token}`,
+        };
+    };
+
+    const fetchJson = async (url, init = {}) => {
+        const headers = authHeaders(init.headers || {});
+        const res = await fetch(url, { cache: 'no-store', ...init, headers });
+        if (AUTH_ENFORCED && res.status === 401) {
+            clearAuthSession();
+            redirectToLogin();
+            throw new Error('HTTP 401');
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
     };
@@ -306,6 +385,10 @@ window.API = (() => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', buildUploadQuery(tag), true);
             xhr.timeout = timeoutMs;
+            const token = getAuthToken();
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
             xhr.onload = () => {
                 const payloadText = xhr.responseText || '{}';
                 let payload = {};
@@ -320,6 +403,10 @@ window.API = (() => {
                     return;
                 }
                 const message = payload?.message || `HTTP ${xhr.status}`;
+                if (xhr.status === 401) {
+                    clearAuthSession();
+                    redirectToLogin();
+                }
                 reject(new Error(message));
             };
             xhr.onerror = () => reject(new Error('Network error while uploading image'));
@@ -370,6 +457,11 @@ window.API = (() => {
     return {
         GATEWAY_STALE_MS,
         fetchJson,
+        setAuthSession,
+        clearAuthSession,
+        getAuthToken,
+        requireAuthOrRedirect,
+        isAuthEnforced: () => AUTH_ENFORCED,
         apiUrl,
         loadSchema,
         getSchema: () => schemaBySensor,
