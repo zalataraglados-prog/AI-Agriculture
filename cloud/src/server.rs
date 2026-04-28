@@ -35,38 +35,13 @@ struct PacketTask {
     peer: SocketAddr,
 }
 
-#[derive(Debug, Default)]
-struct PresenceTracker {
-    last_seen_epoch_sec: std::collections::HashMap<String, u64>,
-    online: std::collections::HashMap<String, bool>,
-}
+use crate::presence::PresenceTracker;
 
-impl PresenceTracker {
-    fn mark_online(&mut self, device_id: &str, now_sec: u64) -> bool {
-        self.last_seen_epoch_sec
-            .insert(device_id.to_string(), now_sec);
-        let prev = self
-            .online
-            .insert(device_id.to_string(), true)
-            .unwrap_or(false);
-        !prev
-    }
-
-    fn scan_offline(&mut self, now_sec: u64, timeout_sec: u64) -> Vec<String> {
-        let mut changed = Vec::new();
-        for (device_id, last_seen) in &self.last_seen_epoch_sec {
-            let is_online = now_sec.saturating_sub(*last_seen) <= timeout_sec;
-            let prev = self.online.get(device_id).copied().unwrap_or(false);
-            if prev && !is_online {
-                self.online.insert(device_id.clone(), false);
-                changed.push(device_id.clone());
-            }
-        }
-        changed
-    }
-}
-
-pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), String> {
+pub(crate) fn run(
+    cfg: &RuntimeConfig,
+    db: Arc<Mutex<DbManager>>,
+    presence: Arc<Mutex<PresenceTracker>>,
+) -> Result<(), String> {
     let socket =
         UdpSocket::bind(&cfg.bind).map_err(|e| format!("Bind failed on {}: {e}", cfg.bind))?;
     socket
@@ -74,7 +49,6 @@ pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), 
         .map_err(|e| format!("Failed to set read timeout: {e}"))?;
 
     let registry = Arc::new(Mutex::new(DeviceRegistry::load(&cfg.registry_path)?));
-    let presence = Arc::new(Mutex::new(PresenceTracker::default()));
     let stop = Arc::new(AtomicBool::new(false));
     let received_count = Arc::new(AtomicU64::new(0));
     let success_count = Arc::new(AtomicU64::new(0));
