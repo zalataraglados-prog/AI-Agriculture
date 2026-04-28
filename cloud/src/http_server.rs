@@ -1782,7 +1782,7 @@ fn to_sensor_schema_item(sensor_id: &str, rule: &SensorRule) -> SensorSchemaItem
         .into_iter()
         .map(|(field, ty)| {
             let required = rule.required_fields.iter().any(|x| x == field);
-            let (label, unit, threshold_low, threshold_high) = infer_field_display(field, *ty);
+            let (label, unit, threshold_low, threshold_high) = get_field_metadata(field, *ty);
             SensorFieldSchema {
                 field: field.clone(),
                 label: label.to_string(),
