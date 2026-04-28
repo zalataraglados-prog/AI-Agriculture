@@ -67,7 +67,7 @@ cargo test
 
 ## AI 模块补充说明
 
-- `service/`：本地模型加载与单张图片推理逻辑，详见 `service/README.md`
+- `ai_engine/`：本地模型加载与单张图片推理逻辑，详见 `ai_engine/README.md`
 - `scripts/`：数据集整理、训练等脚本，详见 `scripts/README.md`
 - `tests/`：AI 模块的 `pytest` 测试代码
 - `models/`：分类模型的配置文件、标签文件与说明

@@ -232,9 +232,9 @@ Environment variables:
 - `BIND_ADDR` (default `0.0.0.0:9000`)
 - `CONFIG_PATH` (default `${INSTALL_ROOT}/config/sensors.toml`)
 - `OVERWRITE_CONFIG` (default `0`; set to `1` only when you want to replace existing config)
-- `STATIC_SOURCE_FRONTEND` (default `${SCRIPT_DIR}/../frontend_v2_premium`)
+- `STATIC_SOURCE_FRONTEND` (default `${SCRIPT_DIR}/../frontend`)
 - `STATIC_SOURCE_DASHBOARD` (default `${SCRIPT_DIR}/dashboard`)
-- `STATIC_TARGET_FRONTEND` (default `${INSTALL_ROOT}/frontend_v2_premium`)
+- `STATIC_TARGET_FRONTEND` (default `${INSTALL_ROOT}/frontend`)
 - `STATIC_TARGET_DASHBOARD` (default `${INSTALL_ROOT}/dashboard`)
 
 The script will:
@@ -242,7 +242,7 @@ The script will:
 1. Build release binary
 2. Install it under `${INSTALL_ROOT}/bin`
 3. Keep existing config by default (install default only if missing; set `OVERWRITE_CONFIG=1` to replace)
-4. Sync static files (`frontend_v2_premium` as primary, `dashboard` as fallback)
+4. Sync static files (`frontend` as portal/rice/oil_palm root, `dashboard` as fallback)
 5. Prefer systemd service deployment (fallback to `nohup` if systemd is unavailable)
 
 ## Quick test from another machine

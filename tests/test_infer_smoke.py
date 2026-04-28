@@ -1,20 +1,41 @@
+"""Inference smoke tests — require PyTorch."""
+
 import json
 import sys
 import yaml
 from pathlib import Path
 
+import pytest
 from PIL import Image
-import torch
+
+try:
+    import torch
+    import torchvision
+    _torch_stack_available = True
+except Exception:
+    _torch_stack_available = False
+
+pytestmark = pytest.mark.skipif(
+    not _torch_stack_available,
+    reason="Torch/Torchvision stack not available — skipping inference smoke tests",
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from service.core.rice_leaf_classifier import build_model
-from service.infer import predict_image_file
+
+@pytest.fixture()
+def _import_torch_modules():
+    """Lazily import torch-dependent modules only when torch is available."""
+    from ai_engine.crops.rice.inference.rice_leaf_classifier import build_model
+    from ai_engine.infer import predict_image_file
+    return build_model, predict_image_file
 
 
-def test_predict_image_file_returns_expected_keys(tmp_path):
+@pytest.mark.skipif(not _torch_stack_available, reason="Torch stack not available")
+def test_predict_image_file_returns_expected_keys(tmp_path, _import_torch_modules):
+    build_model, predict_image_file = _import_torch_modules
     labels = [
         "Bacterial_Leaf_Blight",
         "Brown_Spot",
