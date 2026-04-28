@@ -57,7 +57,7 @@ fn main() {
             };
             let presence = Arc::new(Mutex::new(PresenceTracker::default()));
 
-            // 鍚姩 HTTP 鍚庡彴鍜屽墠绔华琛ㄧ洏鏈嶅姟 (绔彛 8088)
+            // 閸氼垰濮?HTTP 閸氬骸褰撮崪灞藉缁旑垯鍗庣悰銊ф磸閺堝秴濮?(缁旑垰褰?8088)
             http_server::start_http_server(
                 "0.0.0.0:8088",
                 cfg.image_store_path.clone(),
