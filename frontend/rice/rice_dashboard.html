@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN" class="dark">
 <head>
   <meta charset="UTF-8" />
@@ -177,7 +177,7 @@
                               </div>
                               <div>
                                   <h3 class="text-sm font-bold text-white tracking-wider">Agri-AI <span class="font-light text-emerald-300">OpenClaw</span></h3>
-                                  <p class="text-[10px] text-emerald-400/70" data-i18n="support_online">在线协助�?/p>
+                                  <p class="text-[10px] text-emerald-400/70" data-i18n="support_online">在线协助中</p>
                               </div>
                               <div class="ml-auto flex items-center gap-2">
                                   <button onclick="UI.AI.createNewSession()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition-all flex items-center justify-center border border-white/5" title="新建会话">
@@ -192,13 +192,13 @@
                               <!-- AI Greeting -->
                               <div class="flex w-full mt-2 space-x-3 max-w-xs">
                                   <div class="p-3 bg-slate-800/80 rounded-xl msg-ai leading-relaxed border border-white/5">
-                                      您好，我已经准�?好协助您管理该田块�?�您�?��询问关于云�?状�?�或设�?遥控的任何问题�??
+                                      您好，我已经准备好协助您管理该田块。您可以询问关于云端状态或设备遥控的任何问题。
                                   </div>
                               </div>
                           </div>
                           <div class="p-4 bg-black/20 border-t border-white/5">
                               <form id="chatForm" class="flex items-center gap-2" onsubmit="window.CHAT.handleSubmit(event)">
-                                  <input type="text" id="chatInput" autocomplete="off" class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50" placeholder="发�?�指�?.." data-i18n="chat_placeholder" />
+                                  <input type="text" id="chatInput" autocomplete="off" class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50" placeholder="发送指令..." data-i18n="chat_placeholder" />
                                   <button type="submit" class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center"><i class="fa fa-paper-plane text-xs"></i></button>
                               </form>
                           </div>
@@ -246,7 +246,7 @@
                                   </div>
                               </div>
                           </div>
-                          <p id="positioningSummary" class="text-[10px] text-slate-500 mt-3 font-mono tracking-wider">加载�?..</p>
+                          <p id="positioningSummary" class="text-[10px] text-slate-500 mt-3 font-mono tracking-wider">加载中...</p>
                       </div>
 
                       <!-- Gateway Visuals -->
@@ -281,7 +281,7 @@
                           </div>
 
                           <div class="glass-panel p-6 flex flex-col">
-                              <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-microchip text-rose-400"></i><span data-i18n="ai_feedback">视�? AI 反�?</span></h2>
+                              <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-microchip text-rose-400"></i><span data-i18n="ai_feedback">视觉 AI 反馈</span></h2>
                               <div id="aiDiagnosisContainer" class="diagnosis-scroll flex-1 space-y-4 overflow-y-auto max-h-[360px] pr-2">
                                   <!-- Diagnosis Cards -->
                               </div>
@@ -290,7 +290,7 @@
 
                       <!-- Sensor Device Base -->
                       <div class="glass-panel p-6">
-                          <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-cube text-emerald-400"></i><span data-i18n="sensor_base">网关传感器�?备底�?/span></h2>
+                          <h2 class="text-sm font-bold text-slate-100 mb-6 flex items-center gap-2 uppercase tracking-widest"><i class="fa fa-cube text-emerald-400"></i><span data-i18n="sensor_base">网关传感器设备底座</span></h2>
                           <p id="schemaNotice" class="hidden mb-4 text-[11px] text-amber-300 border border-amber-400/20 bg-amber-500/10 rounded-lg px-3 py-2"></p>
                           <div id="sensorGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                               <!-- Dynamic Device Tiles -->
