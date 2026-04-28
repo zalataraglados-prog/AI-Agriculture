@@ -1,6 +1,11 @@
 use std::io::ErrorKind;
+use std::net::SocketAddr;
 use std::net::UdpSocket;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, TrySendError};
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::constants::{
     DEFAULT_ACK_CREDENTIAL_REVOKED, DEFAULT_ACK_REGISTER_CONFLICT, DEFAULT_ACK_REGISTER_OK,
@@ -14,6 +19,53 @@ use crate::telemetry::{append_record, typed_fields_for_record, TelemetryRecord};
 use crate::time_util::now_rfc3339;
 use crate::token::validate_current_hour_token;
 
+const ACK_HEARTBEAT: &str = "ack:heartbeat";
+const ACK_BUSY: &str = "ack:busy";
+const HEARTBEAT_PREFIX: &str = "heartbeat:";
+const WORKER_COUNT: usize = 4;
+const WORK_QUEUE_CAPACITY: usize = 2048;
+const HEARTBEAT_INTERVAL_SEC: u64 = 30;
+const HEARTBEAT_TIMEOUT_SEC: u64 = 90;
+const HEARTBEAT_SCAN_INTERVAL_SEC: u64 = 5;
+
+#[derive(Debug)]
+struct PacketTask {
+    seq: u64,
+    payload: String,
+    peer: SocketAddr,
+}
+
+#[derive(Debug, Default)]
+struct PresenceTracker {
+    last_seen_epoch_sec: std::collections::HashMap<String, u64>,
+    online: std::collections::HashMap<String, bool>,
+}
+
+impl PresenceTracker {
+    fn mark_online(&mut self, device_id: &str, now_sec: u64) -> bool {
+        self.last_seen_epoch_sec
+            .insert(device_id.to_string(), now_sec);
+        let prev = self
+            .online
+            .insert(device_id.to_string(), true)
+            .unwrap_or(false);
+        !prev
+    }
+
+    fn scan_offline(&mut self, now_sec: u64, timeout_sec: u64) -> Vec<String> {
+        let mut changed = Vec::new();
+        for (device_id, last_seen) in &self.last_seen_epoch_sec {
+            let is_online = now_sec.saturating_sub(*last_seen) <= timeout_sec;
+            let prev = self.online.get(device_id).copied().unwrap_or(false);
+            if prev && !is_online {
+                self.online.insert(device_id.clone(), false);
+                changed.push(device_id.clone());
+            }
+        }
+        changed
+    }
+}
+
 pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), String> {
     let socket =
         UdpSocket::bind(&cfg.bind).map_err(|e| format!("Bind failed on {}: {e}", cfg.bind))?;
@@ -21,7 +73,11 @@ pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), 
         .set_read_timeout(cfg.timeout)
         .map_err(|e| format!("Failed to set read timeout: {e}"))?;
 
-    let mut registry = DeviceRegistry::load(&cfg.registry_path)?;
+    let registry = Arc::new(Mutex::new(DeviceRegistry::load(&cfg.registry_path)?));
+    let presence = Arc::new(Mutex::new(PresenceTracker::default()));
+    let stop = Arc::new(AtomicBool::new(false));
+    let received_count = Arc::new(AtomicU64::new(0));
+    let success_count = Arc::new(AtomicU64::new(0));
 
     let ts = now_rfc3339();
     println!("{ts} [cloud] Listening on {}", cfg.bind);
@@ -38,6 +94,10 @@ pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), 
     println!("{ts} [cloud] token_store={}", cfg.token_store_path);
     println!("{ts} [cloud] telemetry_store={}", cfg.telemetry_store_path);
     println!(
+        "{ts} [cloud] workers={WORKER_COUNT}, queue_capacity={WORK_QUEUE_CAPACITY}, heartbeat={}s timeout={}s",
+        HEARTBEAT_INTERVAL_SEC, HEARTBEAT_TIMEOUT_SEC
+    );
+    println!(
         "{ts} [cloud] Mode: {}",
         if cfg.once {
             "exit after first successful match"
@@ -46,96 +106,227 @@ pub(crate) fn run(cfg: &RuntimeConfig, db: Arc<Mutex<DbManager>>) -> Result<(), 
         }
     );
 
-    let mut buf = [0_u8; UDP_BUFFER_SIZE];
-    let mut received_count: u64 = 0;
-    let mut success_count: u64 = 0;
+    thread::scope(|scope| -> Result<(), String> {
+        let (tx, rx) = sync_channel::<PacketTask>(WORK_QUEUE_CAPACITY);
+        let rx = Arc::new(Mutex::new(rx));
 
-    loop {
-        let (size, peer) = match socket.recv_from(&mut buf) {
-            Ok(v) => v,
-            Err(err)
-                if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
-            {
-                return Err("Receive timeout reached without enough packets".to_string());
-            }
-            Err(err) => return Err(format!("Receive failed: {err}")),
-        };
+        for worker_id in 0..WORKER_COUNT {
+            let worker_rx: Arc<Mutex<Receiver<PacketTask>>> = rx.clone();
+            let worker_socket = socket
+                .try_clone()
+                .map_err(|e| format!("Worker socket clone failed: {e}"))?;
+            let worker_registry = registry.clone();
+            let worker_db = db.clone();
+            let worker_stop = stop.clone();
+            let worker_success = success_count.clone();
 
-        received_count += 1;
-        let payload = String::from_utf8_lossy(&buf[..size]).trim().to_string();
+            scope.spawn(move || {
+                loop {
+                    if worker_stop.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    let task = {
+                        let guard = match worker_rx.lock() {
+                            Ok(v) => v,
+                            Err(_) => break,
+                        };
+                        match guard.recv() {
+                            Ok(v) => v,
+                            Err(_) => break,
+                        }
+                    };
 
-        if let Some(json_text) = payload.strip_prefix("register:") {
-            let ack = handle_register(json_text, cfg, &mut registry);
-            socket
-                .send_to(ack.as_bytes(), peer)
-                .map_err(|e| format!("ACK send failed to {peer}: {e}"))?;
+                    if let Some(json_text) = task.payload.strip_prefix("register:") {
+                        let ack = {
+                            let mut guard = match worker_registry.lock() {
+                                Ok(v) => v,
+                                Err(_) => continue,
+                            };
+                            handle_register(json_text, cfg, &mut guard)
+                        };
+                        let _ = worker_socket.send_to(ack.as_bytes(), task.peer);
+                        println!(
+                            "{} [cloud] Packet #{} from {}: register request => ACK=\"{}\"",
+                            now_rfc3339(),
+                            task.seq,
+                            task.peer,
+                            redact_register_ack_for_log(&ack)
+                        );
+                        if ack == DEFAULT_ACK_REGISTER_OK {
+                            worker_success.fetch_add(1, Ordering::Relaxed);
+                            if cfg.once {
+                                worker_stop.store(true, Ordering::Relaxed);
+                            }
+                        }
+                        continue;
+                    }
 
-            println!(
-                "{} [cloud] Packet #{received_count} from {peer}: register request => ACK=\"{}\"",
-                now_rfc3339(),
-                redact_register_ack_for_log(&ack)
-            );
+                    let result = {
+                        let guard = match worker_registry.lock() {
+                            Ok(v) => v,
+                            Err(_) => continue,
+                        };
+                        evaluate_data_packet(&task.payload, cfg, &guard)
+                    };
 
-            if ack == DEFAULT_ACK_REGISTER_OK {
-                success_count += 1;
-            }
+                    if result.matched {
+                        worker_success.fetch_add(1, Ordering::Relaxed);
+                        if let Err(err) = persist_matched_telemetry(&task.payload, cfg, worker_db.clone())
+                        {
+                            eprintln!(
+                                "{} [cloud] WARN: failed to persist telemetry: {err}",
+                                now_rfc3339()
+                            );
+                        }
+                        if cfg.once {
+                            worker_stop.store(true, Ordering::Relaxed);
+                        }
+                    }
 
-            if cfg.once && ack == DEFAULT_ACK_REGISTER_OK {
+                    let _ = worker_socket.send_to(result.ack.as_bytes(), task.peer);
+                    println!(
+                        "{} [cloud] worker#{worker_id} packet #{} from {}: \"{}\" => {} ; ACK=\"{}\" ; {}",
+                        now_rfc3339(),
+                        task.seq,
+                        task.peer,
+                        task.payload,
+                        if result.matched { "MATCH" } else { "MISMATCH" },
+                        result.ack,
+                        result.detail
+                    );
+                }
+            });
+        }
+
+        {
+            let tracker = presence.clone();
+            let monitor_stop = stop.clone();
+            scope.spawn(move || loop {
+                if monitor_stop.load(Ordering::Relaxed) {
+                    break;
+                }
+                thread::sleep(Duration::from_secs(HEARTBEAT_SCAN_INTERVAL_SEC));
+                let now_sec = now_epoch_sec();
+                let changed = {
+                    let mut guard = match tracker.lock() {
+                        Ok(v) => v,
+                        Err(_) => continue,
+                    };
+                    guard.scan_offline(now_sec, HEARTBEAT_TIMEOUT_SEC)
+                };
+                for device_id in changed {
+                    println!(
+                        "{} [cloud] presence: device_id={} => OFFLINE (heartbeat timeout {}s)",
+                        now_rfc3339(),
+                        device_id,
+                        HEARTBEAT_TIMEOUT_SEC
+                    );
+                }
+            });
+        }
+
+        let mut buf = [0_u8; UDP_BUFFER_SIZE];
+        loop {
+            if stop.load(Ordering::Relaxed) {
                 break;
             }
+
+            let (size, peer) = match socket.recv_from(&mut buf) {
+                Ok(v) => v,
+                Err(err)
+                    if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock =>
+                {
+                    return Err("Receive timeout reached without enough packets".to_string());
+                }
+                Err(err) => return Err(format!("Receive failed: {err}")),
+            };
+
+            let seq = received_count.fetch_add(1, Ordering::Relaxed) + 1;
+            let payload = String::from_utf8_lossy(&buf[..size]).trim().to_string();
+
+            if let Some(device_id) = parse_heartbeat_device_id(&payload) {
+                let now_sec = now_epoch_sec();
+                let became_online = {
+                    let mut guard = presence
+                        .lock()
+                        .map_err(|_| "presence lock poisoned".to_string())?;
+                    guard.mark_online(&device_id, now_sec)
+                };
+                socket
+                    .send_to(ACK_HEARTBEAT.as_bytes(), peer)
+                    .map_err(|e| format!("ACK send failed to {peer}: {e}"))?;
+                if became_online {
+                    println!(
+                        "{} [cloud] presence: device_id={} => ONLINE",
+                        now_rfc3339(),
+                        device_id
+                    );
+                }
+                continue;
+            }
+
+            match tx.try_send(PacketTask { seq, payload, peer }) {
+                Ok(_) => {}
+                Err(TrySendError::Full(task)) => {
+                    let _ = socket.send_to(ACK_BUSY.as_bytes(), task.peer);
+                    eprintln!(
+                        "{} [cloud] queue full: packet #{} from {} dropped with ACK=\"{}\"",
+                        now_rfc3339(),
+                        task.seq,
+                        task.peer,
+                        ACK_BUSY
+                    );
+                }
+                Err(TrySendError::Disconnected(_)) => {
+                    return Err("worker queue disconnected".to_string());
+                }
+            }
+
             if let Some(max) = cfg.max_packets {
-                if received_count >= max {
+                if seq >= max {
                     break;
                 }
             }
-            continue;
         }
 
-        let result = evaluate_data_packet(&payload, cfg, &registry);
+        stop.store(true, Ordering::Relaxed);
+        drop(tx);
+        Ok(())
+    })?;
 
-        if result.matched {
-            success_count += 1;
-            if let Err(err) = persist_matched_telemetry(&payload, cfg, db.clone()) {
-                eprintln!(
-                    "{} [cloud] WARN: failed to persist telemetry: {err}",
-                    now_rfc3339()
-                );
-            }
-        }
-
-        socket
-            .send_to(result.ack.as_bytes(), peer)
-            .map_err(|e| format!("ACK send failed to {peer}: {e}"))?;
-
-        println!(
-            "{} [cloud] Packet #{received_count} from {peer}: \"{payload}\" => {} ; ACK=\"{}\" ; {}",
-            now_rfc3339(),
-            if result.matched { "MATCH" } else { "MISMATCH" },
-            result.ack,
-            result.detail
-        );
-
-        if cfg.once && result.matched {
-            break;
-        }
-
-        if let Some(max) = cfg.max_packets {
-            if received_count >= max {
-                break;
-            }
-        }
-    }
-
+    let received = received_count.load(Ordering::Relaxed);
+    let matched = success_count.load(Ordering::Relaxed);
     println!(
-        "{} [cloud] Summary: received={received_count}, matched={success_count}",
+        "{} [cloud] Summary: received={received}, matched={matched}",
         now_rfc3339()
     );
 
-    if success_count == 0 {
+    if matched == 0 {
         return Err("No matching packet received".to_string());
     }
 
     Ok(())
+}
+
+fn now_epoch_sec() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+fn parse_heartbeat_device_id(payload: &str) -> Option<String> {
+    let body = payload.strip_prefix(HEARTBEAT_PREFIX)?;
+    for part in body.split(',') {
+        let (k, v) = part.split_once('=')?;
+        if k.trim() == "device_id" {
+            let id = v.trim();
+            if !id.is_empty() {
+                return Some(id.to_string());
+            }
+        }
+    }
+    None
 }
 
 fn redact_register_ack_for_log(ack: &str) -> String {
