@@ -4,6 +4,9 @@
  */
 (function initRuntimeConfig() {
     const defaults = {
+        auth: {
+            enabled: false,
+        },
         telemetry: {
             gatewayStaleMs: 5 * 60 * 1000,
             defaultLimit: 300,

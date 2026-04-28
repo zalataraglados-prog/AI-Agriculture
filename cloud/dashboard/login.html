@@ -52,6 +52,8 @@
 
   <script>
     const AUTH_STORAGE_KEY = 'agri_auth_session_v1';
+    const FRONTEND_LOGIN_BACKEND_ENABLED = false;
+    const FRONTEND_LOGIN_LOCAL_TTL_SEC = 24 * 60 * 60;
 
     function targetAfterLogin(deviceId) {
       const q = new URLSearchParams(location.search);
@@ -59,6 +61,15 @@
       if (next) return next;
       const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
       return `index.html${query}`;
+    }
+
+    function createLocalSession(username) {
+      const now = Math.floor(Date.now() / 1000);
+      return {
+        token: `fe_local_${now}_${Math.random().toString(36).slice(2, 10)}`,
+        username: username || 'local_user',
+        expires_at_epoch_sec: now + FRONTEND_LOGIN_LOCAL_TTL_SEC,
+      };
     }
 
     async function doLogin() {
@@ -70,7 +81,15 @@
         msg.textContent = '请输入账号和密码';
         return;
       }
-      msg.textContent = '正在登录...';
+      msg.textContent = '正在进入系统...';
+
+      if (!FRONTEND_LOGIN_BACKEND_ENABLED) {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(createLocalSession(username)));
+        if (deviceId) localStorage.setItem('device_id', deviceId);
+        location.href = targetAfterLogin(deviceId);
+        return;
+      }
+
       try {
         const res = await fetch('/api/login', {
           method: 'POST',
