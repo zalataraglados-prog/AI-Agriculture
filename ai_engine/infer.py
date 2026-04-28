@@ -3,17 +3,13 @@ import json
 import sys
 from pathlib import Path
 
-from PIL import Image
-
 try:
-    from ai_engine.crops.rice.inference.rice_leaf_classifier import RiceLeafClassifier
     from ai_engine.common.adapters.image_adapter import load_image_from_path
 except ModuleNotFoundError:
     # Support running `python ai_engine/infer.py` from the project root.
     project_root = Path(__file__).resolve().parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from ai_engine.crops.rice.inference.rice_leaf_classifier import RiceLeafClassifier
     from ai_engine.common.adapters.image_adapter import load_image_from_path
 
 
@@ -24,6 +20,8 @@ def predict_image_file(
     config_file: str = "models/rice/rice_leaf_classifier/config.yaml",
     top_k: int = 3
 ):
+    from ai_engine.crops.rice.inference.rice_leaf_classifier import RiceLeafClassifier
+
     image = load_image_from_path(image_path)
     classifier = RiceLeafClassifier(
         checkpoint_path=checkpoint_path,

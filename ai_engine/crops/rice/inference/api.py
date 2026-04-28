@@ -98,10 +98,10 @@ async def predict(file: UploadFile = File(...)):
 
 
 @router.get(
-    "/health",
-    summary="Service health check",
+    "/rice/health",
+    summary="Rice model health check",
 )
-async def health():
+async def rice_health():
     """Return service health status."""
     classifier = _get_classifier()
     model_info = classifier.get_model_info()

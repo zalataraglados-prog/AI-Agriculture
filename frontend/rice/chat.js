@@ -149,7 +149,7 @@ window.CHAT = (() => {
                 body: JSON.stringify({
                     message: msg,
                     context: {
-                        source: 'frontend_v2_premium',
+                        source: 'frontend_rice',
                         ts: new Date().toISOString(),
                     },
                 }),

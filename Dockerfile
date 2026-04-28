@@ -16,7 +16,7 @@ COPY requirements/ ./requirements/
 COPY requirements.txt .
 
 # Install base dependencies
-RUN pip install --no-cache-dir -r requirements/base.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install crop-specific dependencies
 # Note: For Rice, we use the CPU-only index for torch/torchvision
