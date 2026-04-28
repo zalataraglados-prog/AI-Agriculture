@@ -54,7 +54,7 @@ fn main() {
                 }
             };
 
-            // 启动 HTTP 后台和前端仪表盘服务 (端口 8088)
+            // 鍚姩 HTTP 鍚庡彴鍜屽墠绔华琛ㄧ洏鏈嶅姟 (绔彛 8088)
             http_server::start_http_server(
                 "0.0.0.0:8088",
                 cfg.image_store_path.clone(),
