@@ -1816,26 +1816,26 @@ fn field_type_name(value: FieldType) -> &'static str {
     }
 }
 
-fn infer_field_display(
+fn get_field_metadata(
     field: &str,
     _field_type: FieldType,
 ) -> (&'static str, &'static str, Option<f64>, Option<f64>) {
     match field {
-        "vwc" => ("鍦熷￥婀垮害", "%", Some(20.0), Some(70.0)),
-        "temp_c" => ("娓╁害", "鈩?, Some(0.0), Some(45.0)),
-        "ec" => ("鐢靛鐜?, "渭S/cm", Some(0.0), Some(5000.0)),
-        "hum" => ("绌烘皵婀垮害", "%", Some(30.0), Some(85.0)),
-        "voltage" => ("鐢靛帇", "V", Some(0.0), Some(5.0)),
-        "raw" => ("鍘熷鍊?, "", None, None),
+        "vwc" => ("Soil Humidity", "%", Some(20.0), Some(70.0)),
+        "temp_c" => ("Temperature", "C", Some(0.0), Some(45.0)),
+        "ec" => ("Conductivity", "mS/cm", Some(0.0), Some(5000.0)),
+        "hum" => ("Air Humidity", "%", Some(30.0), Some(85.0)),
+        "voltage" => ("Voltage", "V", Some(0.0), Some(5.0)),
+        "raw" => ("Raw Value", "", None, None),
         "ain0" => ("AIN0", "", None, None),
         "ain1" => ("AIN1", "", None, None),
         "ain2" => ("AIN2", "", None, None),
         "ain3" => ("AIN3", "", None, None),
-        "slave_id" => ("浠庣珯ID", "", None, None),
-        "protocol" => ("鍗忚", "", None, None),
-        "pin" => ("寮曡剼", "", None, None),
-        "addr" => ("鍦板潃", "", None, None),
-        _ => ("瀛楁", "", None, None),
+        "slave_id" => ("Slave ID", "", None, None),
+        "protocol" => ("Protocol", "", None, None),
+        "pin" => ("Pin", "", None, None),
+        "addr" => ("Address", "", None, None),
+        _ => ("Field", "", None, None),
     }
 }
 
