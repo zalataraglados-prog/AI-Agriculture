@@ -23,6 +23,7 @@ use crate::image_upload::{
     ImageUploadErrorResponse, ImageUploadOkResponse,
 };
 use crate::model::{DeviceRegistryFile, FieldType, SensorRule};
+use crate::presence::PresenceTracker;
 use crate::time_util::now_rfc3339;
 
 const QUERY_CACHE_TTL_SECONDS: u64 = 15;
@@ -335,6 +336,7 @@ pub fn start_http_server(
     sensor_rules: HashMap<String, SensorRule>,
     registry_path: String,
     db: Arc<Mutex<DbManager>>,
+    presence: Arc<Mutex<PresenceTracker>>,
 ) {
     let server = Server::http(bind_addr).expect("Failed to start HTTP server");
     let sensor_schema_payload = build_sensor_schema_payload(&sensor_rules);
@@ -389,6 +391,7 @@ pub fn start_http_server(
             let registry_path = registry_path.clone();
             let db = db.clone();
             let query_cache = query_cache.clone();
+            let presence = presence.clone();
             let perf = perf.clone();
             let ai_http_client = ai_http_client.clone();
             let openclaw_http_client = openclaw_http_client.clone();
@@ -415,6 +418,7 @@ pub fn start_http_server(
                         queue_wait_ms,
                         db,
                         query_cache,
+                        presence,
                         auth,
                         auth_enabled,
                         perf,
@@ -481,6 +485,7 @@ fn handle_api(
     queue_wait_ms: u64,
     db: Arc<Mutex<DbManager>>,
     query_cache: Arc<Mutex<QueryCache>>,
+    presence: Arc<Mutex<PresenceTracker>>,
     auth: Arc<Mutex<AuthManager>>,
     auth_enabled: bool,
     perf: Arc<Mutex<PerfMetrics>>,
@@ -579,6 +584,9 @@ fn handle_api(
         }
         (Method::Get, "/api/v1/devices") => {
             handle_devices_query(request, registry_path);
+        }
+        (Method::Get, "/api/v1/presence") => {
+            handle_presence_query(request, presence);
         }
         (Method::Get, "/api/v1/telemetry") | (Method::Get, "/api/telemetry") => {
             handle_telemetry_query(request, query, db, query_cache);
@@ -1757,6 +1765,22 @@ fn handle_devices_query(request: tiny_http::Request, registry_path: &str) {
 
     let payload = serde_json::to_string(&DevicesPayload { devices })
         .unwrap_or_else(|_| r#"{"devices":[]}"#.to_string());
+    respond_json_with_status(request, 200, &payload);
+}
+
+fn handle_presence_query(request: tiny_http::Request, presence: Arc<Mutex<PresenceTracker>>) {
+    let snapshot = match presence.lock() {
+        Ok(guard) => guard.snapshot(),
+        Err(_) => {
+            respond_json_with_status(
+                request,
+                500,
+                r#"{"status":"error","message":"presence state unavailable"}"#,
+            );
+            return;
+        }
+    };
+    let payload = serde_json::to_string(&snapshot).unwrap_or_else(|_| "[]".to_string());
     respond_json_with_status(request, 200, &payload);
 }
 
