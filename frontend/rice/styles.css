@@ -676,17 +676,6 @@
   .mobile-upload-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  /* Keep AI session history visible on mobile stacked layout */
-  #view-ai > .grid {
-    height: auto !important;
-    gap: 1rem !important;
-  }
-
-  #aiHistoryList {
-    min-height: 150px;
-    max-height: 38vh;
-  }
 }
 
 @media (max-width: 640px) {

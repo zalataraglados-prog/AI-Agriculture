@@ -1,4 +1,4 @@
-# Wave-0 Baseline Contract Freeze
+﻿# Wave-0 Baseline Contract Freeze
 
 Updated: 2026-04-23
 
@@ -46,7 +46,7 @@ Runtime baseline (verified on cloud host):
 - Service: `ai-agri-cloud-receiver.service`
 - Binary: `/opt/ai-agriculture/cloud/bin/ai-agri-cloud-receiver`
 - Config: `/opt/ai-agriculture/cloud/config/sensors.toml`
-- Frontend static root served by same process: `/opt/ai-agriculture/cloud/frontend/rice`
+- Frontend static root served by same process: `/opt/ai-agriculture/cloud/frontend_v2_premium`
 
 Rule:
 - Source repo directory and runtime directory must be explicitly synchronized per release.

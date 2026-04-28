@@ -1154,7 +1154,7 @@ window.UI = (() => {
                     // Create first session from legacy data
                     const firstSession = {
                         id: Date.now().toString(),
-                        title: '鍘嗗彶浼氳瘽 (宸茶縼绉?',
+                        title: '历史会话 (已迁移)',
                         messages: JSON.parse(legacyHistory)
                     };
                     UI.AI.sessions = [firstSession];
@@ -1164,7 +1164,7 @@ window.UI = (() => {
 
                 // If still no sessions, create a default one
                 if (!UI.AI.sessions.length) {
-                    UI.AI.createNewSession('鏂颁細璇?);
+                    UI.AI.createNewSession('新会话');
                 } else if (!UI.AI.currentSessionId) {
                     UI.AI.currentSessionId = UI.AI.sessions[0].id;
                 }
@@ -1185,14 +1185,14 @@ window.UI = (() => {
                 // Prevent creating multiple empty sessions
                 const current = UI.AI.sessions.find(s => s.id === UI.AI.currentSessionId);
                 if (current && current.messages.length === 0) {
-                    alert('宸茬粡鏄渶鏂颁細璇?);
+                    alert('已经是最新会话');
                     return;
                 }
 
                 const id = Date.now().toString();
                 const session = {
                     id: id,
-                    title: title || `瀵硅瘽 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`,
+                    title: title || `对话 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`,
                     messages: []
                 };
                 UI.AI.sessions.unshift(session);
@@ -1245,7 +1245,7 @@ window.UI = (() => {
                         <!-- AI Greeting -->
                         <div class="flex w-full mt-2 space-x-3 max-w-xs">
                             <div class="p-3 bg-slate-800/80 rounded-xl msg-ai leading-relaxed border border-white/5">
-                                鎮ㄥソ锛屾垜宸茬粡鍑嗗濂藉崗鍔╂偍绠＄悊璇ョ敯鍧椼€傛偍鍙互璇㈤棶鍏充簬浜戠鐘舵€佹垨璁惧閬ユ帶鐨勪换浣曢棶棰樸€?
+                                您好，我已经准备好协助您管理该田块。您可以询问关于云端状态或设备遥控的任何问题。
                             </div>
                         </div>
                     `;
@@ -1290,21 +1290,21 @@ window.UI = (() => {
             },
 
             deleteSession: (id) => {
-                if (!confirm('纭畾瑕佸垹闄ゆ浼氳瘽鍚楋紵')) return;
+                if (!confirm('确定要删除此会话吗？')) return;
                 UI.AI.sessions = UI.AI.sessions.filter(s => s.id !== id);
                 if (UI.AI.currentSessionId === id) {
                     UI.AI.currentSessionId = UI.AI.sessions.length ? UI.AI.sessions[0].id : null;
                 }
-                if (!UI.AI.sessions.length) UI.AI.createNewSession('鏂颁細璇?);
+                if (!UI.AI.sessions.length) UI.AI.createNewSession('新会话');
                 UI.AI.saveAll();
                 UI.AI.switchSession(UI.AI.currentSessionId);
             },
 
             clearHistory: () => {
-                if (!confirm('杩欏皢姘镐箙娓呴櫎鎵€鏈変細璇濊褰曪紝纭畾鍚楋紵')) return;
+                if (!confirm('这将永久清除所有会话记录，确定吗？')) return;
                 UI.AI.sessions = [];
                 UI.AI.currentSessionId = null;
-                UI.AI.createNewSession('鏂颁細璇?);
+                UI.AI.createNewSession('新会话');
             },
 
             // --- Instruction Management ---
@@ -1313,7 +1313,7 @@ window.UI = (() => {
                 if (!container) return;
                 
                 if (!UI.AI.instructionList.length) {
-                    container.innerHTML = '<p class="text-[10px] text-slate-600 italic p-2">鏆傛棤鑷畾涔夋寚浠?/p>';
+                    container.innerHTML = '<p class="text-[10px] text-slate-600 italic p-2">暂无自定义指令</p>';
                     return;
                 }
 
@@ -1359,7 +1359,7 @@ window.UI = (() => {
                     const text = await response.text();
                     content.innerHTML = window.CHAT.renderMarkdown(text);
                 } catch (err) {
-                    content.innerHTML = `<p class="text-rose-400">鏃犳硶鍔犺浇鍗忚鏂囦欢: ${err.message}. <br> 璇风‘淇濇牴鐩綍涓嬪瓨鍦?AI-ag-agent-skill.md</p>`;
+                    content.innerHTML = `<p class="text-rose-400">无法加载协议文件: ${err.message}. <br> 请确保根目录下存在 AI-ag-agent-skill.md</p>`;
                 }
             },
 
@@ -1391,7 +1391,7 @@ window.UI = (() => {
                     UI.AI.addMessage('ai', reply);
                 } catch (err) {
                     UI.AI.hideLoading();
-                    window.CHAT.handleRequestError(err);
+                    UI.AI.addMessage('ai', `服务暂时离线: ${err.message}`);
                 } finally {
                     UI.AI.isTyping = false;
                 }

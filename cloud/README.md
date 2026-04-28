@@ -206,8 +206,9 @@ Environment variables:
 - `BIND_ADDR` (default `0.0.0.0:9000`)
 - `CONFIG_PATH` (default `${INSTALL_ROOT}/config/sensors.toml`)
 - `OVERWRITE_CONFIG` (default `0`; set to `1` only when you want to replace existing config)
-- `STATIC_SOURCE_FRONTEND` (default `${SCRIPT_DIR}/../frontend`)
-- `STATIC_TARGET_FRONTEND` (default `${INSTALL_ROOT}/frontend`)
+- `STATIC_SOURCE_FRONTEND` (default `${SCRIPT_DIR}/../frontend/rice`)
+- `STATIC_SOURCE_DASHBOARD` (default `${SCRIPT_DIR}/dashboard`)
+- `STATIC_TARGET_FRONTEND` (default `${INSTALL_ROOT}/frontend/rice`)
 - `STATIC_TARGET_DASHBOARD` (default `${INSTALL_ROOT}/dashboard`)
 
 The script will:
