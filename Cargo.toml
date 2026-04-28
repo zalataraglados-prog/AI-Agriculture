@@ -1,6 +1,5 @@
 [workspace]
 members = [
     "cloud",
-    "gateway",
 ]
 resolver = "2"
