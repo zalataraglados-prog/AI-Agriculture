@@ -2,6 +2,7 @@
  * UI & rendering module.
  */
 window.UI = (() => {
+    const HIDDEN_SENSORS = ['pcf8591', 'mq7'];
     let envChart;
     let faultTrendChart;
     let latestImageUploads = [];
@@ -87,7 +88,8 @@ window.UI = (() => {
 
         let data = Array.isArray(telemetry) ? telemetry : [];
 
-        const uniqueSensors = Array.from(new Set(data.map((r) => r.sensor_id).filter(Boolean)));
+        const uniqueSensors = Array.from(new Set(data.map((r) => r.sensor_id).filter(Boolean)))
+            .filter(sid => !HIDDEN_SENSORS.includes(sid.toLowerCase()));
         if (!uniqueSensors.length) {
             sensorGrid.innerHTML = `<div class="col-span-full text-center text-xs text-slate-500 py-8">${window.t('no_data')}</div>`;
             return;
@@ -615,7 +617,8 @@ window.UI = (() => {
             const sensorList = document.getElementById('sensorSelectionList');
             if (sensorList) {
                 const telemetrySensors = Array.from(new Set(window.API.getTelemetry().map((r) => r.sensor_id).filter(Boolean)));
-                let sids = Array.from(new Set([...schema.keys(), ...telemetrySensors]));
+                let sids = Array.from(new Set([...schema.keys(), ...telemetrySensors]))
+                    .filter(sid => !HIDDEN_SENSORS.includes(sid.toLowerCase()));
                 sids.sort();
                 sensorList.innerHTML = sids.map(sid => `
                     <label class="sensor-pill cursor-pointer group">
@@ -1090,6 +1093,7 @@ window.UI = (() => {
             if (sensorIds.length === 0) {
                 sensorIds = Array.from(new Set(telemetry.map(r => r.sensor_id).filter(Boolean)));
             }
+            sensorIds = sensorIds.filter(sid => !HIDDEN_SENSORS.includes(sid.toLowerCase()));
             if (sensorIds.length === 0) {
                 container.innerHTML = `<div class="text-xs text-slate-500 p-3">${window.t('no_data')}</div>`;
                 return;
