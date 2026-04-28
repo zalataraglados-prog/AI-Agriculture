@@ -29,8 +29,10 @@ Defaults:
   --database-url from CLI/env/config (required)
 
 Notes:
-  1) 榛樿瀛愬懡浠ゆ槸 run锛堝彲鐪佺暐 run锛夈€?  2) 娉ㄥ唽鎶ユ枃鏍煎紡: register:{{json}}
-  3) 瀹炴椂鏁版嵁蹇呴』鎼哄甫 device_id=<id>锛屾湭娉ㄥ唽杩斿洖 ack:unregistered銆?
+  1) Default subcommand is 'run'.
+  2) Registration format: register:{{json}}
+  3) Data must include device_id=<id>.
+"
     );
 }
 
