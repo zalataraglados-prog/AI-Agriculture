@@ -646,6 +646,27 @@ fn handle_api(
                 r#"{"status":"error","message":"deprecated endpoint: /api/fields"}"#,
             );
         }
+        (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") => {
+            if method == Method::Post && p == "/api/v1/uav/missions" {
+                crate::uav::handle_missions_post(request, db);
+            } else if method == Method::Post && p.ends_with("/orthomosaic") {
+                crate::uav::handle_orthomosaic_post(request, "mock_id", db);
+            } else if method == Method::Post && p.ends_with("/tiles") {
+                crate::uav::handle_tiles_post(request, "mock_id", db);
+            } else if method == Method::Post && p.ends_with("/detections/mock") {
+                crate::uav::handle_mock_detections(request, "mock_id", db);
+            } else if method == Method::Get && p.contains("/detections") {
+                crate::uav::handle_get_detections(request, "mock_id", db);
+            } else if method == Method::Post && p.ends_with("/confirm") {
+                crate::uav::handle_confirm_detection(request, "mock_id", db);
+            } else if method == Method::Post && p.ends_with("/reject") {
+                crate::uav::handle_reject_detection(request, "mock_id", db);
+            } else if method == Method::Get && p.starts_with("/api/v1/trees/") {
+                crate::tree::handle_get_tree(request, "mock_id", db);
+            } else {
+                let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
+            }
+        }
         _ => {
             let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
         }
