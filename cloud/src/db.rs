@@ -197,47 +197,35 @@ pub(crate) struct SensorTelemetryQueryRow {
 impl DbManager {
 
     pub(crate) fn connect_and_migrate(database_url: &str) -> Result<Self, String> {
-
         let mut client = Client::connect(database_url, NoTls)
-
             .map_err(|e| format!("failed to connect postgres: {e}"))?;
 
+        let migration_dir = Self::resolve_migration_dir();
+        let mut entries: Vec<_> = std::fs::read_dir(&migration_dir)
+            .map_err(|e| format!("cannot read migration dir {}: {e}", migration_dir.display()))?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map(|x| x == "sql").unwrap_or(false))
+            .collect();
+        entries.sort_by_key(|e| e.file_name());
 
-
-        client
-
-            .batch_execute(include_str!(
-
-                "../sql/migrations/0001_create_new_backend_tables.sql"
-
-            ))
-
-            .map_err(|e| {
-
-                format!("failed to run migration 0001_create_new_backend_tables.sql: {e}")
-
-            })?;
-
-        client
-
-            .batch_execute(include_str!(
-
-                "../sql/migrations/0002_migrate_legacy_tables.sql"
-
-            ))
-
-            .map_err(|e| format!("failed to run migration 0002_migrate_legacy_tables.sql: {e}"))?;
-
-        client
-
-            .batch_execute(include_str!("../sql/migrations/0003_timescale_rewrite.sql"))
-
-            .map_err(|e| format!("failed to run migration 0003_timescale_rewrite.sql: {e}"))?;
-
-
+        for entry in entries {
+            let path = entry.path();
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let sql = std::fs::read_to_string(&path)
+                .map_err(|e| format!("failed to read {name}: {e}"))?;
+            client.batch_execute(&sql)
+                .map_err(|e| format!("failed to run migration {name}: {e}"))?;
+            eprintln!("{} [db] migration ok: {}", crate::time_util::now_rfc3339(), name);
+        }
 
         Ok(Self { client })
+    }
 
+    fn resolve_migration_dir() -> std::path::PathBuf {
+        if let Ok(p) = std::env::var("CLOUD_MIGRATION_DIR") {
+            return std::path::PathBuf::from(p);
+        }
+        std::path::PathBuf::from("sql/migrations")
     }
 
 
