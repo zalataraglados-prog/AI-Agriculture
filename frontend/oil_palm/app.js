@@ -13,9 +13,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnCreateMission.addEventListener('click', async () => {
         try {
-            const res = await fetch('/api/v1/uav/missions', { method: 'POST' });
+            const res = await fetch('/api/v1/uav/missions', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plantation_id: 1, mission_name: 'test-mission' })
+            });
             const data = await res.json();
-            missionId = data.mission_id || 1;
+            missionId = data.mission_id;
             missionStatus.textContent = `Mission created: ID ${missionId}`;
             btnRegisterOrtho.disabled = false;
         } catch (e) {
@@ -27,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`, { method: 'POST' });
             const data = await res.json();
-            orthoId = data.orthomosaic_id || 1;
+            orthoId = data.orthomosaic_id;
             orthoStatus.textContent = `Orthomosaic registered: ID ${orthoId}`;
             btnMockDetections.disabled = false;
         } catch (e) {
@@ -41,26 +45,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detections/mock`, { method: 'POST' });
             const data = await res.json();
             detectionStatus.textContent = `${data.detections_created || 3} mock detections generated.`;
-            renderMockDetections();
+            
+            await fetchDetections();
         } catch (e) {
             detectionStatus.textContent = 'Error: ' + e.message;
         }
     });
 
-    function renderMockDetections() {
+    async function fetchDetections() {
+        try {
+            const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detections`);
+            const data = await res.json();
+            renderDetections(data.detections || []);
+        } catch (e) {
+            console.error('fetch detections failed', e);
+        }
+    }
+
+    function renderDetections(detections) {
         detectionList.innerHTML = '';
-        for (let i = 1; i <= 3; i++) {
+        detections.forEach(d => {
+            if (d.review_status !== 'pending') return;
             const div = document.createElement('div');
             div.className = 'detection-item';
             div.innerHTML = `
-                <span>Detection #${i} (Conf: 0.9${i})</span>
+                <span>Detection #${d.id} (Conf: ${d.confidence.toFixed(2)})</span>
                 <div class="detection-actions">
-                    <button class="btn success" onclick="confirmDetection(${i}, this.parentElement.parentElement)">Confirm</button>
-                    <button class="btn danger" onclick="rejectDetection(${i}, this.parentElement.parentElement)">Reject</button>
+                    <button class="btn success" onclick="confirmDetection(${d.id}, this.parentElement.parentElement)">Confirm</button>
+                    <button class="btn danger" onclick="rejectDetection(${d.id}, this.parentElement.parentElement)">Reject</button>
                 </div>
             `;
             detectionList.appendChild(div);
-        }
+        });
     }
 
     window.confirmDetection = async (id, element) => {
@@ -71,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const treeDiv = document.createElement('div');
             treeDiv.className = 'tree-item';
-            treeDiv.innerHTML = `<span>🌳 Tree: <strong>${data.tree_code || 'OP-000001'}</strong></span>`;
+            treeDiv.innerHTML = `<span>🌳 Tree: <strong>${data.tree_code}</strong></span>`;
             treeList.appendChild(treeDiv);
         } catch (e) {
             alert('Confirm failed');
