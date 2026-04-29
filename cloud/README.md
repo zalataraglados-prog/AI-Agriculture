@@ -362,6 +362,21 @@ Output includes:
 - upload latency (`avg/p50/p95/p99`)
 - throughput (`frames/sec`)
 
+## Mobile live camera PoC (Issue #62 primary path)
+
+For real-time target capture from a phone camera (not offline video replay), open this page on mobile browser:
+
+```text
+http://<cloud-ip>:8088/rice/mobile_live_capture.html?device_id=dev_mobile_live_01
+```
+
+Capabilities:
+- uses `getUserMedia` rear camera stream
+- periodic frame capture from live preview
+- uploads each frame to `/api/v1/image/upload`
+- shows live sent/ok/fail stats and per-request logs
+- supports interval hot change while running
+
 ## Performance observability (P50/P95/P99)
 
 Cloud now exposes in-process latency breakdown metrics for the critical upload pipeline:
