@@ -646,10 +646,45 @@ fn handle_api(
                 r#"{"status":"error","message":"deprecated endpoint: /api/fields"}"#,
             );
         }
+        (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") => {
+            if method == Method::Post && p == "/api/v1/uav/missions" {
+                crate::uav::handle_missions_post(request, db);
+            } else if method == Method::Post && p.ends_with("/orthomosaic") {
+                let mission_id = extract_path_segment(p, "/missions/").unwrap_or_default();
+                crate::uav::handle_orthomosaic_post(request, &mission_id, db);
+            } else if method == Method::Post && p.ends_with("/tiles") {
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_tiles_post(request, &ortho_id, db);
+            } else if method == Method::Post && p.ends_with("/detections/mock") {
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_mock_detections(request, &ortho_id, db);
+            } else if method == Method::Get && p.contains("/detections") {
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_get_detections(request, &ortho_id, db);
+            } else if method == Method::Post && p.ends_with("/confirm") {
+                let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
+                crate::uav::handle_confirm_detection(request, &det_id, db);
+            } else if method == Method::Post && p.ends_with("/reject") {
+                let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
+                crate::uav::handle_reject_detection(request, &det_id, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/trees/") {
+                let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::tree::handle_get_tree(request, &tree_code, db);
+            } else {
+                let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
+            }
+        }
         _ => {
             let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
         }
     }
+}
+
+fn extract_path_segment(path: &str, after: &str) -> Option<String> {
+    let idx = path.find(after)?;
+    let rest = &path[idx + after.len()..];
+    let segment = rest.split('/').next()?;
+    if segment.is_empty() { None } else { Some(segment.to_string()) }
 }
 
 fn requires_auth(method: &Method, path: &str) -> bool {

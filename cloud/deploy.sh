@@ -34,11 +34,14 @@ echo "[deploy] Installing binary to ${INSTALL_ROOT} ..."
 $SUDO mkdir -p \
   "${INSTALL_ROOT}/bin" \
   "${INSTALL_ROOT}/log" \
-  "$(dirname -- "${CONFIG_PATH}")" \
+  "$(dirname -- "${CONFIG_PATH}")" \
+  "${INSTALL_ROOT}/sql/migrations" \
   "${STATIC_TARGET_FRONTEND}" \
   "${STATIC_TARGET_DASHBOARD}"
 $SUDO cp "target/release/${BIN_NAME}" "${INSTALL_ROOT}/bin/${APP_NAME}"
-$SUDO chmod +x "${INSTALL_ROOT}/bin/${APP_NAME}"
+$SUDO chmod +x "${INSTALL_ROOT}/bin/${APP_NAME}"
+echo "[deploy] Syncing sql migrations to ${INSTALL_ROOT}/sql/migrations"
+$SUDO cp -r "sql/migrations/"* "${INSTALL_ROOT}/sql/migrations/"
 
 if [[ ! -f "${CONFIG_PATH}" ]]; then
   echo "[deploy] Config not found, installing default config to ${CONFIG_PATH}"

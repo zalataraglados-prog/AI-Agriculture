@@ -14,6 +14,8 @@ mod server;
 mod telemetry;
 mod time_util;
 mod token;
+mod tree;
+mod uav;
 
 use std::env;
 use std::sync::{Arc, Mutex};

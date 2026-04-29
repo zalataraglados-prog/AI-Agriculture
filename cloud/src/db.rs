@@ -197,47 +197,35 @@ pub(crate) struct SensorTelemetryQueryRow {
 impl DbManager {
 
     pub(crate) fn connect_and_migrate(database_url: &str) -> Result<Self, String> {
-
         let mut client = Client::connect(database_url, NoTls)
-
             .map_err(|e| format!("failed to connect postgres: {e}"))?;
 
+        let migration_dir = Self::resolve_migration_dir();
+        let mut entries: Vec<_> = std::fs::read_dir(&migration_dir)
+            .map_err(|e| format!("cannot read migration dir {}: {e}", migration_dir.display()))?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map(|x| x == "sql").unwrap_or(false))
+            .collect();
+        entries.sort_by_key(|e| e.file_name());
 
-
-        client
-
-            .batch_execute(include_str!(
-
-                "../sql/migrations/0001_create_new_backend_tables.sql"
-
-            ))
-
-            .map_err(|e| {
-
-                format!("failed to run migration 0001_create_new_backend_tables.sql: {e}")
-
-            })?;
-
-        client
-
-            .batch_execute(include_str!(
-
-                "../sql/migrations/0002_migrate_legacy_tables.sql"
-
-            ))
-
-            .map_err(|e| format!("failed to run migration 0002_migrate_legacy_tables.sql: {e}"))?;
-
-        client
-
-            .batch_execute(include_str!("../sql/migrations/0003_timescale_rewrite.sql"))
-
-            .map_err(|e| format!("failed to run migration 0003_timescale_rewrite.sql: {e}"))?;
-
-
+        for entry in entries {
+            let path = entry.path();
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let sql = std::fs::read_to_string(&path)
+                .map_err(|e| format!("failed to read {name}: {e}"))?;
+            client.batch_execute(&sql)
+                .map_err(|e| format!("failed to run migration {name}: {e}"))?;
+            eprintln!("{} [db] migration ok: {}", crate::time_util::now_rfc3339(), name);
+        }
 
         Ok(Self { client })
+    }
 
+    fn resolve_migration_dir() -> std::path::PathBuf {
+        if let Ok(p) = std::env::var("CLOUD_MIGRATION_DIR") {
+            return std::path::PathBuf::from(p);
+        }
+        std::path::PathBuf::from("sql/migrations")
     }
 
 
@@ -925,7 +913,214 @@ impl DbManager {
 
 
         Ok(out)
-
     }
 
+    pub(crate) fn insert_plantation(&mut self, name: &str, crop_type: &str) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "INSERT INTO plantations (name, crop_type) VALUES ($1, $2) RETURNING id",
+            &[&name, &crop_type],
+        ).map_err(|e| format!("insert_plantation error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn insert_uav_mission(&mut self, plantation_id: i32, mission_name: &str) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "INSERT INTO uav_missions (plantation_id, mission_name) VALUES ($1, $2) RETURNING id",
+            &[&plantation_id, &mission_name],
+        ).map_err(|e| format!("insert_uav_mission error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn insert_uav_orthomosaic(&mut self, mission_id: i32, width: i32, height: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "INSERT INTO uav_orthomosaics (mission_id, width, height) VALUES ($1, $2, $3) RETURNING id",
+            &[&mission_id, &width, &height],
+        ).map_err(|e| format!("insert_uav_orthomosaic error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn insert_uav_tile(&mut self, ortho_id: i32, tile_x: i32, tile_y: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "INSERT INTO uav_tiles (orthomosaic_id, tile_x, tile_y) VALUES ($1, $2, $3) RETURNING id",
+            &[&ortho_id, &tile_x, &tile_y],
+        ).map_err(|e| format!("insert_uav_tile error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn insert_uav_detection(&mut self, mission_id: i32, ortho_id: i32, cx: f64, cy: f64, conf: f64) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "INSERT INTO uav_tree_detections (mission_id, orthomosaic_id, crown_center_x, crown_center_y, confidence) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            &[&mission_id, &ortho_id, &cx, &cy, &conf],
+        ).map_err(|e| format!("insert_uav_detection error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn query_detections_by_orthomosaic(&mut self, ortho_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, crown_center_x, crown_center_y, confidence, review_status FROM uav_tree_detections WHERE orthomosaic_id = $1",
+            &[&ortho_id],
+        ).map_err(|e| format!("query_detections error: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let cx: Option<f64> = r.get("crown_center_x");
+            let cy: Option<f64> = r.get("crown_center_y");
+            let conf: f64 = r.get("confidence");
+            let status: String = r.get("review_status");
+            out.push(serde_json::json!({
+                "id": id,
+                "crown_center_x": cx,
+                "crown_center_y": cy,
+                "confidence": conf,
+                "review_status": status
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn update_detection_status(&mut self, det_id: i32, status: &str) -> Result<(), String> {
+        let affected = self.client.execute(
+            "UPDATE uav_tree_detections SET review_status = $1 WHERE id = $2 AND review_status = 'pending' AND matched_tree_id IS NULL",
+            &[&status, &det_id],
+        ).map_err(|e| format!("update_detection_status error: {}", e))?;
+        if affected == 0 {
+            return Err("detection not found or cannot be modified from current state".to_string());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn get_detection_by_id(&mut self, det_id: i32) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, mission_id, orthomosaic_id, crown_center_x, crown_center_y, review_status, matched_tree_id FROM uav_tree_detections WHERE id = $1",
+            &[&det_id],
+        ).map_err(|e| format!("get_detection_by_id error: {}", e))?;
+        if rows.is_empty() { return Ok(None); }
+        let r = &rows[0];
+        let mid: i32 = r.get("mission_id");
+        let oid: Option<i32> = r.get("orthomosaic_id");
+        let cx: Option<f64> = r.get("crown_center_x");
+        let cy: Option<f64> = r.get("crown_center_y");
+        let status: String = r.get("review_status");
+        let matched: Option<i32> = r.get("matched_tree_id");
+        Ok(Some(serde_json::json!({
+            "mission_id": mid,
+            "orthomosaic_id": oid,
+            "crown_center_x": cx,
+            "crown_center_y": cy,
+            "review_status": status,
+            "matched_tree_id": matched
+        })))
+    }
+
+    pub(crate) fn insert_tree(&mut self, plantation_id: i32, species: &str, tree_code: &str, cx: Option<f64>, cy: Option<f64>, source_ortho: Option<i32>) -> Result<i32, String> {
+        let manual_verified = true;
+        let row = self.client.query_one(
+            "INSERT INTO trees (plantation_id, species, tree_code, crown_center_x, crown_center_y, coordinate_x, coordinate_y, source_orthomosaic_id, barcode_value, manual_verified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+            &[&plantation_id, &species, &tree_code, &cx, &cy, &cx, &cy, &source_ortho, &tree_code, &manual_verified],
+        ).map_err(|e| format!("insert_tree error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn get_tree_code_by_id(&mut self, tree_id: i32) -> Result<Option<String>, String> {
+        let rows = self.client.query(
+            "SELECT tree_code FROM trees WHERE id = $1",
+            &[&tree_id],
+        ).map_err(|e| format!("get_tree_code_by_id error: {}", e))?;
+        if rows.is_empty() { return Ok(None); }
+        let code: String = rows[0].get(0);
+        Ok(Some(code))
+    }
+
+    pub(crate) fn get_tree_by_code(&mut self, tree_code: &str) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tree_code, species, current_status, crown_center_x, crown_center_y FROM trees WHERE tree_code = $1",
+            &[&tree_code],
+        ).map_err(|e| format!("get_tree_by_code error: {}", e))?;
+        if rows.is_empty() { return Ok(None); }
+        let r = &rows[0];
+        let id: i32 = r.get("id");
+        let code: String = r.get("tree_code");
+        let species: String = r.get("species");
+        let status: String = r.get("current_status");
+        let cx: Option<f64> = r.get("crown_center_x");
+        let cy: Option<f64> = r.get("crown_center_y");
+        Ok(Some(serde_json::json!({
+            "id": id,
+            "tree_code": code,
+            "species": species,
+            "current_status": status,
+            "crown_center_x": cx,
+            "crown_center_y": cy
+        })))
+    }
+
+    pub(crate) fn get_max_tree_seq(&mut self, prefix: &str) -> Result<i64, String> {
+        let like_pattern = format!("{}%", prefix);
+        let row = self.client.query_one(
+            "SELECT COUNT(*) as cnt FROM trees WHERE tree_code LIKE $1",
+            &[&like_pattern],
+        ).map_err(|e| format!("get_max_tree_seq error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn link_detection_to_tree(&mut self, det_id: i32, tree_id: i32) -> Result<(), String> {
+        self.client.execute(
+            "UPDATE uav_tree_detections SET matched_tree_id = $1 WHERE id = $2",
+            &[&tree_id, &det_id],
+        ).map_err(|e| format!("link_detection_to_tree error: {}", e))?;
+        Ok(())
+    }
+
+    pub(crate) fn get_mission_id_by_orthomosaic(&mut self, ortho_id: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "SELECT mission_id FROM uav_orthomosaics WHERE id = $1",
+            &[&ortho_id],
+        ).map_err(|e| format!("get_mission_id_by_orthomosaic error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn get_plantation_id_by_detection(&mut self, det_id: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "SELECT m.plantation_id FROM uav_tree_detections d JOIN uav_missions m ON d.mission_id = m.id WHERE d.id = $1",
+            &[&det_id],
+        ).map_err(|e| format!("get_plantation_id_by_detection error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn next_tree_code_seq(&mut self) -> Result<i64, String> {
+        let row = self.client.query_one(
+            "SELECT nextval('tree_code_seq')",
+            &[],
+        ).map_err(|e| format!("next_tree_code_seq error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn confirm_detection_tx(&mut self, det_id: i32, plantation_id: i32, species: &str, tree_code: &str, cx: Option<f64>, cy: Option<f64>, source_ortho: Option<i32>) -> Result<i32, String> {
+        let mut tx = self.client.transaction().map_err(|e| format!("transaction start error: {}", e))?;
+        
+        let affected = tx.execute(
+            "UPDATE uav_tree_detections SET review_status = 'confirmed' WHERE id = $1 AND review_status = 'pending' AND matched_tree_id IS NULL",
+            &[&det_id],
+        ).map_err(|e| format!("update_detection_status error: {}", e))?;
+        
+        if affected == 0 {
+            let _ = tx.rollback();
+            return Err("detection already processed, rejected, or not found".to_string());
+        }
+        
+        let manual_verified = true;
+        let row = tx.query_one(
+            "INSERT INTO trees (plantation_id, species, tree_code, crown_center_x, crown_center_y, coordinate_x, coordinate_y, source_orthomosaic_id, barcode_value, manual_verified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+            &[&plantation_id, &species, &tree_code, &cx, &cy, &cx, &cy, &source_ortho, &tree_code, &manual_verified],
+        ).map_err(|e| format!("insert_tree error: {}", e))?;
+        let tree_id: i32 = row.get(0);
+        
+        tx.execute(
+            "UPDATE uav_tree_detections SET matched_tree_id = $1 WHERE id = $2",
+            &[&tree_id, &det_id],
+        ).map_err(|e| format!("link_detection error: {}", e))?;
+        
+        tx.commit().map_err(|e| format!("transaction commit error: {}", e))?;
+        Ok(tree_id)
+    }
 }
