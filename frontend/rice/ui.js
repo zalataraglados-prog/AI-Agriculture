@@ -375,7 +375,13 @@ window.UI = (() => {
             const albumBtn = document.getElementById('mobileUploadAlbumBtn');
             const clearBtn = document.getElementById('mobileUploadClearBtn');
             const submitBtn = document.getElementById('mobileUploadSubmitBtn');
+            const livePocLink = document.getElementById('mobileLivePocLink');
             if (!cameraInput || !fileInput || !cameraBtn || !albumBtn || !submitBtn) return;
+
+            if (livePocLink) {
+                const did = encodeURIComponent(Upload.activeDeviceId || 'dev_mobile_live_01');
+                livePocLink.href = `/rice/mobile_live_capture.html?device_id=${did}`;
+            }
 
             Upload.isMobileClient = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
                 || window.matchMedia('(max-width: 900px)').matches;

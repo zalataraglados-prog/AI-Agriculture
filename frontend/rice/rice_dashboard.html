@@ -267,6 +267,17 @@
                                   <button id="mobileUploadSubmitBtn" class="px-3 py-2 rounded-lg bg-emerald-600/80 border border-emerald-400/30 text-xs text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled data-i18n="mobile_upload">Upload</button>
                               </div>
                               <p id="mobileUploadFileName" class="text-[11px] text-slate-400 mb-3 font-mono truncate" data-i18n="no_image_selected">No image selected</p>
+                              <div class="mb-3">
+                                  <a id="mobileLivePocLink"
+                                     href="/rice/mobile_live_capture.html"
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/20 border border-violet-400/30 text-xs text-violet-100 hover:bg-violet-500/30 transition-all">
+                                      <i class="fa fa-video-camera"></i>
+                                      <span data-i18n="mobile_live_poc">Live Camera PoC</span>
+                                  </a>
+                                  <span class="ml-2 text-[10px] text-slate-500" data-i18n="mobile_live_poc_desc">Open real-time camera frame upload page</span>
+                              </div>
                               <div class="aspect-video bg-black/40 rounded-xl overflow-hidden border border-white/10 relative mb-3">
                                   <img id="mobileUploadPreview" src="" alt="preview" class="hidden w-full h-full object-cover" />
                                   <div id="mobileUploadPreviewEmpty" class="absolute inset-0 flex items-center justify-center text-slate-500 text-xs" data-i18n="waiting_image">Waiting image...</div>
