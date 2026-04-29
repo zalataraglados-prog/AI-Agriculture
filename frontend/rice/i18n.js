@@ -41,6 +41,8 @@ window.I18N = (() => {
             mobile_select_first: '请先选择一张图片。',
             mobile_no_device_id: '未找到 device_id，请使用 ?device_id=... 打开页面或先注册设备。',
             mobile_uploading_for: '正在上传到设备', mobile_upload_success: '上传成功', mobile_upload_failed: '上传失败',
+            mobile_live_poc: '实时摄像头 PoC',
+            mobile_live_poc_desc: '打开实时摄像头抓帧上传页面',
             accepted: '已接收',
         },
         en: {
@@ -79,6 +81,8 @@ window.I18N = (() => {
             mobile_select_first: 'Please select an image first.',
             mobile_no_device_id: 'No device_id found. Open page with ?device_id=... or register device first.',
             mobile_uploading_for: 'Uploading for', mobile_upload_success: 'Upload success', mobile_upload_failed: 'Upload failed',
+            mobile_live_poc: 'Live Camera PoC',
+            mobile_live_poc_desc: 'Open real-time camera frame upload page',
             accepted: 'accepted',
         },
         ms: {
@@ -117,6 +121,8 @@ window.I18N = (() => {
             mobile_select_first: 'Sila pilih imej dahulu.',
             mobile_no_device_id: 'Tiada device_id. Buka dengan ?device_id=... atau daftar peranti dahulu.',
             mobile_uploading_for: 'Memuat naik untuk', mobile_upload_success: 'Muat naik berjaya', mobile_upload_failed: 'Muat naik gagal',
+            mobile_live_poc: 'PoC Kamera Langsung',
+            mobile_live_poc_desc: 'Buka halaman muat naik bingkai kamera masa nyata',
             accepted: 'diterima',
         },
     };

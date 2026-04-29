@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mobile Live Capture PoC</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #081426; color: #e6f2ff; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 14px; }
+    .card { background: #0f2138; border: 1px solid #1f3659; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+    input, button { border-radius: 8px; border: 1px solid #2b476f; background: #0b1a30; color: #e6f2ff; padding: 8px 10px; }
+    input { min-width: 120px; }
+    button { cursor: pointer; }
+    button.primary { background: #1f8f5f; border-color: #2ca16f; }
+    button.warn { background: #8f2f2f; border-color: #af4242; }
+    #preview { width: 100%; max-height: 55vh; background: #000; border-radius: 8px; }
+    #log { white-space: pre-wrap; font-size: 12px; line-height: 1.35; background: #061221; border-radius: 8px; padding: 10px; min-height: 120px; max-height: 260px; overflow: auto; }
+    .muted { opacity: 0.85; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h3 style="margin: 0 0 8px 0;">Issue #62 Mobile Live Camera PoC</h3>
+      <div class="muted">手机实时取景 -> 周期抓帧 -> 上传 /api/v1/image/upload -> 云端推理</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <label>device_id <input id="deviceId" /></label>
+        <label>location <input id="location" value="mobile_live" /></label>
+        <label>crop_type <input id="cropType" value="rice" /></label>
+      </div>
+      <div class="row">
+        <label>farm_note <input id="farmNote" value="issue62-live-camera" style="min-width: 220px;" /></label>
+        <label>interval(s) <input id="intervalSec" type="number" min="0.2" step="0.1" value="2.0" /></label>
+        <label>endpoint <input id="endpoint" value="/api/v1/image/upload" style="min-width: 220px;" /></label>
+      </div>
+      <div class="row">
+        <button id="startCam" class="primary">启动摄像头</button>
+        <button id="startLoop" class="primary">开始循环上传</button>
+        <button id="stopLoop" class="warn">停止</button>
+        <span id="stats" class="muted">sent=0 ok=0 fail=0</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <video id="preview" autoplay muted playsinline></video>
+      <canvas id="canvas" style="display:none;"></canvas>
+    </div>
+
+    <div class="card">
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <script>
+    const q = new URLSearchParams(location.search);
+    const $ = (id) => document.getElementById(id);
+    const state = { stream: null, timer: null, sent: 0, ok: 0, fail: 0 };
+    $("deviceId").value = q.get("device_id") || "dev_mobile_live_01";
+    if (q.get("endpoint")) $("endpoint").value = q.get("endpoint");
+
+    function log(msg) {
+      const el = $("log");
+      el.textContent += `[${new Date().toISOString()}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+    function refreshStats() {
+      $("stats").textContent = `sent=${state.sent} ok=${state.ok} fail=${state.fail}`;
+    }
+    async function startCamera() {
+      if (state.stream) return;
+      try {
+        state.stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        $("preview").srcObject = state.stream;
+        log("camera started");
+      } catch (e) {
+        log("camera failed: " + e.message);
+      }
+    }
+    function stopLoop() {
+      if (state.timer) clearInterval(state.timer);
+      state.timer = null;
+      log("loop stopped");
+    }
+    async function uploadOnce() {
+      const video = $("preview");
+      if (!video.videoWidth || !video.videoHeight) {
+        log("skip: no video frame yet");
+        return;
+      }
+      const intervalSec = Math.max(0.2, Number($("intervalSec").value || 2.0));
+      const endpoint = $("endpoint").value.trim();
+      const deviceId = $("deviceId").value.trim();
+      const locationVal = $("location").value.trim();
+      const cropType = $("cropType").value.trim();
+      const farmNote = $("farmNote").value.trim();
+      const canvas = $("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.86));
+      if (!blob) {
+        log("capture failed: canvas blob null");
+        return;
+      }
+      const ts = new Date().toISOString();
+      const qs = new URLSearchParams({
+        device_id: deviceId,
+        ts,
+        location: locationVal,
+        crop_type: cropType,
+        farm_note: farmNote
+      });
+      const form = new FormData();
+      form.append("file", blob, `live_${Date.now()}.jpg`);
+      const url = endpoint.includes("?") ? `${endpoint}&${qs}` : `${endpoint}?${qs}`;
+      const t0 = performance.now();
+      state.sent += 1;
+      refreshStats();
+      try {
+        const resp = await fetch(url, { method: "POST", body: form });
+        const txt = await resp.text();
+        const ms = (performance.now() - t0).toFixed(1);
+        if (resp.ok && txt.includes("\"status\":\"success\"")) {
+          state.ok += 1;
+          log(`ok ${ms}ms ${txt.slice(0, 180)}`);
+        } else {
+          state.fail += 1;
+          log(`fail ${ms}ms status=${resp.status} body=${txt.slice(0, 180)}`);
+        }
+      } catch (e) {
+        state.fail += 1;
+        log(`fail network ${e.message}`);
+      }
+      refreshStats();
+      if (state.timer) {
+        const nowInterval = Math.max(0.2, Number($("intervalSec").value || 2.0));
+        if (Math.abs(nowInterval - intervalSec) > 1e-6) {
+          clearInterval(state.timer);
+          state.timer = setInterval(uploadOnce, nowInterval * 1000);
+          log(`interval hot-update -> ${nowInterval}s`);
+        }
+      }
+    }
+    async function startLoop() {
+      await startCamera();
+      stopLoop();
+      const sec = Math.max(0.2, Number($("intervalSec").value || 2.0));
+      state.timer = setInterval(uploadOnce, sec * 1000);
+      log("loop started interval=" + sec + "s");
+      uploadOnce();
+    }
+
+    $("startCam").addEventListener("click", startCamera);
+    $("startLoop").addEventListener("click", startLoop);
+    $("stopLoop").addEventListener("click", stopLoop);
+    window.addEventListener("beforeunload", () => {
+      stopLoop();
+      if (state.stream) {
+        for (const t of state.stream.getTracks()) t.stop();
+      }
+    });
+  </script>
+</body>
+</html>
