@@ -1,0 +1,19 @@
+# 强制所有文本文件使用 LF 换行符
+* text eol=lf
+
+# 指定特定后缀的文件必须是 LF
+*.rs text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+
+# 排除二进制文件
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
