@@ -6,7 +6,8 @@ BASE_URL = "http://127.0.0.1:8088"
 
 def test_uav_full_flow():
     # 1. Create Mission
-    res = requests.post(f"{BASE_URL}/api/v1/uav/missions", json={"plantation_id": 1, "mission_name": "test_chain"})
+    # Use plantation_id 0 to auto-create a plantation
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions", json={"plantation_id": 0, "mission_name": "test_chain"})
     assert res.status_code == 200
     mission_id = res.json().get("mission_id")
     assert mission_id > 0
@@ -29,17 +30,23 @@ def test_uav_full_flow():
     detections = res.json().get("detections", [])
     assert len(detections) >= 3
     
-    # Take first two pending
+    # Take pending items
     pending_ids = [d["id"] for d in detections if d["review_status"] == "pending"]
-    assert len(pending_ids) >= 2
+    assert len(pending_ids) >= 3
     det1 = pending_ids[0]
     det2 = pending_ids[1]
+    det3 = pending_ids[2]
     
     # 5. Confirm detection 1
     res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det1}/confirm")
     assert res.status_code == 200
     tree_code_1 = res.json().get("tree_code")
     assert tree_code_1.startswith("OP-")
+    
+    # Idempotency test: Confirm detection 1 again
+    res_dup = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det1}/confirm")
+    assert res_dup.status_code == 200
+    assert res_dup.json().get("tree_code") == tree_code_1
     
     # 6. Confirm detection 2
     res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det2}/confirm")
@@ -50,8 +57,21 @@ def test_uav_full_flow():
     # Verify uniqueness
     assert tree_code_1 != tree_code_2
     
-    # 7. Get tree
+    # 7. Reject detection 3
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det3}/reject")
+    assert res.status_code == 200
+    
+    # Cannot confirm rejected
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det3}/confirm")
+    assert res.status_code == 500
+    
+    # 8. Get tree
     res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code_1}")
     assert res.status_code == 200
     assert res.json()["tree"]["tree_code"] == tree_code_1
     assert res.json()["tree"]["species"] == "oil_palm"
+
+def test_missing_detection():
+    # 9. Non-existent detection
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/999999/confirm")
+    assert res.status_code == 500

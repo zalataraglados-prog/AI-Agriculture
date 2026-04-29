@@ -979,16 +979,19 @@ impl DbManager {
     }
 
     pub(crate) fn update_detection_status(&mut self, det_id: i32, status: &str) -> Result<(), String> {
-        self.client.execute(
+        let affected = self.client.execute(
             "UPDATE uav_tree_detections SET review_status = $1 WHERE id = $2",
             &[&status, &det_id],
         ).map_err(|e| format!("update_detection_status error: {}", e))?;
+        if affected == 0 {
+            return Err("detection not found".to_string());
+        }
         Ok(())
     }
 
     pub(crate) fn get_detection_by_id(&mut self, det_id: i32) -> Result<Option<serde_json::Value>, String> {
         let rows = self.client.query(
-            "SELECT id, mission_id, orthomosaic_id, crown_center_x, crown_center_y FROM uav_tree_detections WHERE id = $1",
+            "SELECT id, mission_id, orthomosaic_id, crown_center_x, crown_center_y, review_status, matched_tree_id FROM uav_tree_detections WHERE id = $1",
             &[&det_id],
         ).map_err(|e| format!("get_detection_by_id error: {}", e))?;
         if rows.is_empty() { return Ok(None); }
@@ -997,11 +1000,15 @@ impl DbManager {
         let oid: Option<i32> = r.get("orthomosaic_id");
         let cx: Option<f64> = r.get("crown_center_x");
         let cy: Option<f64> = r.get("crown_center_y");
+        let status: String = r.get("review_status");
+        let matched: Option<i32> = r.get("matched_tree_id");
         Ok(Some(serde_json::json!({
             "mission_id": mid,
             "orthomosaic_id": oid,
             "crown_center_x": cx,
-            "crown_center_y": cy
+            "crown_center_y": cy,
+            "review_status": status,
+            "matched_tree_id": matched
         })))
     }
 
@@ -1011,6 +1018,16 @@ impl DbManager {
             &[&plantation_id, &species, &tree_code, &cx, &cy, &source_ortho],
         ).map_err(|e| format!("insert_tree error: {}", e))?;
         Ok(row.get(0))
+    }
+
+    pub(crate) fn get_tree_code_by_id(&mut self, tree_id: i32) -> Result<Option<String>, String> {
+        let rows = self.client.query(
+            "SELECT tree_code FROM trees WHERE id = $1",
+            &[&tree_id],
+        ).map_err(|e| format!("get_tree_code_by_id error: {}", e))?;
+        if rows.is_empty() { return Ok(None); }
+        let code: String = rows[0].get(0);
+        Ok(Some(code))
     }
 
     pub(crate) fn get_tree_by_code(&mut self, tree_code: &str) -> Result<Option<serde_json::Value>, String> {
@@ -1051,5 +1068,29 @@ impl DbManager {
             &[&tree_id, &det_id],
         ).map_err(|e| format!("link_detection_to_tree error: {}", e))?;
         Ok(())
+    }
+
+    pub(crate) fn get_mission_id_by_orthomosaic(&mut self, ortho_id: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "SELECT mission_id FROM uav_orthomosaics WHERE id = $1",
+            &[&ortho_id],
+        ).map_err(|e| format!("get_mission_id_by_orthomosaic error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn get_plantation_id_by_detection(&mut self, det_id: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "SELECT m.plantation_id FROM uav_tree_detections d JOIN uav_missions m ON d.mission_id = m.id WHERE d.id = $1",
+            &[&det_id],
+        ).map_err(|e| format!("get_plantation_id_by_detection error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn next_tree_code_seq(&mut self) -> Result<i64, String> {
+        let row = self.client.query_one(
+            "SELECT nextval('tree_code_seq')",
+            &[],
+        ).map_err(|e| format!("next_tree_code_seq error: {}", e))?;
+        Ok(row.get(0))
     }
 }

@@ -113,6 +113,9 @@ CREATE INDEX IF NOT EXISTS idx_uav_det_mission ON uav_tree_detections(mission_id
 CREATE INDEX IF NOT EXISTS idx_uav_det_status ON uav_tree_detections(review_status);
 CREATE INDEX IF NOT EXISTS idx_tree_coord_hist_tree ON tree_coordinate_history(tree_id);
 
+-- Sequence for unique tree_code generation
+CREATE SEQUENCE IF NOT EXISTS tree_code_seq;
+
 -- 约束补充（幂等，不会重复添加）
 DO $$ BEGIN
   -- trees

@@ -34,7 +34,7 @@ pub(crate) fn handle_missions_post(mut request: Request, db: Arc<Mutex<DbManager
     }
 }
 
-pub(crate) fn handle_orthomosaic_post(mut request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
+pub(crate) fn handle_orthomosaic_post(request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
     let mid = mission_id.parse().unwrap_or(0);
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
@@ -46,7 +46,7 @@ pub(crate) fn handle_orthomosaic_post(mut request: Request, mission_id: &str, db
     }
 }
 
-pub(crate) fn handle_tiles_post(mut request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+pub(crate) fn handle_tiles_post(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
     let oid = ortho_id.parse().unwrap_or(0);
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
@@ -58,13 +58,12 @@ pub(crate) fn handle_tiles_post(mut request: Request, ortho_id: &str, db: Arc<Mu
     }
 }
 
-pub(crate) fn handle_mock_detections(mut request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+pub(crate) fn handle_mock_detections(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
     let oid = ortho_id.parse().unwrap_or(0);
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
         .and_then(|mut g| {
-            // we assume a fixed mission_id for the mock, maybe 1
-            let mid = 1;
+            let mid = g.get_mission_id_by_orthomosaic(oid)?;
             g.insert_uav_detection(mid, oid, 10.0, 20.0, 0.95)?;
             g.insert_uav_detection(mid, oid, 30.0, 40.0, 0.92)?;
             g.insert_uav_detection(mid, oid, 50.0, 60.0, 0.88)?;
@@ -89,21 +88,37 @@ pub(crate) fn handle_get_detections(request: Request, ortho_id: &str, db: Arc<Mu
     }
 }
 
-pub(crate) fn handle_confirm_detection(mut request: Request, detection_id: &str, db: Arc<Mutex<DbManager>>) {
+pub(crate) fn handle_confirm_detection(request: Request, detection_id: &str, db: Arc<Mutex<DbManager>>) {
     let det_id = detection_id.parse().unwrap_or(0);
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
         .and_then(|mut g| {
             let det = g.get_detection_by_id(det_id)?.ok_or("detection not found")?;
+            
+            let status = det["review_status"].as_str().unwrap_or("");
+            let matched_id = det["matched_tree_id"].as_i64();
+            
+            // Idempotency check
+            if status == "confirmed" && matched_id.is_some() {
+                // Return existing tree code
+                let matched = matched_id.unwrap() as i32;
+                if let Some(code) = g.get_tree_code_by_id(matched)? {
+                    return Ok(code);
+                }
+            }
+            
+            if status == "rejected" {
+                return Err("cannot confirm a rejected detection".to_string());
+            }
+
             let oid = det["orthomosaic_id"].as_i64().map(|x| x as i32);
             let cx = det["crown_center_x"].as_f64();
             let cy = det["crown_center_y"].as_f64();
             
-            let seq = g.get_max_tree_seq("OP-")? + 1;
+            let seq = g.next_tree_code_seq()?;
             let tree_code = format!("OP-{:06}", seq);
             
-            // fixed plantation_id for now
-            let pid = 1; 
+            let pid = g.get_plantation_id_by_detection(det_id)?;
             let tree_id = g.insert_tree(pid, "oil_palm", &tree_code, cx, cy, oid)?;
             
             g.update_detection_status(det_id, "confirmed")?;
@@ -118,7 +133,7 @@ pub(crate) fn handle_confirm_detection(mut request: Request, detection_id: &str,
     }
 }
 
-pub(crate) fn handle_reject_detection(mut request: Request, detection_id: &str, db: Arc<Mutex<DbManager>>) {
+pub(crate) fn handle_reject_detection(request: Request, detection_id: &str, db: Arc<Mutex<DbManager>>) {
     let det_id = detection_id.parse().unwrap_or(0);
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
