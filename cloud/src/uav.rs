@@ -1,0 +1,143 @@
+use std::sync::{Arc, Mutex};
+use tiny_http::{Request, Response};
+use crate::db::DbManager;
+
+fn respond_json(request: Request, status: u16, body: &str) {
+    let response = Response::from_string(body)
+        .with_status_code(status)
+        .with_header(tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap());
+    let _ = request.respond(response);
+}
+
+pub(crate) fn handle_missions_post(mut request: Request, db: Arc<Mutex<DbManager>>) {
+    let mut body = Vec::new();
+    let _ = request.as_reader().read_to_end(&mut body);
+    let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+
+    let plantation_id = parsed["plantation_id"].as_i64().unwrap_or(0) as i32;
+    let mission_name = parsed["mission_name"].as_str().unwrap_or("unnamed");
+
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            if plantation_id == 0 {
+                let pid = g.insert_plantation("test_plantation", "oil_palm")?;
+                g.insert_uav_mission(pid, mission_name)
+            } else {
+                g.insert_uav_mission(plantation_id, mission_name)
+            }
+        });
+
+    match result {
+        Ok(id) => respond_json(request, 200, &format!(r#"{{"status":"ok","mission_id":{id}}}"#)),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_orthomosaic_post(request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
+    let mid = mission_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.insert_uav_orthomosaic(mid, 1000, 1000));
+
+    match result {
+        Ok(id) => respond_json(request, 200, &format!(r#"{{"status":"ok","orthomosaic_id":{id}}}"#)),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_tiles_post(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+    let oid = ortho_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.insert_uav_tile(oid, 0, 0));
+
+    match result {
+        Ok(id) => respond_json(request, 200, &format!(r#"{{"status":"ok","tile_id":{id}}}"#)),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_mock_detections(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+    let oid = ortho_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            let mid = g.get_mission_id_by_orthomosaic(oid)?;
+            g.insert_uav_detection(mid, oid, 10.0, 20.0, 0.95)?;
+            g.insert_uav_detection(mid, oid, 30.0, 40.0, 0.92)?;
+            g.insert_uav_detection(mid, oid, 50.0, 60.0, 0.88)?;
+            Ok(3)
+        });
+
+    match result {
+        Ok(count) => respond_json(request, 200, &format!(r#"{{"status":"ok","detections_created":{count}}}"#)),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_get_detections(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+    let oid = ortho_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.query_detections_by_orthomosaic(oid));
+
+    match result {
+        Ok(list) => respond_json(request, 200, &format!(r#"{{"status":"ok","detections":{}}}"#, serde_json::to_string(&list).unwrap())),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_confirm_detection(request: Request, detection_id: &str, db: Arc<Mutex<DbManager>>) {
+    let det_id = detection_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            let det = g.get_detection_by_id(det_id)?.ok_or("detection not found")?;
+            
+            let status = det["review_status"].as_str().unwrap_or("");
+            let matched_id = det["matched_tree_id"].as_i64();
+            
+            // Idempotency check
+            if status == "confirmed" && matched_id.is_some() {
+                // Return existing tree code
+                let matched = matched_id.unwrap() as i32;
+                if let Some(code) = g.get_tree_code_by_id(matched)? {
+                    return Ok(code);
+                }
+            }
+            
+            if status == "rejected" {
+                return Err("cannot confirm a rejected detection".to_string());
+            }
+
+            let oid = det["orthomosaic_id"].as_i64().map(|x| x as i32);
+            let cx = det["crown_center_x"].as_f64();
+            let cy = det["crown_center_y"].as_f64();
+            
+            let seq = g.next_tree_code_seq()?;
+            let tree_code = format!("OP-{:06}", seq);
+            
+            let pid = g.get_plantation_id_by_detection(det_id)?;
+            let _tree_id = g.confirm_detection_tx(det_id, pid, "oil_palm", &tree_code, cx, cy, oid)?;
+            
+            Ok(tree_code)
+        });
+
+    match result {
+        Ok(code) => respond_json(request, 200, &format!(r#"{{"status":"ok","tree_code":"{code}"}}"#)),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_reject_detection(request: Request, detection_id: &str, db: Arc<Mutex<DbManager>>) {
+    let det_id = detection_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.update_detection_status(det_id, "rejected"));
+
+    match result {
+        Ok(_) => respond_json(request, 200, r#"{"status":"ok"}"#),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}

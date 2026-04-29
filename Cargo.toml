@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "cloud",
+]
+resolver = "2"
