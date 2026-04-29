@@ -337,6 +337,31 @@ Notes:
 - Use `--image-path <file>` to upload a real test image; if omitted, it uses a built-in tiny PNG.
 - Use `--max-uploads <n>` for bounded test runs in CI/local smoke.
 
+## Video frame PoC CLI (Issue #62)
+
+Validate video frame recognition pipeline by extracting frames at fixed intervals and uploading to the existing image API.
+
+Prerequisite:
+- install `ffmpeg` and `ffprobe`
+
+Example:
+
+```bash
+python3 scripts/video_frame_poc.py \
+  --video-path /path/to/test.mp4 \
+  --endpoint http://127.0.0.1:8088/api/v1/image/upload \
+  --device-id dev_video_poc_01 \
+  --frame-interval-sec 2.0 \
+  --max-frames 30 \
+  --report-file /tmp/video_poc_report.json
+```
+
+Output includes:
+- success/failure counts and success rate
+- extraction latency (`avg/p50/p95/p99`)
+- upload latency (`avg/p50/p95/p99`)
+- throughput (`frames/sec`)
+
 ## Performance observability (P50/P95/P99)
 
 Cloud now exposes in-process latency breakdown metrics for the critical upload pipeline:
