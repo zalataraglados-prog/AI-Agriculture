@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/v1/uav/missions', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plantation_id: 1, mission_name: 'test-mission' })
+                body: JSON.stringify({ plantation_id: 0, mission_name: 'test-mission' })
             });
             const data = await res.json();
             missionId = data.mission_id;

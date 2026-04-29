@@ -1013,9 +1013,10 @@ impl DbManager {
     }
 
     pub(crate) fn insert_tree(&mut self, plantation_id: i32, species: &str, tree_code: &str, cx: Option<f64>, cy: Option<f64>, source_ortho: Option<i32>) -> Result<i32, String> {
+        let manual_verified = true;
         let row = self.client.query_one(
-            "INSERT INTO trees (plantation_id, species, tree_code, crown_center_x, crown_center_y, source_orthomosaic_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-            &[&plantation_id, &species, &tree_code, &cx, &cy, &source_ortho],
+            "INSERT INTO trees (plantation_id, species, tree_code, crown_center_x, crown_center_y, coordinate_x, coordinate_y, source_orthomosaic_id, barcode_value, manual_verified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+            &[&plantation_id, &species, &tree_code, &cx, &cy, &cx, &cy, &source_ortho, &tree_code, &manual_verified],
         ).map_err(|e| format!("insert_tree error: {}", e))?;
         Ok(row.get(0))
     }
@@ -1092,5 +1093,28 @@ impl DbManager {
             &[],
         ).map_err(|e| format!("next_tree_code_seq error: {}", e))?;
         Ok(row.get(0))
+    }
+
+    pub(crate) fn confirm_detection_tx(&mut self, det_id: i32, plantation_id: i32, species: &str, tree_code: &str, cx: Option<f64>, cy: Option<f64>, source_ortho: Option<i32>) -> Result<i32, String> {
+        let mut tx = self.client.transaction().map_err(|e| format!("transaction start error: {}", e))?;
+        let manual_verified = true;
+        
+        let row = tx.query_one(
+            "INSERT INTO trees (plantation_id, species, tree_code, crown_center_x, crown_center_y, coordinate_x, coordinate_y, source_orthomosaic_id, barcode_value, manual_verified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
+            &[&plantation_id, &species, &tree_code, &cx, &cy, &cx, &cy, &source_ortho, &tree_code, &manual_verified],
+        ).map_err(|e| format!("insert_tree error: {}", e))?;
+        let tree_id: i32 = row.get(0);
+        
+        let affected = tx.execute(
+            "UPDATE uav_tree_detections SET review_status = 'confirmed', matched_tree_id = $1 WHERE id = $2",
+            &[&tree_id, &det_id],
+        ).map_err(|e| format!("update_detection_status error: {}", e))?;
+        
+        if affected == 0 {
+            return Err("detection not found".to_string());
+        }
+        
+        tx.commit().map_err(|e| format!("transaction commit error: {}", e))?;
+        Ok(tree_id)
     }
 }

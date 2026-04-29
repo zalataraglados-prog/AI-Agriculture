@@ -119,10 +119,7 @@ pub(crate) fn handle_confirm_detection(request: Request, detection_id: &str, db:
             let tree_code = format!("OP-{:06}", seq);
             
             let pid = g.get_plantation_id_by_detection(det_id)?;
-            let tree_id = g.insert_tree(pid, "oil_palm", &tree_code, cx, cy, oid)?;
-            
-            g.update_detection_status(det_id, "confirmed")?;
-            g.link_detection_to_tree(det_id, tree_id)?;
+            let _tree_id = g.confirm_detection_tx(det_id, pid, "oil_palm", &tree_code, cx, cy, oid)?;
             
             Ok(tree_code)
         });
