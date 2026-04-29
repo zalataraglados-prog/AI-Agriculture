@@ -1,6 +1,6 @@
-@layer utilities {
-  .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); }
-  .card-hover { @apply hover:shadow-lg hover:shadow-primary/10 transition-all duration-300; }
-  .nav-active { @apply bg-primary text-white; }
-  .input-focus { @apply focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none; }
-}
+@layer utilities {
+  .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); }
+  .card-hover { @apply hover:shadow-lg hover:shadow-primary/10 transition-all duration-300; }
+  .nav-active { @apply bg-primary text-white; }
+  .input-focus { @apply focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none; }
+}
