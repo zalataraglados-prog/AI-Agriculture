@@ -980,11 +980,11 @@ impl DbManager {
 
     pub(crate) fn update_detection_status(&mut self, det_id: i32, status: &str) -> Result<(), String> {
         let affected = self.client.execute(
-            "UPDATE uav_tree_detections SET review_status = $1 WHERE id = $2",
+            "UPDATE uav_tree_detections SET review_status = $1 WHERE id = $2 AND review_status = 'pending' AND matched_tree_id IS NULL",
             &[&status, &det_id],
         ).map_err(|e| format!("update_detection_status error: {}", e))?;
         if affected == 0 {
-            return Err("detection not found".to_string());
+            return Err("detection not found or cannot be modified from current state".to_string());
         }
         Ok(())
     }
@@ -1097,22 +1097,28 @@ impl DbManager {
 
     pub(crate) fn confirm_detection_tx(&mut self, det_id: i32, plantation_id: i32, species: &str, tree_code: &str, cx: Option<f64>, cy: Option<f64>, source_ortho: Option<i32>) -> Result<i32, String> {
         let mut tx = self.client.transaction().map_err(|e| format!("transaction start error: {}", e))?;
-        let manual_verified = true;
         
+        let affected = tx.execute(
+            "UPDATE uav_tree_detections SET review_status = 'confirmed' WHERE id = $1 AND review_status = 'pending' AND matched_tree_id IS NULL",
+            &[&det_id],
+        ).map_err(|e| format!("update_detection_status error: {}", e))?;
+        
+        if affected == 0 {
+            let _ = tx.rollback();
+            return Err("detection already processed, rejected, or not found".to_string());
+        }
+        
+        let manual_verified = true;
         let row = tx.query_one(
             "INSERT INTO trees (plantation_id, species, tree_code, crown_center_x, crown_center_y, coordinate_x, coordinate_y, source_orthomosaic_id, barcode_value, manual_verified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
             &[&plantation_id, &species, &tree_code, &cx, &cy, &cx, &cy, &source_ortho, &tree_code, &manual_verified],
         ).map_err(|e| format!("insert_tree error: {}", e))?;
         let tree_id: i32 = row.get(0);
         
-        let affected = tx.execute(
-            "UPDATE uav_tree_detections SET review_status = 'confirmed', matched_tree_id = $1 WHERE id = $2",
+        tx.execute(
+            "UPDATE uav_tree_detections SET matched_tree_id = $1 WHERE id = $2",
             &[&tree_id, &det_id],
-        ).map_err(|e| format!("update_detection_status error: {}", e))?;
-        
-        if affected == 0 {
-            return Err("detection not found".to_string());
-        }
+        ).map_err(|e| format!("link_detection error: {}", e))?;
         
         tx.commit().map_err(|e| format!("transaction commit error: {}", e))?;
         Ok(tree_id)
