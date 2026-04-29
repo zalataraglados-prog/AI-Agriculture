@@ -650,19 +650,26 @@ fn handle_api(
             if method == Method::Post && p == "/api/v1/uav/missions" {
                 crate::uav::handle_missions_post(request, db);
             } else if method == Method::Post && p.ends_with("/orthomosaic") {
-                crate::uav::handle_orthomosaic_post(request, "mock_id", db);
+                let mission_id = extract_path_segment(p, "/missions/").unwrap_or_default();
+                crate::uav::handle_orthomosaic_post(request, &mission_id, db);
             } else if method == Method::Post && p.ends_with("/tiles") {
-                crate::uav::handle_tiles_post(request, "mock_id", db);
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_tiles_post(request, &ortho_id, db);
             } else if method == Method::Post && p.ends_with("/detections/mock") {
-                crate::uav::handle_mock_detections(request, "mock_id", db);
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_mock_detections(request, &ortho_id, db);
             } else if method == Method::Get && p.contains("/detections") {
-                crate::uav::handle_get_detections(request, "mock_id", db);
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_get_detections(request, &ortho_id, db);
             } else if method == Method::Post && p.ends_with("/confirm") {
-                crate::uav::handle_confirm_detection(request, "mock_id", db);
+                let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
+                crate::uav::handle_confirm_detection(request, &det_id, db);
             } else if method == Method::Post && p.ends_with("/reject") {
-                crate::uav::handle_reject_detection(request, "mock_id", db);
+                let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
+                crate::uav::handle_reject_detection(request, &det_id, db);
             } else if method == Method::Get && p.starts_with("/api/v1/trees/") {
-                crate::tree::handle_get_tree(request, "mock_id", db);
+                let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::tree::handle_get_tree(request, &tree_code, db);
             } else {
                 let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
             }
@@ -671,6 +678,13 @@ fn handle_api(
             let _ = request.respond(Response::from_string("API Not Found").with_status_code(404));
         }
     }
+}
+
+fn extract_path_segment(path: &str, after: &str) -> Option<String> {
+    let idx = path.find(after)?;
+    let rest = &path[idx + after.len()..];
+    let segment = rest.split('/').next()?;
+    if segment.is_empty() { None } else { Some(segment.to_string()) }
 }
 
 fn requires_auth(method: &Method, path: &str) -> bool {
