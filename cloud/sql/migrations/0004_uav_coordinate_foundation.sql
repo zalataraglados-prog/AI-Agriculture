@@ -112,3 +112,18 @@ CREATE INDEX IF NOT EXISTS idx_trees_code ON trees(tree_code);
 CREATE INDEX IF NOT EXISTS idx_uav_det_mission ON uav_tree_detections(mission_id);
 CREATE INDEX IF NOT EXISTS idx_uav_det_status ON uav_tree_detections(review_status);
 CREATE INDEX IF NOT EXISTS idx_tree_coord_hist_tree ON tree_coordinate_history(tree_id);
+
+-- 约束补充（幂等，不会重复添加）
+DO $$ BEGIN
+  -- trees
+  ALTER TABLE trees ADD CONSTRAINT uq_trees_barcode UNIQUE (barcode_value);
+  ALTER TABLE trees ADD CONSTRAINT chk_trees_status
+    CHECK (current_status IN ('active','dead','removed','replanted'));
+
+  -- uav_tree_detections
+  ALTER TABLE uav_tree_detections ADD CONSTRAINT chk_det_confidence
+    CHECK (confidence >= 0 AND confidence <= 1);
+  ALTER TABLE uav_tree_detections ADD CONSTRAINT chk_det_review_status
+    CHECK (review_status IN ('pending','confirmed','rejected','corrected'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
