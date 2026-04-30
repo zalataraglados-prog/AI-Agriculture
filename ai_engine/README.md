@@ -88,3 +88,15 @@ CROP_PROFILE=oil_palm uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 
 python -m ai_engine.infer --help
 python -m ai_engine.infer --image-path test.jpg
 ```
+## Oil Palm V1 additions (Issue #65)
+
+- `GET /api/v1/oil-palm/route`
+  - capability roadmap payload for:
+    - disease_analysis
+    - growth_analysis
+    - weather_prediction
+    - yield_assessment
+- `POST /api/v1/oil-palm/predict-v1`
+  - stable v1 inference contract with frontend-friendly metadata fields.
+
+See `doc/issue65_oil_palm_v1_plan.md` for details and quick validation commands.
