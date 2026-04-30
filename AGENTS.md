@@ -455,7 +455,7 @@ UAV/tree flow：
 
 ## 11. 分支与协作原则
 
-事例分支命名（仅供参考，根据实际情况调整）：
+示例分支命名（仅供参考，可根据实际情况调整）：
 
 * `feature/oil-palm-tree-registry`
 * `feature/uav-coordinate-foundation`
