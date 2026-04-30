@@ -646,6 +646,12 @@ fn handle_api(
                 r#"{"status":"error","message":"deprecated endpoint: /api/fields"}"#,
             );
         }
+        (Method::Get, "/api/v1/plantations") => {
+            crate::tree::handle_list_plantations(request, db);
+        }
+        (Method::Get, "/api/v1/trees") => {
+            crate::tree::handle_list_trees(request, query, db);
+        }
         (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") => {
             if method == Method::Post && p == "/api/v1/uav/missions" {
                 crate::uav::handle_missions_post(request, db);
@@ -667,6 +673,12 @@ fn handle_api(
             } else if method == Method::Post && p.ends_with("/reject") {
                 let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
                 crate::uav::handle_reject_detection(request, &det_id, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/timeline") {
+                let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::tree::handle_get_timeline(request, &tree_code, db);
+            } else if method == Method::Put && p.starts_with("/api/v1/trees/") && p.ends_with("/status") {
+                let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::tree::handle_update_status(request, &tree_code, db);
             } else if method == Method::Get && p.starts_with("/api/v1/trees/") {
                 let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::tree::handle_get_tree(request, &tree_code, db);
