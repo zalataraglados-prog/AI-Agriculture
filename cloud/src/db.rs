@@ -1033,7 +1033,16 @@ impl DbManager {
 
     pub(crate) fn get_tree_by_code(&mut self, tree_code: &str) -> Result<Option<serde_json::Value>, String> {
         let rows = self.client.query(
-            "SELECT id, tree_code, species, current_status, crown_center_x, crown_center_y FROM trees WHERE tree_code = $1",
+            "SELECT t.id, t.tree_code, t.species, t.current_status, \
+                    t.coordinate_x, t.coordinate_y, t.crown_center_x, t.crown_center_y, \
+                    t.barcode_value, t.manual_verified, t.block_id, \
+                    t.source_orthomosaic_id, t.created_at, t.updated_at, \
+                    p.name AS plantation_name, p.crop_type AS plantation_crop_type, \
+                    o.image_url AS source_ortho_url \
+             FROM trees t \
+             LEFT JOIN plantations p ON t.plantation_id = p.id \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             WHERE t.tree_code = $1",
             &[&tree_code],
         ).map_err(|e| format!("get_tree_by_code error: {}", e))?;
         if rows.is_empty() { return Ok(None); }
@@ -1042,16 +1051,146 @@ impl DbManager {
         let code: String = r.get("tree_code");
         let species: String = r.get("species");
         let status: String = r.get("current_status");
+        let coord_x: Option<f64> = r.get("coordinate_x");
+        let coord_y: Option<f64> = r.get("coordinate_y");
         let cx: Option<f64> = r.get("crown_center_x");
         let cy: Option<f64> = r.get("crown_center_y");
+        let barcode: Option<String> = r.get("barcode_value");
+        let verified: bool = r.get("manual_verified");
+        let block_id: Option<String> = r.get("block_id");
+        let source_ortho_id: Option<i32> = r.get("source_orthomosaic_id");
+        let plantation_name: Option<String> = r.get("plantation_name");
+        let plantation_crop: Option<String> = r.get("plantation_crop_type");
+        let ortho_url: Option<String> = r.get("source_ortho_url");
+        let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+        let updated_at: chrono::DateTime<chrono::Utc> = r.get("updated_at");
         Ok(Some(serde_json::json!({
             "id": id,
             "tree_code": code,
             "species": species,
             "current_status": status,
+            "coordinate_x": coord_x,
+            "coordinate_y": coord_y,
             "crown_center_x": cx,
-            "crown_center_y": cy
+            "crown_center_y": cy,
+            "barcode_value": barcode,
+            "manual_verified": verified,
+            "block_id": block_id,
+            "source_orthomosaic_id": source_ortho_id,
+            "plantation_name": plantation_name,
+            "plantation_crop_type": plantation_crop,
+            "source_ortho_url": ortho_url,
+            "created_at": created_at.to_rfc3339(),
+            "updated_at": updated_at.to_rfc3339()
         })))
+    }
+
+    pub(crate) fn list_trees_by_plantation(&mut self, plantation_id: i32, limit: i64, offset: i64) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tree_code, species, current_status, coordinate_x, coordinate_y, \
+                    barcode_value, manual_verified, created_at \
+             FROM trees WHERE plantation_id = $1 ORDER BY tree_code LIMIT $2 OFFSET $3",
+            &[&plantation_id, &limit, &offset],
+        ).map_err(|e| format!("list_trees_by_plantation error: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let code: String = r.get("tree_code");
+            let species: String = r.get("species");
+            let status: String = r.get("current_status");
+            let cx: Option<f64> = r.get("coordinate_x");
+            let cy: Option<f64> = r.get("coordinate_y");
+            let barcode: Option<String> = r.get("barcode_value");
+            let verified: bool = r.get("manual_verified");
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": id,
+                "tree_code": code,
+                "species": species,
+                "current_status": status,
+                "coordinate_x": cx,
+                "coordinate_y": cy,
+                "barcode_value": barcode,
+                "manual_verified": verified,
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn count_trees_by_plantation(&mut self, plantation_id: i32) -> Result<i64, String> {
+        let row = self.client.query_one(
+            "SELECT COUNT(*) FROM trees WHERE plantation_id = $1",
+            &[&plantation_id],
+        ).map_err(|e| format!("count_trees_by_plantation error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn update_tree_status(&mut self, tree_code: &str, status: &str) -> Result<(), String> {
+        let affected = self.client.execute(
+            "UPDATE trees SET current_status = $1, updated_at = NOW() WHERE tree_code = $2",
+            &[&status, &tree_code],
+        ).map_err(|e| format!("update_tree_status error: {}", e))?;
+        if affected == 0 {
+            return Err("tree not found".to_string());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn get_tree_timeline(&mut self, tree_code: &str) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT h.id, h.detected_x, h.detected_y, h.center_shift, h.match_confidence, \
+                    h.created_at, m.mission_name, m.captured_at AS mission_date \
+             FROM tree_coordinate_history h \
+             JOIN uav_missions m ON h.mission_id = m.id \
+             JOIN trees t ON h.tree_id = t.id \
+             WHERE t.tree_code = $1 \
+             ORDER BY h.created_at DESC",
+            &[&tree_code],
+        ).map_err(|e| format!("get_tree_timeline error: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let dx: Option<f64> = r.get("detected_x");
+            let dy: Option<f64> = r.get("detected_y");
+            let shift: Option<f64> = r.get("center_shift");
+            let conf: Option<f64> = r.get("match_confidence");
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            let mission_name: String = r.get("mission_name");
+            let mission_date: Option<chrono::DateTime<chrono::Utc>> = r.get("mission_date");
+            out.push(serde_json::json!({
+                "id": id,
+                "detected_x": dx,
+                "detected_y": dy,
+                "center_shift": shift,
+                "match_confidence": conf,
+                "mission_name": mission_name,
+                "mission_date": mission_date.map(|d| d.to_rfc3339()),
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn list_plantations(&mut self) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, name, crop_type, created_at FROM plantations ORDER BY id",
+            &[],
+        ).map_err(|e| format!("list_plantations error: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let name: String = r.get("name");
+            let crop_type: String = r.get("crop_type");
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": id,
+                "name": name,
+                "crop_type": crop_type,
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
     }
 
     pub(crate) fn get_max_tree_seq(&mut self, prefix: &str) -> Result<i64, String> {

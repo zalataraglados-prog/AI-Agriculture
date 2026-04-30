@@ -75,3 +75,91 @@ def test_missing_detection():
     # 9. Non-existent detection
     res = requests.post(f"{BASE_URL}/api/v1/uav/detections/999999/confirm")
     assert res.status_code == 500
+
+def test_list_plantations():
+    """Verify plantations endpoint returns a list."""
+    res = requests.get(f"{BASE_URL}/api/v1/plantations")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "ok"
+    assert isinstance(data["plantations"], list)
+    assert len(data["plantations"]) >= 1
+
+def test_tree_detail_fields():
+    """Verify tree detail returns enhanced fields after confirm."""
+    # First, create a tree through the confirm flow
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions", json={"plantation_id": 0, "mission_name": "detail_test"})
+    mission_id = res.json()["mission_id"]
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mission_id}/orthomosaic")
+    ortho_id = res.json()["orthomosaic_id"]
+    requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections/mock")
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections")
+    det_id = res.json()["detections"][0]["id"]
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det_id}/confirm")
+    tree_code = res.json()["tree_code"]
+
+    # Verify enhanced detail
+    res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code}")
+    assert res.status_code == 200
+    tree = res.json()["tree"]
+    assert tree["tree_code"] == tree_code
+    assert tree["species"] == "oil_palm"
+    assert "barcode_value" in tree
+    assert "manual_verified" in tree
+    assert "plantation_name" in tree
+    assert "created_at" in tree
+    assert "coordinate_x" in tree
+
+def test_list_trees_with_pagination():
+    """Verify tree list returns total count for pagination."""
+    # Get a plantation ID
+    res = requests.get(f"{BASE_URL}/api/v1/plantations")
+    pid = res.json()["plantations"][0]["id"]
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees?plantation_id={pid}&page=1&limit=10")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "ok"
+    assert isinstance(data["trees"], list)
+    assert "total" in data
+    assert data["total"] >= 0
+    assert data["page"] == 1
+    assert data["limit"] == 10
+
+def test_tree_timeline_empty():
+    """Verify timeline returns 200 with empty list for new trees."""
+    # Get a tree code from earlier tests
+    res = requests.get(f"{BASE_URL}/api/v1/plantations")
+    pid = res.json()["plantations"][0]["id"]
+    res = requests.get(f"{BASE_URL}/api/v1/trees?plantation_id={pid}&page=1&limit=1")
+    trees = res.json()["trees"]
+    if len(trees) == 0:
+        return  # skip if no trees
+    code = trees[0]["tree_code"]
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees/{code}/timeline")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "ok"
+    assert isinstance(data["timeline"], list)
+
+def test_update_tree_status_validation():
+    """Verify status update rejects invalid values and accepts valid ones."""
+    # Get a tree
+    res = requests.get(f"{BASE_URL}/api/v1/plantations")
+    pid = res.json()["plantations"][0]["id"]
+    res = requests.get(f"{BASE_URL}/api/v1/trees?plantation_id={pid}&page=1&limit=1")
+    trees = res.json()["trees"]
+    if len(trees) == 0:
+        return
+    code = trees[0]["tree_code"]
+
+    # Invalid status should return 400
+    res = requests.put(f"{BASE_URL}/api/v1/trees/{code}/status",
+                       json={"status": "happy"})
+    assert res.status_code == 400
+
+    # Valid status should return 200
+    res = requests.put(f"{BASE_URL}/api/v1/trees/{code}/status",
+                       json={"status": "active"})
+    assert res.status_code == 200

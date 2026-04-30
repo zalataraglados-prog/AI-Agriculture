@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const treeDiv = document.createElement('div');
             treeDiv.className = 'tree-item';
-            treeDiv.innerHTML = `<span>🌳 Tree: <strong>${data.tree_code}</strong></span>`;
+            treeDiv.innerHTML = `<span>🌳 Tree: <a href="tree_profile.html?code=${data.tree_code}" style="color:#60a5fa;text-decoration:none;font-weight:700;">${data.tree_code}</a></span>`;
             treeList.appendChild(treeDiv);
         } catch (e) {
             alert('Confirm failed');
