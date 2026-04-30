@@ -44,10 +44,12 @@ pub(crate) fn handle_update_status(mut request: Request, tree_code: &str, db: Ar
     let status_str = parsed["status"].as_str().unwrap_or("");
 
     if !ALLOWED_TREE_STATUSES.contains(&status_str) {
-        respond_json(request, 400, &format!(
-            r#"{{"status":"error","message":"invalid status '{}'. allowed: {:?}"}}"#,
-            status_str, ALLOWED_TREE_STATUSES
-        ));
+        let body = serde_json::json!({
+            "status": "error",
+            "message": format!("invalid status '{}'", status_str),
+            "allowed_statuses": ALLOWED_TREE_STATUSES,
+        });
+        respond_json(request, 400, &body.to_string());
         return;
     }
 
