@@ -206,9 +206,13 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
                     }
                 }
 
+                // NMS requires sorting by confidence descending
+                raw_dets.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+
                 // NMS dedup using crown center distance (in meters)
                 let mut keep: Vec<bool> = vec![true; raw_dets.len()];
-                let nms_pixel_threshold = nms_threshold / resolution; // convert meters to pixels
+                let eff_res = if resolution <= 0.0 { 0.05 } else { resolution };
+                let nms_pixel_threshold = nms_threshold / eff_res; // convert meters to pixels
 
                 for i in 0..raw_dets.len() {
                     if !keep[i] { continue; }
@@ -231,12 +235,15 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
                     }
                 }
 
+                // Clear previous unconfirmed detections for this orthomosaic to prevent duplicates on retry
+                g.clear_pending_detections(oid)?;
+
                 // Insert surviving detections
                 for (idx, _) in keep.iter().enumerate() {
                     if !keep[idx] { continue; }
                     let (cx, cy, conf, tile_id, bbox_tile, bbox_global) = &raw_dets[idx];
                     g.insert_uav_detection_full(
-                        mission_id, oid, *tile_id, *cx, *cy, *conf,
+                        mission_id, oid, Some(*tile_id), *cx, *cy, *conf,
                         bbox_tile.clone(), bbox_global.clone(),
                     )?;
                 }
@@ -254,6 +261,61 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
                 _kept_dets.len(), tiles_processed
             ));
         }
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_get_orthomosaic(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+    let oid = ortho_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.get_orthomosaic_full(oid));
+
+    match result {
+        Ok(Some(json)) => respond_json(request, 200, &format!(
+            r#"{{"status":"ok","orthomosaic":{}}}"#,
+            json.to_string()
+        )),
+        Ok(None) => respond_json(request, 404, r#"{"status":"error","message":"orthomosaic not found"}"#),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_manual_detection(mut request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+    let oid = ortho_id.parse().unwrap_or(0);
+
+    let mut body_bytes = Vec::new();
+    let _ = request.as_reader().read_to_end(&mut body_bytes);
+    let parsed: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap_or_default();
+
+    let cx = parsed["crown_center_x"].as_f64().unwrap_or(0.0);
+    let cy = parsed["crown_center_y"].as_f64().unwrap_or(0.0);
+    let cw = parsed["crown_width"].as_f64().unwrap_or(60.0);
+    let ch = parsed["crown_height"].as_f64().unwrap_or(60.0);
+    let conf = parsed["confidence"].as_f64().unwrap_or(0.85);
+
+    let bbox = serde_json::json!({
+        "x": (cx - cw / 2.0).max(0.0),
+        "y": (cy - ch / 2.0).max(0.0),
+        "w": cw,
+        "h": ch
+    });
+
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            let mission_id = g.get_mission_id_by_orthomosaic(oid)?;
+            let det_id = g.insert_uav_detection_full(
+                mission_id, oid, None, cx, cy, conf,
+                bbox.clone(), bbox.clone(),
+            )?;
+            Ok(det_id)
+        });
+
+    match result {
+        Ok(det_id) => respond_json(request, 200, &format!(
+            r#"{{"status":"ok","detection_id":{}}}"#, det_id
+        )),
         Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
     }
 }
