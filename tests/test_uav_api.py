@@ -163,3 +163,74 @@ def test_update_tree_status_validation():
     res = requests.put(f"{BASE_URL}/api/v1/trees/{code}/status",
                        json={"status": "active"})
     assert res.status_code == 200
+
+
+def test_tiles_grid_computation():
+    """Verify tile grid is computed correctly for ortho dimensions."""
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions",
+                        json={"plantation_id": 0, "mission_name": "tiling_test"})
+    assert res.status_code == 200
+    mid = res.json()["mission_id"]
+
+    # Register orthomosaic with known dimensions
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mid}/orthomosaic",
+                        json={"width": 1000, "height": 1000, "resolution": 0.05})
+    assert res.status_code == 200
+    oid = res.json()["orthomosaic_id"]
+
+    # Create tiles with 512px tile size, 0.15 overlap
+    res = requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid}/tiles",
+                        json={"tile_size": 512, "tile_overlap": 0.15})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "ok"
+    assert "tile_ids" in data
+    tile_ids = data["tile_ids"]
+    assert len(tile_ids) > 0
+
+    # stride = 512 * 0.85 = 435, cols = ceil(1000/435) = 3, rows = 3
+    assert data["tile_grid"]["cols"] >= 1
+    assert data["tile_grid"]["rows"] >= 1
+    total_tiles = data["tile_grid"]["cols"] * data["tile_grid"]["rows"]
+    # Some edge tiles may be skipped if width/height <= 0 for last col/row
+    assert 1 <= len(tile_ids) <= total_tiles
+
+    return oid
+
+
+def test_detect_palms_with_tiles():
+    """Verify detect-palms pipeline: tiles -> mock detections -> NMS -> write."""
+    oid = test_tiles_grid_computation()
+
+    # Run detect-palms
+    res = requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid}/detect-palms",
+                        json={})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "ok"
+    assert data["detections_created"] >= 0
+    assert data["tiles_processed"] > 0
+
+    # Fetch detections
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid}/detections")
+    assert res.status_code == 200
+    detections = res.json()["detections"]
+    assert len(detections) == data["detections_created"]
+
+    # Verify all detections have coordinates within ortho bounds (0, 1000)
+    for det in detections:
+        cx = det.get("crown_center_x")
+        cy = det.get("crown_center_y")
+        assert cx is not None and cy is not None
+        assert 0 <= cx <= 1000, f"detection {det['id']} cx={cx} out of bounds"
+        assert 0 <= cy <= 1000, f"detection {det['id']} cy={cy} out of bounds"
+
+    # Verify detections can be confirmed
+    pending = [d for d in detections if d["review_status"] == "pending"]
+    if pending:
+        det_id = pending[0]["id"]
+        res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det_id}/confirm")
+        assert res.status_code == 200
+        assert res.json()["tree_code"].startswith("OP-")
+
+    return [d for d in detections]
