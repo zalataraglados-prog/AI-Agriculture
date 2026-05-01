@@ -41,10 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnMockDetections.addEventListener('click', async () => {
         try {
-            await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, { method: 'POST' });
+            const tileRes = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tile_size: 1024, tile_overlap: 0.15 })
+            });
+            const tileData = await tileRes.json();
+            const tileCount = tileData.tile_ids ? tileData.tile_ids.length : 1;
+            detectionStatus.textContent = `Tile grid created: ${tileData.tile_grid?.cols || '?'} x ${tileData.tile_grid?.rows || '?'} = ${tileCount} tiles. `;
+            
             const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detections/mock`, { method: 'POST' });
             const data = await res.json();
-            detectionStatus.textContent = `${data.detections_created || 3} mock detections generated.`;
+            detectionStatus.textContent += `${data.detections_created || 3} mock detections generated.`;
             
             await fetchDetections();
         } catch (e) {
