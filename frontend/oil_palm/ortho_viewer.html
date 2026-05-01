@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orthomosaic Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="viewer-container">
+        <header class="viewer-header">
+            <h1>Orthomosaic Viewer</h1>
+            <div class="viewer-nav">
+                <a href="index.html" class="back-link">Back to Missions</a>
+                <a href="tree_list.html" class="back-link" style="margin-left:12px;">Tree Registry</a>
+            </div>
+        </header>
+
+        <div class="viewer-main">
+            <div class="viewer-sidebar" id="sidebar">
+                <div class="sidebar-section" id="ortho-info">
+                    <h3>Orthomosaic Info</h3>
+                    <div class="info-row"><span>ID:</span><span id="info-id">-</span></div>
+                    <div class="info-row"><span>Mission:</span><span id="info-mission">-</span></div>
+                    <div class="info-row"><span>Size:</span><span id="info-size">-</span></div>
+                    <div class="info-row"><span>Resolution:</span><span id="info-resolution">-</span></div>
+                    <div class="info-row"><span>Detections:</span><span id="info-det-count">0</span></div>
+                </div>
+
+                <div class="sidebar-section" id="action-panel">
+                    <h3>Actions</h3>
+                    <button id="btn-detect-palms" class="btn" disabled>Run Mock Detection</button>
+                    <button id="btn-manual-mode" class="btn btn-outline">Add Tree Manually</button>
+                    <button id="btn-refresh" class="btn btn-outline">Refresh Detections</button>
+                    <div id="manual-hint" class="status-box" style="display:none;">
+                        Click on the map to place a new tree. Right-click to cancel.
+                    </div>
+                    <div id="action-status" class="status-box"></div>
+                </div>
+
+                <div class="sidebar-section" id="detection-detail" style="display:none;">
+                    <h3>Detection Detail</h3>
+                    <div class="info-row"><span>ID:</span><span id="det-id">-</span></div>
+                    <div class="info-row"><span>Confidence:</span><span id="det-conf">-</span></div>
+                    <div class="info-row"><span>Position:</span><span id="det-pos">-</span></div>
+                    <div class="info-row"><span>Status:</span><span id="det-status">-</span></div>
+                    <div class="det-actions" id="det-actions-btns"></div>
+                </div>
+            </div>
+
+            <div class="viewer-map" id="map"></div>
+        </div>
+
+        <div class="viewer-coords" id="coords-display">Hover over map to see coordinates</div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="ortho_viewer.js"></script>
+</body>
+</html>

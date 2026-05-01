@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let missionId = null;
     let orthoId = null;
 
+    const btnViewOrtho = document.getElementById('btn-view-ortho');
+
     btnCreateMission.addEventListener('click', async () => {
         try {
             const res = await fetch('/api/v1/uav/missions', { 
@@ -34,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
             orthoId = data.orthomosaic_id;
             orthoStatus.textContent = `Orthomosaic registered: ID ${orthoId}`;
             btnMockDetections.disabled = false;
+            btnViewOrtho.style.display = 'block';
+            btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
         } catch (e) {
             orthoStatus.textContent = 'Error: ' + e.message;
         }
