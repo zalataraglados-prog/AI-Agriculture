@@ -664,6 +664,9 @@ fn handle_api(
             } else if method == Method::Post && p.ends_with("/detections/mock") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_mock_detections(request, &ortho_id, db);
+            } else if method == Method::Post && p.ends_with("/detect-palms") {
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_detect_palms(request, &ortho_id, db);
             } else if method == Method::Get && p.contains("/detections") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_get_detections(request, &ortho_id, db);

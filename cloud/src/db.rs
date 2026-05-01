@@ -931,10 +931,10 @@ impl DbManager {
         Ok(row.get(0))
     }
 
-    pub(crate) fn insert_uav_orthomosaic(&mut self, mission_id: i32, width: i32, height: i32) -> Result<i32, String> {
+    pub(crate) fn insert_uav_orthomosaic(&mut self, mission_id: i32, width: i32, height: i32, resolution: f64) -> Result<i32, String> {
         let row = self.client.query_one(
-            "INSERT INTO uav_orthomosaics (mission_id, width, height) VALUES ($1, $2, $3) RETURNING id",
-            &[&mission_id, &width, &height],
+            "INSERT INTO uav_orthomosaics (mission_id, width, height, resolution) VALUES ($1, $2, $3, $4) RETURNING id",
+            &[&mission_id, &width, &height, &resolution],
         ).map_err(|e| format!("insert_uav_orthomosaic error: {}", e))?;
         Ok(row.get(0))
     }
@@ -1224,6 +1224,83 @@ impl DbManager {
             &[&det_id],
         ).map_err(|e| format!("get_plantation_id_by_detection error: {}", e))?;
         Ok(row.get(0))
+    }
+
+    pub(crate) fn get_orthomosaic_dimensions(&mut self, ortho_id: i32) -> Result<(i32, i32, f64), String> {
+        let row = self.client.query_one(
+            "SELECT width, height, resolution FROM uav_orthomosaics WHERE id = $1",
+            &[&ortho_id],
+        ).map_err(|e| format!("get_orthomosaic_dimensions error: {}", e))?;
+        let w: i32 = row.get(0);
+        let h: i32 = row.get(1);
+        let res: f64 = row.get(2);
+        Ok((w, h, res))
+    }
+
+    pub(crate) fn query_tiles_by_orthomosaic(&mut self, ortho_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tile_x, tile_y, tile_width, tile_height, global_offset_x, global_offset_y \
+             FROM uav_tiles WHERE orthomosaic_id = $1 ORDER BY tile_y, tile_x",
+            &[&ortho_id],
+        ).map_err(|e| format!("query_tiles error: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let tx: i32 = r.get("tile_x");
+            let ty: i32 = r.get("tile_y");
+            let tw: i32 = r.get("tile_width");
+            let th: i32 = r.get("tile_height");
+            let gox: i32 = r.get("global_offset_x");
+            let goy: i32 = r.get("global_offset_y");
+            out.push(serde_json::json!({
+                "id": id,
+                "tile_x": tx,
+                "tile_y": ty,
+                "tile_width": tw,
+                "tile_height": th,
+                "global_offset_x": gox,
+                "global_offset_y": goy
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn insert_uav_tile_full(&mut self, ortho_id: i32, tile_x: i32, tile_y: i32, tile_width: i32, tile_height: i32, global_offset_x: i32, global_offset_y: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "INSERT INTO uav_tiles (orthomosaic_id, tile_x, tile_y, tile_width, tile_height, global_offset_x, global_offset_y) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+            &[&ortho_id, &tile_x, &tile_y, &tile_width, &tile_height, &global_offset_x, &global_offset_y],
+        ).map_err(|e| format!("insert_uav_tile_full error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn insert_uav_detection_full(&mut self, mission_id: i32, ortho_id: i32, tile_id: i32, cx: f64, cy: f64, conf: f64, bbox_tile: serde_json::Value, bbox_global: serde_json::Value) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "INSERT INTO uav_tree_detections (mission_id, orthomosaic_id, tile_id, crown_center_x, crown_center_y, confidence, bbox_tile_json, bbox_global_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+            &[&mission_id, &ortho_id, &tile_id, &cx, &cy, &conf, &bbox_tile, &bbox_global],
+        ).map_err(|e| format!("insert_uav_detection_full error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn get_orthomosaic_full(&mut self, ortho_id: i32) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, mission_id, width, height, resolution, image_url, origin_x, origin_y FROM uav_orthomosaics WHERE id = $1",
+            &[&ortho_id],
+        ).map_err(|e| format!("get_orthomosaic_full error: {}", e))?;
+        if rows.is_empty() { return Ok(None); }
+        let r = &rows[0];
+        let id: i32 = r.get("id");
+        let mid: i32 = r.get("mission_id");
+        let w: i32 = r.get("width");
+        let h: i32 = r.get("height");
+        let res: f64 = r.get("resolution");
+        let url: String = r.get("image_url");
+        let ox: f64 = r.get("origin_x");
+        let oy: f64 = r.get("origin_y");
+        Ok(Some(serde_json::json!({
+            "id": id, "mission_id": mid, "width": w, "height": h,
+            "resolution": res, "image_url": url,
+            "origin_x": ox, "origin_y": oy
+        })))
     }
 
     pub(crate) fn next_tree_code_seq(&mut self) -> Result<i64, String> {
