@@ -237,7 +237,7 @@
             linkBtn.textContent = 'View Tree Profile';
             linkBtn.href = '#';
             linkBtn.onclick = function () {
-                apiGet('/detections/' + det.id + '/confirm').then(function (d) {
+                apiPost('/detections/' + det.id + '/confirm').then(function (d) {
                     if (d.tree_code) {
                         window.location.href = 'tree_profile.html?code=' + d.tree_code;
                     }

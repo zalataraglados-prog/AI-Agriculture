@@ -1273,7 +1273,15 @@ impl DbManager {
         Ok(row.get(0))
     }
 
-    pub(crate) fn insert_uav_detection_full(&mut self, mission_id: i32, ortho_id: i32, tile_id: i32, cx: f64, cy: f64, conf: f64, bbox_tile: serde_json::Value, bbox_global: serde_json::Value) -> Result<i32, String> {
+    pub(crate) fn clear_pending_detections(&mut self, ortho_id: i32) -> Result<(), String> {
+        self.client.execute(
+            "DELETE FROM uav_tree_detections WHERE orthomosaic_id = $1 AND matched_tree_id IS NULL",
+            &[&ortho_id],
+        ).map_err(|e| format!("clear_pending_detections error: {}", e))?;
+        Ok(())
+    }
+
+    pub(crate) fn insert_uav_detection_full(&mut self, mission_id: i32, ortho_id: i32, tile_id: Option<i32>, cx: f64, cy: f64, conf: f64, bbox_tile: serde_json::Value, bbox_global: serde_json::Value) -> Result<i32, String> {
         let row = self.client.query_one(
             "INSERT INTO uav_tree_detections (mission_id, orthomosaic_id, tile_id, crown_center_x, crown_center_y, confidence, bbox_tile_json, bbox_global_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
             &[&mission_id, &ortho_id, &tile_id, &cx, &cy, &conf, &bbox_tile, &bbox_global],

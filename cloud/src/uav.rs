@@ -206,9 +206,13 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
                     }
                 }
 
+                // NMS requires sorting by confidence descending
+                raw_dets.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+
                 // NMS dedup using crown center distance (in meters)
                 let mut keep: Vec<bool> = vec![true; raw_dets.len()];
-                let nms_pixel_threshold = nms_threshold / resolution; // convert meters to pixels
+                let eff_res = if resolution <= 0.0 { 0.05 } else { resolution };
+                let nms_pixel_threshold = nms_threshold / eff_res; // convert meters to pixels
 
                 for i in 0..raw_dets.len() {
                     if !keep[i] { continue; }
@@ -231,12 +235,15 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
                     }
                 }
 
+                // Clear previous unconfirmed detections for this orthomosaic to prevent duplicates on retry
+                g.clear_pending_detections(oid)?;
+
                 // Insert surviving detections
                 for (idx, _) in keep.iter().enumerate() {
                     if !keep[idx] { continue; }
                     let (cx, cy, conf, tile_id, bbox_tile, bbox_global) = &raw_dets[idx];
                     g.insert_uav_detection_full(
-                        mission_id, oid, *tile_id, *cx, *cy, *conf,
+                        mission_id, oid, Some(*tile_id), *cx, *cy, *conf,
                         bbox_tile.clone(), bbox_global.clone(),
                     )?;
                 }
@@ -299,7 +306,7 @@ pub(crate) fn handle_manual_detection(mut request: Request, ortho_id: &str, db: 
         .and_then(|mut g| {
             let mission_id = g.get_mission_id_by_orthomosaic(oid)?;
             let det_id = g.insert_uav_detection_full(
-                mission_id, oid, 0, cx, cy, conf,
+                mission_id, oid, None, cx, cy, conf,
                 bbox.clone(), bbox.clone(),
             )?;
             Ok(det_id)
