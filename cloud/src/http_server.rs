@@ -658,12 +658,18 @@ fn handle_api(
             } else if method == Method::Post && p.ends_with("/orthomosaic") {
                 let mission_id = extract_path_segment(p, "/missions/").unwrap_or_default();
                 crate::uav::handle_orthomosaic_post(request, &mission_id, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/uav/orthomosaics/") && !p.contains("/detections") && !p.contains("/tiles") {
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_get_orthomosaic(request, &ortho_id, db);
             } else if method == Method::Post && p.ends_with("/tiles") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_tiles_post(request, &ortho_id, db);
             } else if method == Method::Post && p.ends_with("/detections/mock") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_mock_detections(request, &ortho_id, db);
+            } else if method == Method::Post && p.ends_with("/detections/manual") {
+                let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
+                crate::uav::handle_manual_detection(request, &ortho_id, db);
             } else if method == Method::Post && p.ends_with("/detect-palms") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_detect_palms(request, &ortho_id, db);

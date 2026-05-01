@@ -258,6 +258,61 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
     }
 }
 
+pub(crate) fn handle_get_orthomosaic(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+    let oid = ortho_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.get_orthomosaic_full(oid));
+
+    match result {
+        Ok(Some(json)) => respond_json(request, 200, &format!(
+            r#"{{"status":"ok","orthomosaic":{}}}"#,
+            json.to_string()
+        )),
+        Ok(None) => respond_json(request, 404, r#"{"status":"error","message":"orthomosaic not found"}"#),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_manual_detection(mut request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+    let oid = ortho_id.parse().unwrap_or(0);
+
+    let mut body_bytes = Vec::new();
+    let _ = request.as_reader().read_to_end(&mut body_bytes);
+    let parsed: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap_or_default();
+
+    let cx = parsed["crown_center_x"].as_f64().unwrap_or(0.0);
+    let cy = parsed["crown_center_y"].as_f64().unwrap_or(0.0);
+    let cw = parsed["crown_width"].as_f64().unwrap_or(60.0);
+    let ch = parsed["crown_height"].as_f64().unwrap_or(60.0);
+    let conf = parsed["confidence"].as_f64().unwrap_or(0.85);
+
+    let bbox = serde_json::json!({
+        "x": (cx - cw / 2.0).max(0.0),
+        "y": (cy - ch / 2.0).max(0.0),
+        "w": cw,
+        "h": ch
+    });
+
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            let mission_id = g.get_mission_id_by_orthomosaic(oid)?;
+            let det_id = g.insert_uav_detection_full(
+                mission_id, oid, 0, cx, cy, conf,
+                bbox.clone(), bbox.clone(),
+            )?;
+            Ok(det_id)
+        });
+
+    match result {
+        Ok(det_id) => respond_json(request, 200, &format!(
+            r#"{{"status":"ok","detection_id":{}}}"#, det_id
+        )),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
 pub(crate) fn handle_mock_detections(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
     let oid = ortho_id.parse().unwrap_or(0);
     let result = db.lock()
