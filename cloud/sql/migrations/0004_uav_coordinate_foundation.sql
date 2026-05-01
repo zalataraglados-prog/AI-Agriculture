@@ -116,17 +116,28 @@ CREATE INDEX IF NOT EXISTS idx_tree_coord_hist_tree ON tree_coordinate_history(t
 -- Sequence for unique tree_code generation
 CREATE SEQUENCE IF NOT EXISTS tree_code_seq;
 
--- 约束补充（幂等，不会重复添加）
+-- 约束补充（通过检查 pg_constraint 实现真正的幂等）
 DO $$ BEGIN
-  -- trees
-  ALTER TABLE trees ADD CONSTRAINT uq_trees_barcode UNIQUE (barcode_value);
-  ALTER TABLE trees ADD CONSTRAINT chk_trees_status
-    CHECK (current_status IN ('active','dead','removed','replanted'));
+  -- trees: uq_trees_barcode
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_trees_barcode') THEN
+    ALTER TABLE trees ADD CONSTRAINT uq_trees_barcode UNIQUE (barcode_value);
+  END IF;
 
-  -- uav_tree_detections
-  ALTER TABLE uav_tree_detections ADD CONSTRAINT chk_det_confidence
-    CHECK (confidence >= 0 AND confidence <= 1);
-  ALTER TABLE uav_tree_detections ADD CONSTRAINT chk_det_review_status
-    CHECK (review_status IN ('pending','confirmed','rejected','corrected'));
-EXCEPTION WHEN duplicate_object THEN NULL;
+  -- trees: chk_trees_status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_trees_status') THEN
+    ALTER TABLE trees ADD CONSTRAINT chk_trees_status
+      CHECK (current_status IN ('active','dead','removed','replanted'));
+  END IF;
+
+  -- uav_tree_detections: chk_det_confidence
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_det_confidence') THEN
+    ALTER TABLE uav_tree_detections ADD CONSTRAINT chk_det_confidence
+      CHECK (confidence >= 0 AND confidence <= 1);
+  END IF;
+
+  -- uav_tree_detections: chk_det_review_status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_det_review_status') THEN
+    ALTER TABLE uav_tree_detections ADD CONSTRAINT chk_det_review_status
+      CHECK (review_status IN ('pending','confirmed','rejected','corrected'));
+  END IF;
 END $$;
