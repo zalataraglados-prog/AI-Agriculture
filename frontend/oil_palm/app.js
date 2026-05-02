@@ -7,23 +7,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const detectionStatus = document.getElementById('detection-status');
     const detectionList = document.getElementById('detection-list');
     const treeList = document.getElementById('tree-list');
+    const btnViewOrtho = document.getElementById('btn-view-ortho');
 
     let missionId = null;
     let orthoId = null;
 
-    const btnViewOrtho = document.getElementById('btn-view-ortho');
+    // --- 初始化：尝试恢复最近的状态 ---
+    async function init() {
+        try {
+            // 1. 获取所有任务
+            const res = await fetch('/api/v1/uav/missions');
+            const data = await res.json();
+            const missions = data.missions || [];
+            
+            if (missions.length > 0) {
+                // 取最近的一个任务
+                const lastMission = missions[missions.length - 1];
+                missionId = lastMission.id;
+                missionStatus.textContent = `Current Mission: ${lastMission.mission_name} (ID ${missionId})`;
+                btnRegisterOrtho.disabled = false;
+
+                // 2. 获取该任务的正射图
+                const orthoRes = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`);
+                if (orthoRes.ok) {
+                    const orthoData = await orthoRes.json();
+                    if (orthoData && orthoData.id) {
+                        orthoId = orthoData.id;
+                        orthoStatus.textContent = `Orthomosaic: ${orthoData.image_url} (ID ${orthoId})`;
+                        btnMockDetections.disabled = false;
+                        btnViewOrtho.style.display = 'block';
+                        btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
+                        
+                        // 3. 加载已有的检测点
+                        await fetchDetections();
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('Init state recovery skipped or failed', e);
+        }
+    }
+
+    init();
 
     btnCreateMission.addEventListener('click', async () => {
+        const name = prompt("Enter Mission Name:", "Flight_" + Date.now());
+        if (!name) return;
         try {
             const res = await fetch('/api/v1/uav/missions', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plantation_id: 0, mission_name: 'test-mission' })
+                body: JSON.stringify({ plantation_id: 1, mission_name: name })
             });
             const data = await res.json();
             missionId = data.mission_id;
             missionStatus.textContent = `Mission created: ID ${missionId}`;
             btnRegisterOrtho.disabled = false;
+            orthoStatus.textContent = "Status: Ready to register";
         } catch (e) {
             missionStatus.textContent = 'Error: ' + e.message;
         }
@@ -31,7 +71,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnRegisterOrtho.addEventListener('click', async () => {
         try {
-            const res = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`, { method: 'POST' });
+            // 注意：这里我们模拟注册你刚才提到的本地测试图
+            const res = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    width: 658,
+                    height: 438,
+                    resolution: 0.1,
+                    image_url: "/static/ortho_test.png"
+                })
+            });
             const data = await res.json();
             orthoId = data.orthomosaic_id;
             orthoStatus.textContent = `Orthomosaic registered: ID ${orthoId}`;
@@ -45,18 +95,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnMockDetections.addEventListener('click', async () => {
         try {
+            // 先切瓦片 (新功能体验)
             const tileRes = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tile_size: 1024, tile_overlap: 0.15 })
+                body: JSON.stringify({ tile_size: 256, tile_overlap: 0.1 })
             });
-            const tileData = await tileRes.json();
-            const tileCount = tileData.tile_ids ? tileData.tile_ids.length : 1;
-            detectionStatus.textContent = `Tile grid created: ${tileData.tile_grid?.cols || '?'} x ${tileData.tile_grid?.rows || '?'} = ${tileCount} tiles. `;
             
+            // 再跑 Mock
             const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detections/mock`, { method: 'POST' });
             const data = await res.json();
-            detectionStatus.textContent += `${data.detections_created || 3} mock detections generated.`;
+            detectionStatus.textContent = `${data.detections_created || 0} detections generated.`;
             
             await fetchDetections();
         } catch (e) {
