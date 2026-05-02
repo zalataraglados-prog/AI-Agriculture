@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const detectionList = document.getElementById('detection-list');
     const treeList = document.getElementById('tree-list');
     const btnViewOrtho = document.getElementById('btn-view-ortho');
+    const btnAutoMatch = document.getElementById('btn-auto-match');
+    const matchStatus = document.getElementById('match-status');
+    const matchReviewList = document.getElementById('match-review-list');
 
     let missionId = null;
     let orthoId = null;
@@ -70,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             missionStatus.textContent = `Mission created: ${missionName} (ID ${missionId}) under Plantation ID ${pid}`;
             btnRegisterOrtho.disabled = false;
             orthoStatus.textContent = "Status: Ready to register";
+            btnAutoMatch.disabled = false;
         } catch (e) {
             missionStatus.textContent = 'Error: ' + e.message;
         }
@@ -122,6 +126,75 @@ document.addEventListener('DOMContentLoaded', () => {
             detectionStatus.textContent = 'Error: ' + e.message;
         }
     });
+
+    btnAutoMatch.addEventListener('click', async () => {
+        try {
+            matchStatus.textContent = 'Matching to existing trees...';
+            const res = await fetch(`/api/v1/uav/missions/${missionId}/match-existing-trees`, { method: 'POST' });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                matchStatus.innerHTML = `Auto-matched: <strong>${data.auto_matched}</strong> | Ambiguous: <strong>${data.ambiguous}</strong> | Unmatched: <strong>${data.unmatched}</strong>`;
+                if (data.ambiguous > 0) loadMatchReview();
+                await refreshTreesAndDetections();
+            } else {
+                matchStatus.textContent = 'Match failed: ' + (data.message || 'unknown error');
+            }
+        } catch (e) {
+            matchStatus.textContent = 'Error: ' + e.message;
+        }
+    });
+
+    async function loadMatchReview() {
+        try {
+            const res = await fetch(`/api/v1/uav/missions/${missionId}/match-review`);
+            const data = await res.json();
+            renderMatchReviews(data.reviews || []);
+        } catch (e) {
+            console.error('match review load failed', e);
+        }
+    }
+
+    function renderMatchReviews(reviews) {
+        matchReviewList.innerHTML = '';
+        if (reviews.length === 0) {
+            matchReviewList.innerHTML = '<div class="status-box">No ambiguous matches</div>';
+            return;
+        }
+        reviews.forEach(r => {
+            const div = document.createElement('div');
+            div.className = 'detection-item';
+            let candidatesHtml = r.candidates.map(c =>
+                `<div class="match-candidate" style="cursor:pointer;padding:4px 8px;border-radius:4px;background:rgba(59,130,246,0.2);margin-top:2px;" onclick="matchToTree(${r.detection_id}, ${c.tree_id}, this.parentElement.parentElement)">
+                    Tree ${c.tree_code} (dist: ${(c.distance_pixels * 0.05).toFixed(2)}m)
+                </div>`
+            ).join('');
+            div.innerHTML = `<div><span>Detection #${r.detection_id} (Conf: ${r.confidence.toFixed(2)})</span><div style="margin-top:4px;">Candidates: ${candidatesHtml}</div></div>`;
+            matchReviewList.appendChild(div);
+        });
+    }
+
+    window.matchToTree = async (detId, treeId, element) => {
+        try {
+            const res = await fetch(`/api/v1/uav/detections/${detId}/match-to-tree`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tree_id: treeId })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                element.remove();
+                matchStatus.textContent += ` | Matched #${detId} -> ${data.tree_code}`;
+            } else {
+                alert('Match failed: ' + (data.message || 'unknown'));
+            }
+        } catch (e) {
+            alert('Match error: ' + e.message);
+        }
+    };
+
+    async function refreshTreesAndDetections() {
+        await fetchDetections();
+    }
 
     async function fetchDetections() {
         try {
