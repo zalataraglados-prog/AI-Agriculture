@@ -965,22 +965,27 @@ impl DbManager {
 
     pub(crate) fn query_detections_by_orthomosaic(&mut self, ortho_id: i32) -> Result<Vec<serde_json::Value>, String> {
         let rows = self.client.query(
-            "SELECT id, crown_center_x, crown_center_y, confidence, review_status FROM uav_tree_detections WHERE orthomosaic_id = $1",
+            "SELECT d.id, d.crown_center_x, d.crown_center_y, d.confidence, d.review_status, t.tree_code \
+             FROM uav_tree_detections d \
+             LEFT JOIN trees t ON d.matched_tree_id = t.id \
+             WHERE d.orthomosaic_id = $1",
             &[&ortho_id],
         ).map_err(|e| format!("query_detections error: {}", e))?;
         let mut out = Vec::new();
         for r in rows {
-            let id: i32 = r.get("id");
-            let cx: Option<f64> = r.get("crown_center_x");
-            let cy: Option<f64> = r.get("crown_center_y");
-            let conf: f64 = r.get("confidence");
-            let status: String = r.get("review_status");
+            let id: i32 = r.get(0);
+            let cx: Option<f64> = r.get(1);
+            let cy: Option<f64> = r.get(2);
+            let conf: f64 = r.get(3);
+            let status: String = r.get(4);
+            let tree_code: Option<String> = r.get(5);
             out.push(serde_json::json!({
                 "id": id,
                 "crown_center_x": cx,
                 "crown_center_y": cy,
                 "confidence": conf,
-                "review_status": status
+                "review_status": status,
+                "tree_code": tree_code
             }));
         }
         Ok(out)
@@ -1095,22 +1100,26 @@ impl DbManager {
 
     pub(crate) fn list_trees_by_plantation(&mut self, plantation_id: i32, limit: i64, offset: i64) -> Result<Vec<serde_json::Value>, String> {
         let rows = self.client.query(
-            "SELECT id, tree_code, species, current_status, coordinate_x, coordinate_y, \
-                    barcode_value, manual_verified, created_at \
-             FROM trees WHERE plantation_id = $1 ORDER BY tree_code LIMIT $2 OFFSET $3",
+            "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
+                    t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
+             FROM trees t \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             LEFT JOIN uav_missions m ON o.mission_id = m.id \
+             WHERE t.plantation_id = $1 ORDER BY t.tree_code LIMIT $2 OFFSET $3",
             &[&plantation_id, &limit, &offset],
         ).map_err(|e| format!("list_trees_by_plantation error: {}", e))?;
         let mut out = Vec::new();
         for r in rows {
-            let id: i32 = r.get("id");
-            let code: String = r.get("tree_code");
-            let species: String = r.get("species");
-            let status: String = r.get("current_status");
-            let cx: Option<f64> = r.get("coordinate_x");
-            let cy: Option<f64> = r.get("coordinate_y");
-            let barcode: Option<String> = r.get("barcode_value");
-            let verified: bool = r.get("manual_verified");
-            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            let id: i32 = r.get(0);
+            let code: String = r.get(1);
+            let species: String = r.get(2);
+            let status: String = r.get(3);
+            let cx: Option<f64> = r.get(4);
+            let cy: Option<f64> = r.get(5);
+            let barcode: Option<String> = r.get(6);
+            let verified: bool = r.get(7);
+            let created_at: chrono::DateTime<chrono::Utc> = r.get(8);
+            let mission_name: Option<String> = r.get(9);
             out.push(serde_json::json!({
                 "id": id,
                 "tree_code": code,
@@ -1120,7 +1129,8 @@ impl DbManager {
                 "coordinate_y": cy,
                 "barcode_value": barcode,
                 "manual_verified": verified,
-                "created_at": created_at.to_rfc3339()
+                "created_at": created_at.to_rfc3339(),
+                "mission_name": mission_name
             }));
         }
         Ok(out)
@@ -1144,23 +1154,27 @@ impl DbManager {
 
     pub(crate) fn list_all_trees(&mut self, limit: i64, offset: i64) -> Result<Vec<serde_json::Value>, String> {
         let rows = self.client.query(
-            "SELECT id, tree_code, species, current_status, coordinate_x, coordinate_y, \
-                    barcode_value, manual_verified, created_at \
-             FROM trees ORDER BY tree_code LIMIT $1 OFFSET $2",
+            "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
+                    t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
+             FROM trees t \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             LEFT JOIN uav_missions m ON o.mission_id = m.id \
+             ORDER BY t.tree_code LIMIT $1 OFFSET $2",
             &[&limit, &offset],
         ).map_err(|e| format!("list_all_trees error: {}", e))?;
 
         let mut out = Vec::new();
         for r in rows {
-            let id: i32 = r.get("id");
-            let code: String = r.get("tree_code");
-            let species: String = r.get("species");
-            let status: String = r.get("current_status");
-            let cx: Option<f64> = r.get("coordinate_x");
-            let cy: Option<f64> = r.get("coordinate_y");
-            let barcode: Option<String> = r.get("barcode_value");
-            let verified: bool = r.get("manual_verified");
-            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            let id: i32 = r.get(0);
+            let code: String = r.get(1);
+            let species: String = r.get(2);
+            let status: String = r.get(3);
+            let cx: Option<f64> = r.get(4);
+            let cy: Option<f64> = r.get(5);
+            let barcode: Option<String> = r.get(6);
+            let verified: bool = r.get(7);
+            let created_at: chrono::DateTime<chrono::Utc> = r.get(8);
+            let mission_name: Option<String> = r.get(9);
             out.push(serde_json::json!({
                 "id": id,
                 "tree_code": code,
@@ -1170,7 +1184,8 @@ impl DbManager {
                 "coordinate_y": cy,
                 "barcode_value": barcode,
                 "manual_verified": verified,
-                "created_at": created_at.to_rfc3339()
+                "created_at": created_at.to_rfc3339(),
+                "mission_name": mission_name
             }));
         }
         Ok(out)

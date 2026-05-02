@@ -236,15 +236,15 @@
             linkBtn.style.display = 'inline-block';
             linkBtn.style.color = 'white';
             linkBtn.textContent = 'View Tree Profile';
-            linkBtn.href = '#';
-            linkBtn.onclick = function () {
-                apiPost('/detections/' + det.id + '/confirm').then(function (d) {
-                    if (d.tree_code) {
-                        window.location.href = 'tree_profile.html?code=' + d.tree_code;
-                    }
-                });
-                return false;
-            };
+            if (det.tree_code) {
+                linkBtn.href = 'tree_profile.html?code=' + det.tree_code;
+            } else {
+                linkBtn.href = '#';
+                linkBtn.onclick = function() {
+                    alert('Tree profile not linked yet');
+                    return false;
+                };
+            }
             actionsDiv.appendChild(linkBtn);
         }
     }

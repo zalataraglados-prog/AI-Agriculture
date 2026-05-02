@@ -92,15 +92,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderTable(trees) {
         let html = `<table class="tree-table">
             <thead><tr>
-                <th>Code</th><th>Species</th><th>Status</th><th>Coordinate</th><th>Action</th>
+                <th>Code</th><th>Mission</th><th>Species</th><th>Status</th><th>Coordinate</th><th>Action</th>
             </tr></thead><tbody>`;
         trees.forEach(t => {
             const statusClass = `badge-${t.current_status}`;
             const coord = (t.coordinate_x != null && t.coordinate_y != null)
                 ? `(${t.coordinate_x.toFixed(1)}, ${t.coordinate_y.toFixed(1)})`
                 : '-';
+            const mission = t.mission_name || '-';
             html += `<tr>
                 <td><a href="tree_profile.html?code=${t.tree_code}">${t.tree_code}</a></td>
+                <td>${mission}</td>
                 <td>${t.species}</td>
                 <td><span class="badge ${statusClass}">${t.current_status}</span></td>
                 <td>${coord}</td>
