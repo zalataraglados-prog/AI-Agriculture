@@ -55,3 +55,8 @@ node_modules/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Frontend local libraries and test assets
+frontend/static/lib/
+frontend/static/ortho_test.png
+
