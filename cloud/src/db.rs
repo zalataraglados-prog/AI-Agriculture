@@ -1157,8 +1157,8 @@ impl DbManager {
             "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
                     t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
              FROM trees t \
-             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
-             JOIN uav_missions m ON o.mission_id = m.id \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             LEFT JOIN uav_missions m ON o.mission_id = m.id \
              WHERE t.plantation_id = $1 AND o.mission_id = $2 ORDER BY t.tree_code LIMIT $3 OFFSET $4"
         } else {
             "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
@@ -1217,8 +1217,8 @@ impl DbManager {
             "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
                     t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
              FROM trees t \
-             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
-             JOIN uav_missions m ON o.mission_id = m.id \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             LEFT JOIN uav_missions m ON o.mission_id = m.id \
              WHERE o.mission_id = $1 ORDER BY t.tree_code LIMIT $2 OFFSET $3"
         } else {
             "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \

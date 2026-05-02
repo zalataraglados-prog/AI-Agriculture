@@ -19,19 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPlantationId = 0;
     let currentMissionId = 0;
 
-    // 1. 下拉框开关逻辑
-    function setupDropdown(dropdown, list) {
-        dropdown.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = list.classList.contains('show');
-            closeAllDropdowns();
-            if (!isOpen) {
-                list.classList.add('show');
-                dropdown.classList.add('active');
-            }
-        });
-    }
-
+    // 1. 下拉框全局管理
     function closeAllDropdowns() {
         document.querySelectorAll('.options-list').forEach(l => l.classList.remove('show'));
         document.querySelectorAll('.custom-select').forEach(d => d.classList.remove('active'));
@@ -39,147 +27,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('click', closeAllDropdowns);
 
-    setupDropdown(plantationDropdown, plantationOptions);
-    setupDropdown(missionDropdown, missionOptions);
-
-    // 2. 加载地块列表
-    async function loadPlantations() {
-        try {
-            const res = await fetch('/api/v1/plantations');
-            const data = await res.json();
-            const plantations = data.plantations || [];
-            
-            renderPlantationOptions(plantations);
-            loadTrees();
-        } catch (e) {
-            console.error('Failed to load plantations', e);
+    plantationDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = plantationOptions.classList.contains('show');
+        closeAllDropdowns();
+        if (!isOpen) {
+            plantationOptions.classList.add('show');
+            plantationDropdown.classList.add('active');
         }
-    }
+    });
 
-    function renderPlantationOptions(plantations) {
-        plantationOptions.innerHTML = '';
-        
-        // "All Plantations" Option
-        const allOpt = createOptionItem(0, '-- All Plantations --', true);
-        plantationOptions.appendChild(allOpt);
-
-        plantations.forEach(p => {
-            const label = `${p.name} (ID: ${p.id})`;
-            const opt = createOptionItem(p.id, label, false);
-            plantationOptions.appendChild(opt);
-        });
-    }
-
-    function createOptionItem(id, label, isDefault) {
-        const div = document.createElement('div');
-        div.className = 'option-item' + (isDefault && currentPlantationId === 0 ? ' selected' : '');
-        div.textContent = label;
-        div.addEventListener('click', () => {
-            if (label.includes('Mission')) {
-                handleMissionSelect(id, label);
-            } else {
-                handlePlantationSelect(id, label);
-            }
-        });
-        return div;
-    }
-
-    function handlePlantationSelect(id, label) {
-        currentPlantationId = id;
-        currentMissionId = 0;
-        currentPage = 1;
-
-        plantationDropdown.querySelector('.selected-text').textContent = label;
-        updateSelectionHighlight(plantationOptions, id);
-        
-        // 重置 Mission 文本
-        missionDropdown.querySelector('.selected-text').textContent = '-- All Missions --';
-
-        if (id > 0) {
-            loadMissions(id);
-        } else {
-            missionFilterGroup.style.display = 'none';
-            loadTrees();
+    missionDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = missionOptions.classList.contains('show');
+        closeAllDropdowns();
+        if (!isOpen) {
+            missionOptions.classList.add('show');
+            missionDropdown.classList.add('active');
         }
-    }
+    });
 
-    function handleMissionSelect(id, label) {
-        currentMissionId = id;
-        currentPage = 1;
-        missionDropdown.querySelector('.selected-text').textContent = label;
-        updateSelectionHighlight(missionOptions, id);
-        loadTrees();
-    }
-
-    function updateSelectionHighlight(container, id) {
-        container.querySelectorAll('.option-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-        // 这里简化处理，根据我们创建 item 时的逻辑来找
-        // 实际中建议把 ID 存入 dataset
-    }
-
-    // 重新设计 Option 创建函数以支持更稳健的高亮
-    function createImprovedOption(id, label, container, type) {
+    // 2. 创建选项项
+    function createOption(id, label, type) {
         const div = document.createElement('div');
         div.className = 'option-item';
         div.dataset.id = id;
         div.textContent = label;
         
-        div.addEventListener('click', () => {
+        div.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (type === 'plantation') {
-                selectPlantation(id, label);
+                handlePlantationSelect(id, label);
             } else {
-                selectMission(id, label);
+                handleMissionSelect(id, label);
             }
+            closeAllDropdowns();
         });
         return div;
     }
 
-    async function loadMissions(pid) {
-        try {
-            const res = await fetch(`/api/v1/uav/missions?plantation_id=${pid}`);
-            const data = await res.json();
-            const missions = data.missions || [];
-
-            missionOptions.innerHTML = '';
-            missionOptions.appendChild(createImprovedOption(0, '-- All Missions --', missionOptions, 'mission'));
-            
-            missions.forEach(m => {
-                missionOptions.appendChild(createImprovedOption(m.id, m.mission_name, missionOptions, 'mission'));
-            });
-            
-            missionFilterGroup.style.display = 'flex';
-            loadTrees();
-        } catch (e) {
-            console.error('Failed to load missions', e);
-        }
-    }
-
-    function selectPlantation(id, label) {
+    async function handlePlantationSelect(id, label) {
         currentPlantationId = id;
         currentMissionId = 0;
         currentPage = 1;
+
         plantationDropdown.querySelector('.selected-text').textContent = label;
-        highlightSelected(plantationOptions, id);
+        highlightItem(plantationOptions, id);
         
+        // 重置 Mission 下拉框
+        missionDropdown.querySelector('.selected-text').textContent = '-- All Missions --';
+
         if (id > 0) {
-            loadMissions(id);
+            await loadMissions(id);
         } else {
             missionFilterGroup.style.display = 'none';
-            loadTrees();
         }
-    }
-
-    function selectMission(id, label) {
-        currentMissionId = id;
-        currentPage = 1;
-        missionDropdown.querySelector('.selected-text').textContent = label;
-        highlightSelected(missionOptions, id);
         loadTrees();
     }
 
-    function highlightSelected(container, id) {
+    async function handleMissionSelect(id, label) {
+        currentMissionId = id;
+        currentPage = 1;
+        missionDropdown.querySelector('.selected-text').textContent = label;
+        highlightItem(missionOptions, id);
+        loadTrees();
+    }
+
+    function highlightItem(container, id) {
         container.querySelectorAll('.option-item').forEach(item => {
             if (parseInt(item.dataset.id) === id) {
                 item.classList.add('selected');
@@ -189,16 +103,53 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function loadTrees() {
-        tableContainer.innerHTML = '<div class="empty-state">Loading trees...</div>';
+    // 3. 数据加载逻辑
+    async function loadPlantations() {
         try {
-            let url = `/api/v1/trees?plantation_id=${currentPlantationId}&mission_id=${currentMissionId}&page=${currentPage}&limit=${limit}`;
+            const res = await fetch('/api/v1/plantations');
+            const data = await res.json();
+            const list = data.plantations || [];
+            
+            plantationOptions.innerHTML = '';
+            plantationOptions.appendChild(createOption(0, '-- All Plantations --', 'plantation'));
+            list.forEach(p => {
+                plantationOptions.appendChild(createOption(p.id, `${p.name} (ID: ${p.id})`, 'plantation'));
+            });
+            
+            highlightItem(plantationOptions, 0);
+        } catch (e) {
+            console.error('Load plantations failed', e);
+        }
+    }
+
+    async function loadMissions(pid) {
+        try {
+            const res = await fetch(`/api/v1/uav/missions?plantation_id=${pid}`);
+            const data = await res.json();
+            const list = data.missions || [];
+
+            missionOptions.innerHTML = '';
+            missionOptions.appendChild(createOption(0, '-- All Missions --', 'mission'));
+            list.forEach(m => {
+                missionOptions.appendChild(createOption(m.id, m.mission_name, 'mission'));
+            });
+            
+            highlightItem(missionOptions, 0);
+            missionFilterGroup.style.display = 'flex';
+        } catch (e) {
+            console.error('Load missions failed', e);
+        }
+    }
+
+    async function loadTrees() {
+        tableContainer.innerHTML = '<div class="empty-state">Syncing data...</div>';
+        try {
+            const url = `/api/v1/trees?plantation_id=${currentPlantationId}&mission_id=${currentMissionId}&page=${currentPage}&limit=${limit}`;
             const res = await fetch(url);
             const data = await res.json();
             
             const trees = data.trees || [];
             const total = data.total || 0;
-            
             totalBadge.textContent = `Total Assets: ${total}`;
             
             if (trees.length === 0) {
@@ -223,10 +174,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const coord = (t.coordinate_x != null && t.coordinate_y != null)
                 ? `(${t.coordinate_x.toFixed(1)}, ${t.coordinate_y.toFixed(1)})`
                 : '-';
-            const mission = t.mission_name || '-';
             html += `<tr>
                 <td><a href="tree_profile.html?code=${t.tree_code}">${t.tree_code}</a></td>
-                <td>${mission}</td>
+                <td>${t.mission_name || '-'}</td>
                 <td>${t.species}</td>
                 <td><span class="badge ${statusClass}">${t.current_status}</span></td>
                 <td>${coord}</td>
@@ -246,36 +196,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnPrev.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            loadTrees();
-        }
+        if (currentPage > 1) { currentPage--; loadTrees(); }
     });
 
     btnNext.addEventListener('click', () => {
-        currentPage++;
-        loadTrees();
+        currentPage++; loadTrees();
     });
 
-    // 初始加载
-    async function init() {
-        try {
-            const res = await fetch('/api/v1/plantations');
-            const data = await res.json();
-            const plantations = data.plantations || [];
-            
-            plantationOptions.innerHTML = '';
-            plantationOptions.appendChild(createImprovedOption(0, '-- All Plantations --', plantationOptions, 'plantation'));
-            plantations.forEach(p => {
-                plantationOptions.appendChild(createImprovedOption(p.id, `${p.name} (ID: ${p.id})`, plantationOptions, 'plantation'));
-            });
-            
-            highlightSelected(plantationOptions, 0);
-            loadTrees();
-        } catch (e) {
-            console.error('Init failed', e);
-        }
-    }
-
-    init();
+    // 4. 初始化
+    loadPlantations();
+    loadTrees();
 });
