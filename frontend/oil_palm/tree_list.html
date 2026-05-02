@@ -202,43 +202,36 @@
                     <div class="filter-group">
                         <label>1. Select Plantation</label>
                         <div id="plantation-dropdown" class="custom-select">
-                            <span class="selected-text">-- All Plantations --</span>
+                            <span class="selected-text" id="plantation-text">-- All Plantations --</span>
                             <span class="arrow">▼</span>
                         </div>
-                        <div id="plantation-options" class="options-list">
-                            <!-- JS populated -->
-                        </div>
+                        <div id="plantation-options" class="options-list"></div>
                     </div>
                     
                     <div class="filter-group">
                         <label>2. Filter by Mission</label>
                         <div id="mission-dropdown" class="custom-select" style="opacity: 0.5; pointer-events: none;">
-                            <span class="selected-text">Please select a plantation...</span>
+                            <span class="selected-text" id="mission-text">Please select a plantation...</span>
                             <span class="arrow">▼</span>
                         </div>
-                        <div id="mission-options" class="options-list">
-                            <!-- JS populated -->
-                        </div>
+                        <div id="mission-options" class="options-list"></div>
                     </div>
                     
                     <span class="total-badge" id="total-badge">Total Assets: 0</span>
                 </div>
+
                 <div id="table-container">
                     <div class="empty-state">Loading registry...</div>
                 </div>
+
                 <div class="pagination" id="pagination" style="display:none;">
                     <button id="btn-prev" disabled>&laquo; Prev</button>
-                    <span id="page-info">Page 1</span>
+                    <span id="btn-page-info">Page 1</span>
                     <button id="btn-next">&raquo; Next</button>
                 </div>
             </section>
         </main>
     </div>
-    <script>
-        // 动态添加时间戳防止缓存
-        const script = document.createElement('script');
-        script.src = 'tree_list.js?v=' + new Date().getTime();
-        document.body.appendChild(script);
-    </script>
+    <script src="tree_list.js"></script>
 </body>
 </html>

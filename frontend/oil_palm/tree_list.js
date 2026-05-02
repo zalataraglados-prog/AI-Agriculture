@@ -1,219 +1,201 @@
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Tree List Script Initialized v' + new Date().getTime());
+(function() {
+    console.log('Tree List Script V2 - Loaded');
 
-    // Dropdown Elements
-    const plantationDropdown = document.getElementById('plantation-dropdown');
-    const plantationOptions = document.getElementById('plantation-options');
-    const missionDropdown = document.getElementById('mission-dropdown');
-    const missionOptions = document.getElementById('mission-options');
+    function init() {
+        // --- Elements ---
+        const els = {
+            pDropdown: document.getElementById('plantation-dropdown'),
+            pOptions: document.getElementById('plantation-options'),
+            pText: document.getElementById('plantation-text'),
+            mDropdown: document.getElementById('mission-dropdown'),
+            mOptions: document.getElementById('mission-options'),
+            mText: document.getElementById('mission-text'),
+            table: document.getElementById('table-container'),
+            total: document.getElementById('total-badge'),
+            pageInfo: document.getElementById('btn-page-info'),
+            btnPrev: document.getElementById('btn-prev'),
+            btnNext: document.getElementById('btn-next'),
+            pagination: document.getElementById('pagination')
+        };
 
-    // UI Elements
-    const tableContainer = document.getElementById('table-container');
-    const totalBadge = document.getElementById('total-badge');
-    const pageInfo = document.getElementById('page-info');
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    const pagination = document.getElementById('pagination');
-
-    let currentPage = 1;
-    const limit = 15;
-    let currentPlantationId = 0;
-    let currentMissionId = 0;
-
-    // 1. 下拉框全局管理
-    function closeAllDropdowns() {
-        document.querySelectorAll('.options-list').forEach(l => l.classList.remove('show'));
-        document.querySelectorAll('.custom-select').forEach(d => d.classList.remove('active'));
-    }
-
-    document.addEventListener('click', closeAllDropdowns);
-
-    plantationDropdown.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = plantationOptions.classList.contains('show');
-        closeAllDropdowns();
-        if (!isOpen) {
-            plantationOptions.classList.add('show');
-            plantationDropdown.classList.add('active');
+        // 安全检查：如果有任何元素缺失，报错并停止，防止后续崩溃
+        for (let key in els) {
+            if (!els[key]) {
+                console.error(`Missing element: ${key}`);
+                return;
+            }
         }
-    });
 
-    missionDropdown.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = missionOptions.classList.contains('show');
-        closeAllDropdowns();
-        if (!isOpen) {
-            missionOptions.classList.add('show');
-            missionDropdown.classList.add('active');
+        let state = {
+            currentPage: 1,
+            limit: 15,
+            plantationId: 0,
+            missionId: 0
+        };
+
+        // --- Dropdown Logic ---
+        function closeAll() {
+            els.pOptions.classList.remove('show');
+            els.mOptions.classList.remove('show');
+            els.pDropdown.classList.remove('active');
+            els.mDropdown.classList.remove('active');
         }
-    });
 
-    // 2. 创建选项项
-    function createOption(id, label, type) {
-        const div = document.createElement('div');
-        div.className = 'option-item';
-        div.dataset.id = id;
-        div.textContent = label;
-        
-        div.addEventListener('click', (e) => {
+        document.addEventListener('click', closeAll);
+
+        els.pDropdown.onclick = (e) => {
             e.stopPropagation();
-            console.log(`Selected ${type}: ${label} (ID: ${id})`);
-            if (type === 'plantation') {
-                handlePlantationSelect(id, label);
-            } else {
-                handleMissionSelect(id, label);
+            const wasOpen = els.pOptions.classList.contains('show');
+            closeAll();
+            if (!wasOpen) {
+                els.pOptions.classList.add('show');
+                els.pDropdown.classList.add('active');
             }
-            closeAllDropdowns();
-        });
-        return div;
-    }
+        };
 
-    async function handlePlantationSelect(id, label) {
-        currentPlantationId = id;
-        currentMissionId = 0;
-        currentPage = 1;
+        els.mDropdown.onclick = (e) => {
+            e.stopPropagation();
+            const wasOpen = els.mOptions.classList.contains('show');
+            closeAll();
+            if (!wasOpen) {
+                els.mOptions.classList.add('show');
+                els.mDropdown.classList.add('active');
+            }
+        };
 
-        plantationDropdown.querySelector('.selected-text').textContent = label;
-        highlightItem(plantationOptions, id);
-        
-        // 重置 Mission 下拉框
-        const mText = missionDropdown.querySelector('.selected-text');
-        
-        if (id > 0) {
-            mText.textContent = '-- All Missions --';
-            missionDropdown.style.opacity = '1';
-            missionDropdown.style.pointerEvents = 'auto';
-            await loadMissions(id);
-        } else {
-            mText.textContent = 'Please select a plantation...';
-            missionDropdown.style.opacity = '0.5';
-            missionDropdown.style.pointerEvents = 'none';
+        // --- Option Creation ---
+        function createOpt(id, label, type) {
+            const div = document.createElement('div');
+            div.className = 'option-item';
+            div.textContent = label;
+            div.onclick = async (e) => {
+                e.stopPropagation();
+                if (type === 'plantation') {
+                    await selectPlantation(id, label);
+                } else {
+                    await selectMission(id, label);
+                }
+                closeAll();
+            };
+            return div;
         }
+
+        async function selectPlantation(id, label) {
+            state.plantationId = id;
+            state.missionId = 0;
+            state.currentPage = 1;
+            els.pText.textContent = label;
+            
+            if (id > 0) {
+                els.mText.textContent = '-- All Missions --';
+                els.mDropdown.style.opacity = '1';
+                els.mDropdown.style.pointerEvents = 'auto';
+                await loadMissions(id);
+            } else {
+                els.mText.textContent = 'Please select a plantation...';
+                els.mDropdown.style.opacity = '0.5';
+                els.mDropdown.style.pointerEvents = 'none';
+            }
+            loadTrees();
+        }
+
+        async function selectMission(id, label) {
+            state.missionId = id;
+            state.currentPage = 1;
+            els.mText.textContent = label;
+            loadTrees();
+        }
+
+        // --- Data Loading ---
+        async function loadPlantations() {
+            try {
+                const res = await fetch('/api/v1/plantations');
+                const data = await res.json();
+                const list = data.plantations || [];
+                els.pOptions.innerHTML = '';
+                els.pOptions.appendChild(createOpt(0, '-- All Plantations --', 'plantation'));
+                list.forEach(p => {
+                    els.pOptions.appendChild(createOpt(p.id, `${p.name} (ID: ${p.id})`, 'plantation'));
+                });
+            } catch (e) { console.error('P-load error', e); }
+        }
+
+        async function loadMissions(pid) {
+            try {
+                const res = await fetch(`/api/v1/uav/missions?plantation_id=${pid}`);
+                const data = await res.json();
+                const list = data.missions || [];
+                els.mOptions.innerHTML = '';
+                els.mOptions.appendChild(createOpt(0, '-- All Missions --', 'mission'));
+                list.forEach(m => {
+                    els.mOptions.appendChild(createOpt(m.id, m.mission_name, 'mission'));
+                });
+            } catch (e) { console.error('M-load error', e); }
+        }
+
+        async function loadTrees() {
+            els.table.innerHTML = '<div class="empty-state">Loading registry data...</div>';
+            try {
+                const url = `/api/v1/trees?plantation_id=${state.plantationId}&mission_id=${state.missionId}&page=${state.currentPage}&limit=${state.limit}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const trees = data.trees || [];
+                const total = data.total || 0;
+                
+                els.total.textContent = `Total Assets: ${total}`;
+                if (trees.length === 0) {
+                    els.table.innerHTML = '<div class="empty-state">No matching tree records found</div>';
+                    els.pagination.style.display = 'none';
+                } else {
+                    renderTable(trees);
+                    updatePagination(total);
+                }
+            } catch (e) { 
+                els.table.innerHTML = '<div class="empty-state" style="color:#ef4444;">Error loading data: ' + e.message + '</div>';
+            }
+        }
+
+        function renderTable(trees) {
+            let html = `<table class="tree-table">
+                <thead><tr>
+                    <th>Code</th><th>Mission</th><th>Species</th><th>Status</th><th>Coordinate</th><th>Action</th>
+                </tr></thead><tbody>`;
+            trees.forEach(t => {
+                const coord = (t.coordinate_x != null && t.coordinate_y != null)
+                    ? `(${t.coordinate_x.toFixed(1)}, ${t.coordinate_y.toFixed(1)})`
+                    : '-';
+                html += `<tr>
+                    <td><a href="tree_profile.html?code=${t.tree_code}">${t.tree_code}</a></td>
+                    <td>${t.mission_name || '-'}</td>
+                    <td>${t.species}</td>
+                    <td><span class="badge badge-${t.current_status}">${t.current_status}</span></td>
+                    <td>${coord}</td>
+                    <td><a href="tree_profile.html?code=${t.tree_code}">View</a></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            els.table.innerHTML = html;
+        }
+
+        function updatePagination(total) {
+            els.pagination.style.display = 'flex';
+            const totalPages = Math.ceil(total / state.limit);
+            els.pageInfo.textContent = `Page ${state.currentPage} of ${totalPages || 1}`;
+            els.btnPrev.disabled = state.currentPage <= 1;
+            els.btnNext.disabled = state.currentPage >= totalPages;
+        }
+
+        els.btnPrev.onclick = () => { if (state.currentPage > 1) { state.currentPage--; loadTrees(); } };
+        els.btnNext.onclick = () => { state.currentPage++; loadTrees(); };
+
+        // --- Start ---
+        loadPlantations();
         loadTrees();
     }
 
-    async function handleMissionSelect(id, label) {
-        currentMissionId = id;
-        currentPage = 1;
-        missionDropdown.querySelector('.selected-text').textContent = label;
-        highlightItem(missionOptions, id);
-        loadTrees();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
-
-    function highlightItem(container, id) {
-        container.querySelectorAll('.option-item').forEach(item => {
-            if (parseInt(item.dataset.id) === id) {
-                item.classList.add('selected');
-            } else {
-                item.classList.remove('selected');
-            }
-        });
-    }
-
-    // 3. 数据加载逻辑
-    async function loadPlantations() {
-        try {
-            console.log('Fetching plantations...');
-            const res = await fetch('/api/v1/plantations');
-            const data = await res.json();
-            const list = data.plantations || [];
-            
-            plantationOptions.innerHTML = '';
-            plantationOptions.appendChild(createOption(0, '-- All Plantations --', 'plantation'));
-            list.forEach(p => {
-                plantationOptions.appendChild(createOption(p.id, `${p.name} (ID: ${p.id})`, 'plantation'));
-            });
-            
-            highlightItem(plantationOptions, 0);
-        } catch (e) {
-            console.error('Load plantations failed', e);
-        }
-    }
-
-    async function loadMissions(pid) {
-        try {
-            console.log(`Fetching missions for plantation ${pid}...`);
-            const res = await fetch(`/api/v1/uav/missions?plantation_id=${pid}`);
-            const data = await res.json();
-            const list = data.missions || [];
-
-            missionOptions.innerHTML = '';
-            missionOptions.appendChild(createOption(0, '-- All Missions --', 'mission'));
-            list.forEach(m => {
-                missionOptions.appendChild(createOption(m.id, m.mission_name, 'mission'));
-            });
-            
-            highlightItem(missionOptions, 0);
-            console.log(`Loaded ${list.length} missions.`);
-        } catch (e) {
-            console.error('Load missions failed', e);
-        }
-    }
-
-    async function loadTrees() {
-        tableContainer.innerHTML = '<div class="empty-state">Syncing data...</div>';
-        try {
-            const url = `/api/v1/trees?plantation_id=${currentPlantationId}&mission_id=${currentMissionId}&page=${currentPage}&limit=${limit}`;
-            console.log('Requesting URL:', url);
-            const res = await fetch(url);
-            const data = await res.json();
-            
-            const trees = data.trees || [];
-            const total = data.total || 0;
-            totalBadge.textContent = `Total Assets: ${total}`;
-            
-            if (trees.length === 0) {
-                tableContainer.innerHTML = '<div class="empty-state">No trees found in this selection</div>';
-                pagination.style.display = 'none';
-            } else {
-                renderTable(trees);
-                updatePagination(total);
-            }
-        } catch (e) {
-            tableContainer.innerHTML = `<div class="empty-state" style="color:var(--danger);">Error: ${e.message}</div>`;
-        }
-    }
-
-    function renderTable(trees) {
-        let html = `<table class="tree-table">
-            <thead><tr>
-                <th>Code</th><th>Mission</th><th>Species</th><th>Status</th><th>Coordinate</th><th>Action</th>
-            </tr></thead><tbody>`;
-        trees.forEach(t => {
-            const statusClass = `badge-${t.current_status}`;
-            const coord = (t.coordinate_x != null && t.coordinate_y != null)
-                ? `(${t.coordinate_x.toFixed(1)}, ${t.coordinate_y.toFixed(1)})`
-                : '-';
-            html += `<tr>
-                <td><a href="tree_profile.html?code=${t.tree_code}">${t.tree_code}</a></td>
-                <td>${t.mission_name || '-'}</td>
-                <td>${t.species}</td>
-                <td><span class="badge ${statusClass}">${t.current_status}</span></td>
-                <td>${coord}</td>
-                <td><a href="tree_profile.html?code=${t.tree_code}">View</a></td>
-            </tr>`;
-        });
-        html += '</tbody></table>';
-        tableContainer.innerHTML = html;
-    }
-
-    function updatePagination(total) {
-        pagination.style.display = 'flex';
-        const totalPages = Math.ceil(total / limit);
-        pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`;
-        btnPrev.disabled = currentPage <= 1;
-        btnNext.disabled = currentPage >= totalPages;
-    }
-
-    btnPrev.addEventListener('click', () => {
-        if (currentPage > 1) { currentPage--; loadTrees(); }
-    });
-
-    btnNext.addEventListener('click', () => {
-        currentPage++; loadTrees();
-    });
-
-    // 4. 初始化
-    loadPlantations();
-    loadTrees();
-});
+})();
