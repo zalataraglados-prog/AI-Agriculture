@@ -1126,12 +1126,54 @@ impl DbManager {
         Ok(out)
     }
 
-    pub(crate) fn count_trees_by_plantation(&mut self, plantation_id: i32) -> Result<i64, String> {
+    pub(crate) fn count_trees_by_plantation(&mut self, pid: i32) -> Result<i64, String> {
         let row = self.client.query_one(
             "SELECT COUNT(*) FROM trees WHERE plantation_id = $1",
-            &[&plantation_id],
+            &[&pid],
         ).map_err(|e| format!("count_trees_by_plantation error: {}", e))?;
         Ok(row.get(0))
+    }
+
+    pub(crate) fn count_all_trees(&mut self) -> Result<i64, String> {
+        let row = self.client.query_one(
+            "SELECT COUNT(*) FROM trees",
+            &[],
+        ).map_err(|e| format!("count_all_trees error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn list_all_trees(&mut self, limit: i64, offset: i64) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tree_code, species, current_status, coordinate_x, coordinate_y, \
+                    barcode_value, manual_verified, created_at \
+             FROM trees ORDER BY tree_code LIMIT $1 OFFSET $2",
+            &[&limit, &offset],
+        ).map_err(|e| format!("list_all_trees error: {}", e))?;
+
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let code: String = r.get("tree_code");
+            let species: String = r.get("species");
+            let status: String = r.get("current_status");
+            let cx: Option<f64> = r.get("coordinate_x");
+            let cy: Option<f64> = r.get("coordinate_y");
+            let barcode: Option<String> = r.get("barcode_value");
+            let verified: bool = r.get("manual_verified");
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": id,
+                "tree_code": code,
+                "species": species,
+                "current_status": status,
+                "coordinate_x": cx,
+                "coordinate_y": cy,
+                "barcode_value": barcode,
+                "manual_verified": verified,
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
     }
 
     pub(crate) fn update_tree_status(&mut self, tree_code: &str, status: &str) -> Result<(), String> {

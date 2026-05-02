@@ -80,17 +80,18 @@ pub(crate) fn handle_list_trees(request: Request, query: &str, db: Arc<Mutex<DbM
         .max(1);
     let offset = (page - 1) * limit;
 
-    if plantation_id <= 0 {
-        respond_json(request, 400, r#"{"status":"error","message":"plantation_id is required"}"#);
-        return;
-    }
-
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
         .and_then(|mut g| {
-            let total = g.count_trees_by_plantation(plantation_id)?;
-            let trees = g.list_trees_by_plantation(plantation_id, limit, offset)?;
-            Ok((trees, total))
+            if plantation_id > 0 {
+                let total = g.count_trees_by_plantation(plantation_id)?;
+                let trees = g.list_trees_by_plantation(plantation_id, limit, offset)?;
+                Ok((trees, total))
+            } else {
+                let total = g.count_all_trees()?;
+                let trees = g.list_all_trees(limit, offset)?;
+                Ok((trees, total))
+            }
         });
 
     match result {

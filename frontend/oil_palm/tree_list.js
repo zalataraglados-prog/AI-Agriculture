@@ -16,18 +16,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/api/v1/plantations');
         const data = await res.json();
         const plantations = data.plantations || [];
-        select.innerHTML = '<option value="">-- Select --</option>';
+        
+        // 获取所有地块的树木统计（如果有这个接口的话，或者我们手动计算）
+        select.innerHTML = '<option value="all">-- All Plantations --</option>';
+        
         plantations.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
-            opt.textContent = `${p.name} (#${p.id}) - ${p.crop_type}`;
+            // 提示：我们在这里暂时无法直接获取每个地块的 tree_count，除非后端接口支持。
+            // 但我们可以先优化显示名字。
+            opt.textContent = `${p.name} (ID: ${p.id}) - ${p.crop_type}`;
             select.appendChild(opt);
         });
-        // Auto-select first if only one
-        if (plantations.length === 1) {
-            select.value = plantations[0].id;
-            loadTrees();
-        }
+
+        // 默认加载所有树
+        select.value = "all";
+        loadTrees();
     } catch (e) {
         select.innerHTML = '<option value="">Failed to load</option>';
     }
@@ -53,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function loadTrees() {
-        const pid = select.value;
+        let pid = select.value;
         if (!pid) {
             tableContainer.innerHTML = '<div class="empty-state">Select a plantation to view trees</div>';
             pagination.style.display = 'none';
@@ -61,8 +65,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const apiPid = (pid === "all") ? 0 : pid;
+
         try {
-            const res = await fetch(`/api/v1/trees?plantation_id=${pid}&page=${currentPage}&limit=${limit}`);
+            const res = await fetch(`/api/v1/trees?plantation_id=${apiPid}&page=${currentPage}&limit=${limit}`);
             const data = await res.json();
             const trees = data.trees || [];
             totalTrees = data.total || 0;
