@@ -1138,8 +1138,8 @@ impl DbManager {
 
     pub(crate) fn count_trees_by_plantation_ext(&mut self, pid: i32, mid: i32) -> Result<i64, String> {
         let sql = if mid > 0 {
-            "SELECT COUNT(t.*) FROM trees t \
-             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+            "SELECT COUNT(t.id) FROM trees t \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
              WHERE t.plantation_id = $1 AND o.mission_id = $2"
         } else {
             "SELECT COUNT(*) FROM trees WHERE plantation_id = $1"
@@ -1198,8 +1198,8 @@ impl DbManager {
 
     pub(crate) fn count_all_trees_ext(&mut self, mid: i32) -> Result<i64, String> {
         let sql = if mid > 0 {
-            "SELECT COUNT(t.*) FROM trees t \
-             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+            "SELECT COUNT(t.id) FROM trees t \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
              WHERE o.mission_id = $1"
         } else {
             "SELECT COUNT(*) FROM trees"
