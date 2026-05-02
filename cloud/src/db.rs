@@ -923,6 +923,14 @@ impl DbManager {
         Ok(row.get(0))
     }
 
+    pub(crate) fn get_plantation_by_name(&mut self, name: &str) -> Result<Option<i32>, String> {
+        let row = self.client.query_opt(
+            "SELECT id FROM plantations WHERE name = $1 LIMIT 1",
+            &[&name],
+        ).map_err(|e| format!("get_plantation_by_name error: {}", e))?;
+        Ok(row.map(|r| r.get(0)))
+    }
+
     pub(crate) fn insert_uav_mission(&mut self, plantation_id: i32, mission_name: &str) -> Result<i32, String> {
         let row = self.client.query_one(
             "INSERT INTO uav_missions (plantation_id, mission_name) VALUES ($1, $2) RETURNING id",

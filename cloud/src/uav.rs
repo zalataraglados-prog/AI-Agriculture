@@ -44,12 +44,16 @@ pub(crate) fn handle_missions_post(mut request: Request, db: Arc<Mutex<DbManager
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
         .and_then(|mut g| {
-            if plantation_id == 0 {
-                let pid = g.insert_plantation("test_plantation", "oil_palm")?;
-                g.insert_uav_mission(pid, mission_name)
+            let pid = if plantation_id == 0 {
+                if let Some(existing_id) = g.get_plantation_by_name("Default Plantation")? {
+                    existing_id
+                } else {
+                    g.insert_plantation("Default Plantation", "oil_palm")?
+                }
             } else {
-                g.insert_uav_mission(plantation_id, mission_name)
-            }
+                plantation_id
+            };
+            g.insert_uav_mission(pid, mission_name)
         });
 
     match result {

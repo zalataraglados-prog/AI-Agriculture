@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         plantations.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
-            opt.textContent = `${p.name} (${p.crop_type})`;
+            opt.textContent = `${p.name} (#${p.id}) - ${p.crop_type}`;
             select.appendChild(opt);
         });
         // Auto-select first if only one
