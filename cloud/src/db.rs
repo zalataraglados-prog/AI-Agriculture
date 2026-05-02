@@ -931,10 +931,10 @@ impl DbManager {
         Ok(row.get(0))
     }
 
-    pub(crate) fn insert_uav_orthomosaic(&mut self, mission_id: i32, width: i32, height: i32, resolution: f64) -> Result<i32, String> {
+    pub(crate) fn insert_uav_orthomosaic(&mut self, mission_id: i32, width: i32, height: i32, resolution: f64, image_url: &str) -> Result<i32, String> {
         let row = self.client.query_one(
-            "INSERT INTO uav_orthomosaics (mission_id, width, height, resolution) VALUES ($1, $2, $3, $4) RETURNING id",
-            &[&mission_id, &width, &height, &resolution],
+            "INSERT INTO uav_orthomosaics (mission_id, width, height, resolution, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            &[&mission_id, &width, &height, &resolution, &image_url],
         ).map_err(|e| format!("insert_uav_orthomosaic error: {}", e))?;
         Ok(row.get(0))
     }

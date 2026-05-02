@@ -68,10 +68,11 @@ pub(crate) fn handle_orthomosaic_post(mut request: Request, mission_id: &str, db
     let width = parsed["width"].as_i64().unwrap_or(1000) as i32;
     let height = parsed["height"].as_i64().unwrap_or(1000) as i32;
     let resolution = parsed["resolution"].as_f64().unwrap_or(0.05);
+    let image_url = parsed["image_url"].as_str().unwrap_or("");
 
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
-        .and_then(|mut g| g.insert_uav_orthomosaic(mid, width, height, resolution));
+        .and_then(|mut g| g.insert_uav_orthomosaic(mid, width, height, resolution, image_url));
 
     match result {
         Ok(id) => respond_json(request, 200, &format!(r#"{{"status":"ok","orthomosaic_id":{id}}}"#)),
