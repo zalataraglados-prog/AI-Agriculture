@@ -54,11 +54,11 @@ pub(crate) fn handle_missions_post(mut request: Request, db: Arc<Mutex<DbManager
             } else {
                 plantation_id
             };
-            g.insert_uav_mission(pid, mission_name)
+            g.insert_uav_mission(pid, mission_name).map(|mid| (mid, pid))
         });
 
     match result {
-        Ok(id) => respond_json(request, 200, &format!(r#"{{"status":"ok","mission_id":{id}}}"#)),
+        Ok((mid, pid)) => respond_json(request, 200, &format!(r#"{{"status":"ok","mission_id":{},"plantation_id":{}}}"#, mid, pid)),
         Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
     }
 }

@@ -66,7 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             missionId = data.mission_id;
-            missionStatus.textContent = `Mission created: ${missionName} (ID ${missionId})`;
+            const pid = data.plantation_id;
+            missionStatus.textContent = `Mission created: ${missionName} (ID ${missionId}) under Plantation ID ${pid}`;
             btnRegisterOrtho.disabled = false;
             orthoStatus.textContent = "Status: Ready to register";
         } catch (e) {
