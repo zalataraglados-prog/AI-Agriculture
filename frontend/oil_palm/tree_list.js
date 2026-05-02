@@ -128,7 +128,10 @@
                 els.mOptions.innerHTML = '';
                 els.mOptions.appendChild(createOpt(0, '-- All Missions --', 'mission'));
                 list.forEach(m => {
-                    els.mOptions.appendChild(createOpt(m.id, m.mission_name, 'mission'));
+                    // 格式化日期：2026-05-02T18:00:00 -> 05-02
+                    const dateStr = m.created_at ? m.created_at.substring(5, 10) : 'N/A';
+                    const label = `${m.mission_name} (#${m.id}, ${dateStr})`;
+                    els.mOptions.appendChild(createOpt(m.id, label, 'mission'));
                 });
             } catch (e) { console.error('M-load error', e); }
         }
