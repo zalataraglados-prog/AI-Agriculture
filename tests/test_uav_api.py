@@ -234,3 +234,98 @@ def test_detect_palms_with_tiles():
         assert res.json()["tree_code"].startswith("OP-")
 
     return [d for d in detections]
+
+
+def test_tree_matching_basic_flow():
+    """E2E: mission1 creates trees, mission2 detects and auto-matches to existing trees."""
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions",
+                        json={"plantation_id": 0, "mission_name": "match_mission_1"})
+    mid1 = res.json()["mission_id"]
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mid1}/orthomosaic",
+                        json={"width": 1000, "height": 1000, "resolution": 0.05})
+    oid1 = res.json()["orthomosaic_id"]
+    requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid1}/detections/mock")
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid1}/detections")
+    dets1 = res.json()["detections"]
+
+    confirmed_codes = []
+    for d in dets1:
+        res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{d['id']}/confirm")
+        code = res.json()["tree_code"]
+        confirmed_codes.append(code)
+
+    for code in confirmed_codes:
+        res = requests.get(f"{BASE_URL}/api/v1/trees/{code}")
+        assert res.status_code == 200
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions",
+                        json={"plantation_id": 0, "mission_name": "match_mission_2"})
+    mid2 = res.json()["mission_id"]
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mid2}/orthomosaic",
+                        json={"width": 1000, "height": 1000, "resolution": 0.05})
+    oid2 = res.json()["orthomosaic_id"]
+    requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid2}/detections/mock")
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mid2}/match-existing-trees")
+    assert res.status_code == 200
+    result = res.json()
+    assert result["status"] == "ok"
+    assert "auto_matched" in result
+
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid2}/detections")
+    dets2 = res.json()["detections"]
+    matched = sum(1 for d in dets2 if d["review_status"] == "confirmed")
+    assert matched >= result["auto_matched"]
+
+    for code in confirmed_codes:
+        res = requests.get(f"{BASE_URL}/api/v1/trees/{code}/timeline")
+        assert res.status_code == 200
+
+
+def test_match_review_and_manual_match():
+    """Test match-review listing and manual match-to-tree."""
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions",
+                        json={"plantation_id": 0, "mission_name": "review_mission_1"})
+    mid1 = res.json()["mission_id"]
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mid1}/orthomosaic",
+                        json={"width": 1000, "height": 1000, "resolution": 0.05})
+    oid1 = res.json()["orthomosaic_id"]
+    requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid1}/detections/mock")
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid1}/detections")
+    det1 = res.json()["detections"][0]
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det1['id']}/confirm")
+    tree_code = res.json()["tree_code"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions",
+                        json={"plantation_id": 0, "mission_name": "review_mission_2"})
+    mid2 = res.json()["mission_id"]
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mid2}/orthomosaic",
+                        json={"width": 1000, "height": 1000, "resolution": 0.05})
+    oid2 = res.json()["orthomosaic_id"]
+    requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid2}/detections/mock")
+
+    res = requests.get(f"{BASE_URL}/api/v1/uav/missions/{mid2}/match-review")
+    assert res.status_code == 200
+    assert res.json()["status"] == "ok"
+
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid2}/detections")
+    det2_id = res.json()["detections"][0]["id"]
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code}")
+    tree_id = res.json()["tree"]["id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det2_id}/match-to-tree",
+                        json={"tree_id": tree_id})
+    assert res.status_code == 200
+    assert res.json()["status"] == "ok"
+
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{oid2}/detections")
+    matched_det = [d for d in res.json()["detections"] if d["id"] == det2_id][0]
+    assert matched_det["review_status"] == "confirmed"
+
+
+def test_match_nonexistent_handling():
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/999999/match-to-tree", json={"tree_id": 1})
+    assert res.status_code == 500
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/999999/match-existing-trees")
+    assert res.status_code == 500
