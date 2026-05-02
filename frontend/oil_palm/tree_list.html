@@ -200,7 +200,7 @@
             <section class="panel">
                 <div class="toolbar">
                     <div class="filter-group">
-                        <label>Plantation</label>
+                        <label>1. Select Plantation</label>
                         <div id="plantation-dropdown" class="custom-select">
                             <span class="selected-text">-- All Plantations --</span>
                             <span class="arrow">▼</span>
@@ -210,10 +210,10 @@
                         </div>
                     </div>
                     
-                    <div class="filter-group" id="mission-filter-group" style="display:none;">
-                        <label>UAV Mission</label>
-                        <div id="mission-dropdown" class="custom-select">
-                            <span class="selected-text">-- All Missions --</span>
+                    <div class="filter-group">
+                        <label>2. Filter by Mission</label>
+                        <div id="mission-dropdown" class="custom-select" style="opacity: 0.5; pointer-events: none;">
+                            <span class="selected-text">Please select a plantation...</span>
                             <span class="arrow">▼</span>
                         </div>
                         <div id="mission-options" class="options-list">
@@ -224,7 +224,7 @@
                     <span class="total-badge" id="total-badge">Total Assets: 0</span>
                 </div>
                 <div id="table-container">
-                    <div class="empty-state">Select a plantation to view trees</div>
+                    <div class="empty-state">Loading registry...</div>
                 </div>
                 <div class="pagination" id="pagination" style="display:none;">
                     <button id="btn-prev" disabled>&laquo; Prev</button>
@@ -234,6 +234,11 @@
             </section>
         </main>
     </div>
-    <script src="tree_list.js"></script>
+    <script>
+        // 动态添加时间戳防止缓存
+        const script = document.createElement('script');
+        script.src = 'tree_list.js?v=' + new Date().getTime();
+        document.body.appendChild(script);
+    </script>
 </body>
 </html>

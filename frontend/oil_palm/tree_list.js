@@ -1,10 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Tree List Script Initialized v' + new Date().getTime());
+
     // Dropdown Elements
     const plantationDropdown = document.getElementById('plantation-dropdown');
     const plantationOptions = document.getElementById('plantation-options');
     const missionDropdown = document.getElementById('mission-dropdown');
     const missionOptions = document.getElementById('mission-options');
-    const missionFilterGroup = document.getElementById('mission-filter-group');
 
     // UI Elements
     const tableContainer = document.getElementById('table-container');
@@ -56,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         div.addEventListener('click', (e) => {
             e.stopPropagation();
+            console.log(`Selected ${type}: ${label} (ID: ${id})`);
             if (type === 'plantation') {
                 handlePlantationSelect(id, label);
             } else {
@@ -75,12 +77,17 @@ document.addEventListener('DOMContentLoaded', () => {
         highlightItem(plantationOptions, id);
         
         // 重置 Mission 下拉框
-        missionDropdown.querySelector('.selected-text').textContent = '-- All Missions --';
-
+        const mText = missionDropdown.querySelector('.selected-text');
+        
         if (id > 0) {
+            mText.textContent = '-- All Missions --';
+            missionDropdown.style.opacity = '1';
+            missionDropdown.style.pointerEvents = 'auto';
             await loadMissions(id);
         } else {
-            missionFilterGroup.style.display = 'none';
+            mText.textContent = 'Please select a plantation...';
+            missionDropdown.style.opacity = '0.5';
+            missionDropdown.style.pointerEvents = 'none';
         }
         loadTrees();
     }
@@ -106,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. 数据加载逻辑
     async function loadPlantations() {
         try {
+            console.log('Fetching plantations...');
             const res = await fetch('/api/v1/plantations');
             const data = await res.json();
             const list = data.plantations || [];
@@ -124,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadMissions(pid) {
         try {
+            console.log(`Fetching missions for plantation ${pid}...`);
             const res = await fetch(`/api/v1/uav/missions?plantation_id=${pid}`);
             const data = await res.json();
             const list = data.missions || [];
@@ -135,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             highlightItem(missionOptions, 0);
-            missionFilterGroup.style.display = 'flex';
+            console.log(`Loaded ${list.length} missions.`);
         } catch (e) {
             console.error('Load missions failed', e);
         }
@@ -145,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tableContainer.innerHTML = '<div class="empty-state">Syncing data...</div>';
         try {
             const url = `/api/v1/trees?plantation_id=${currentPlantationId}&mission_id=${currentMissionId}&page=${currentPage}&limit=${limit}`;
+            console.log('Requesting URL:', url);
             const res = await fetch(url);
             const data = await res.json();
             
