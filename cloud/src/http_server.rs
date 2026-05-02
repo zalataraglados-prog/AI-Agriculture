@@ -2008,7 +2008,7 @@ fn resolve_static_file_path(file_path: &str) -> PathBuf {
     PathBuf::from("dashboard").join(normalized)
 }
 
-fn parse_query(query: &str) -> HashMap<String, String> {
+pub(crate) fn parse_query(query: &str) -> HashMap<String, String> {
     let mut out = HashMap::new();
     for pair in query.split('&') {
         if pair.is_empty() {
