@@ -70,8 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnRegisterOrtho.addEventListener('click', async () => {
+        const orthoUrl = document.getElementById('ortho-url').value;
+        if (!orthoUrl) {
+            alert("Please provide an image URL");
+            return;
+        }
         try {
-            // 注意：这里我们模拟注册你刚才提到的本地测试图
             const res = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -79,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     width: 658,
                     height: 438,
                     resolution: 0.1,
-                    image_url: "/static/ortho_test.png"
+                    image_url: orthoUrl
                 })
             });
             const data = await res.json();
