@@ -425,3 +425,159 @@ pub(crate) fn handle_reject_detection(request: Request, detection_id: &str, db: 
         Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
     }
 }
+
+pub(crate) fn handle_match_existing_trees(request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
+    let mid = mission_id.parse().unwrap_or(0);
+    let match_threshold_meters = env_f64("MATCH_DISTANCE_THRESHOLD", 1.5);
+
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            let detections = g.get_detections_by_mission(mid)?;
+            let pid = g.get_plantation_id_by_mission(mid)?;
+
+            let mut auto_matched = 0u32;
+            let mut ambiguous = 0u32;
+            let mut unmatched = 0u32;
+
+            for det in &detections {
+                let det_id = det["id"].as_i64().unwrap_or(0) as i32;
+                let cx = match det["crown_center_x"].as_f64() {
+                    Some(v) => v,
+                    None => { unmatched += 1; continue; }
+                };
+                let cy = match det["crown_center_y"].as_f64() {
+                    Some(v) => v,
+                    None => { unmatched += 1; continue; }
+                };
+                let bbox = det["bbox_global_json"].clone();
+                let confidence = det["confidence"].as_f64().unwrap_or(0.5);
+
+                let oid = det["orthomosaic_id"].as_i64().map(|x| x as i32);
+                let resolution = match oid {
+                    Some(oid_val) => g.get_orthomosaic_dimensions(oid_val).ok().map(|(_, _, r)| r).unwrap_or(0.05),
+                    None => 0.05,
+                };
+
+                let max_pixel_dist = match_threshold_meters / resolution;
+                let nearby = g.find_nearby_trees(pid, cx, cy, max_pixel_dist, 3)?;
+
+                if nearby.is_empty() {
+                    unmatched += 1;
+                    continue;
+                }
+
+                if nearby.len() == 1 {
+                    let tree_id = nearby[0]["tree_id"].as_i64().unwrap_or(0) as i32;
+                    let dist = nearby[0]["distance_pixels"].as_f64().unwrap_or(0.0);
+                    let shift_meters = dist * resolution;
+                    let crown_bbox = if bbox.is_null() { None } else { Some(bbox) };
+
+                    g.match_detection_to_tree_tx(
+                        det_id, tree_id, mid, cx, cy, shift_meters,
+                        Some(confidence), crown_bbox,
+                    )?;
+                    auto_matched += 1;
+                } else {
+                    ambiguous += 1;
+                }
+            }
+
+            Ok((auto_matched, ambiguous, unmatched))
+        });
+
+    match result {
+        Ok((auto, amb, unm)) => respond_json(request, 200, &format!(
+            r#"{{"status":"ok","auto_matched":{},"ambiguous":{},"unmatched":{}}}"#,
+            auto, amb, unm
+        )),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_match_review(request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
+    let mid = mission_id.parse().unwrap_or(0);
+    let match_threshold_meters = env_f64("MATCH_DISTANCE_THRESHOLD", 1.5);
+
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            let detections = g.get_detections_by_mission(mid)?;
+            let pid = g.get_plantation_id_by_mission(mid)?;
+            let mut review_list: Vec<serde_json::Value> = Vec::new();
+
+            for det in &detections {
+                let det_id = det["id"].as_i64().unwrap_or(0) as i32;
+                let cx = match det["crown_center_x"].as_f64() { Some(v) => v, None => continue };
+                let cy = match det["crown_center_y"].as_f64() { Some(v) => v, None => continue };
+                let confidence = det["confidence"].as_f64().unwrap_or(0.5);
+
+                let oid = det["orthomosaic_id"].as_i64().map(|x| x as i32);
+                let resolution = oid.and_then(|oid_val| {
+                    g.get_orthomosaic_dimensions(oid_val).ok().map(|(_, _, r)| r)
+                }).unwrap_or(0.05);
+
+                let max_pixel_dist = match_threshold_meters / resolution;
+                let nearby = g.find_nearby_trees(pid, cx, cy, max_pixel_dist, 5)?;
+
+                if nearby.len() >= 2 {
+                    review_list.push(serde_json::json!({
+                        "detection_id": det_id,
+                        "crown_center_x": cx,
+                        "crown_center_y": cy,
+                        "confidence": confidence,
+                        "candidates": nearby
+                    }));
+                }
+            }
+
+            Ok(review_list)
+        });
+
+    match result {
+        Ok(list) => {
+            let json_list = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
+            respond_json(request, 200, &format!(r#"{{"status":"ok","reviews":{}}}"#, json_list));
+        }
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_match_to_tree(mut request: Request, detection_id: &str, db: Arc<Mutex<DbManager>>) {
+    let det_id = detection_id.parse().unwrap_or(0);
+
+    let mut body = Vec::new();
+    let _ = request.as_reader().read_to_end(&mut body);
+    let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
+    let tree_id = parsed["tree_id"].as_i64().unwrap_or(0) as i32;
+
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            let det = g.get_detection_by_id(det_id)?.ok_or("detection not found")?;
+            let status = det["review_status"].as_str().unwrap_or("");
+            if status != "pending" {
+                return Err("detection is not in pending state".to_string());
+            }
+            let cx = det["crown_center_x"].as_f64().unwrap_or(0.0);
+            let cy = det["crown_center_y"].as_f64().unwrap_or(0.0);
+            let confidence = det["confidence"].as_f64().unwrap_or(0.5);
+
+            let tree = g.get_tree_by_id(tree_id)?.ok_or("tree not found")?;
+            let tree_cx = tree["crown_center_x"].as_f64().unwrap_or(cx);
+            let tree_cy = tree["crown_center_y"].as_f64().unwrap_or(cy);
+            let dx = cx - tree_cx;
+            let dy = cy - tree_cy;
+            let shift = (dx * dx + dy * dy).sqrt();
+
+            let mid = g.get_detection_mission_id(det_id)?;
+            g.match_detection_to_tree_tx(det_id, tree_id, mid, cx, cy, shift, Some(confidence), None)?;
+
+            Ok(tree["tree_code"].as_str().unwrap_or("?").to_string())
+        });
+
+    match result {
+        Ok(code) => respond_json(request, 200, &format!(r#"{{"status":"ok","tree_code":"{code}"}}"#)),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
