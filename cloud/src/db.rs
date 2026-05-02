@@ -1463,6 +1463,129 @@ impl DbManager {
         })))
     }
 
+    pub(crate) fn get_plantation_id_by_mission(&mut self, mission_id: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "SELECT plantation_id FROM uav_missions WHERE id = $1",
+            &[&mission_id],
+        ).map_err(|e| format!("get_plantation_id_by_mission error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn get_tree_by_id(&mut self, tree_id: i32) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tree_code, crown_center_x, crown_center_y, coordinate_x, coordinate_y, current_status FROM trees WHERE id = $1",
+            &[&tree_id],
+        ).map_err(|e| format!("get_tree_by_id error: {}", e))?;
+        if rows.is_empty() { return Ok(None); }
+        let r = &rows[0];
+        Ok(Some(serde_json::json!({
+            "id": r.get::<_, i32>("id"),
+            "tree_code": r.get::<_, String>("tree_code"),
+            "crown_center_x": r.get::<_, Option<f64>>("crown_center_x"),
+            "crown_center_y": r.get::<_, Option<f64>>("crown_center_y"),
+            "coordinate_x": r.get::<_, Option<f64>>("coordinate_x"),
+            "coordinate_y": r.get::<_, Option<f64>>("coordinate_y"),
+            "current_status": r.get::<_, String>("current_status")
+        })))
+    }
+
+    pub(crate) fn get_detections_by_mission(&mut self, mission_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT d.id, d.orthomosaic_id, d.crown_center_x, d.crown_center_y, d.confidence, d.review_status, d.matched_tree_id, d.bbox_global_json \
+             FROM uav_tree_detections d \
+             JOIN uav_orthomosaics o ON d.orthomosaic_id = o.id \
+             WHERE o.mission_id = $1 \
+               AND d.review_status = 'pending' \
+               AND d.matched_tree_id IS NULL",
+            &[&mission_id],
+        ).map_err(|e| format!("get_detections_by_mission error: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let oid: Option<i32> = r.get("orthomosaic_id");
+            let cx: Option<f64> = r.get("crown_center_x");
+            let cy: Option<f64> = r.get("crown_center_y");
+            let conf: f64 = r.get("confidence");
+            let status: String = r.get("review_status");
+            let matched: Option<i32> = r.get("matched_tree_id");
+            let bbox: Option<serde_json::Value> = r.get("bbox_global_json");
+            out.push(serde_json::json!({
+                "id": id,
+                "orthomosaic_id": oid,
+                "crown_center_x": cx,
+                "crown_center_y": cy,
+                "confidence": conf,
+                "review_status": status,
+                "matched_tree_id": matched,
+                "bbox_global_json": bbox
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn get_detection_mission_id(&mut self, det_id: i32) -> Result<i32, String> {
+        let row = self.client.query_one(
+            "SELECT o.mission_id FROM uav_tree_detections d JOIN uav_orthomosaics o ON d.orthomosaic_id = o.id WHERE d.id = $1",
+            &[&det_id],
+        ).map_err(|e| format!("get_detection_mission_id error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn find_nearby_trees(&mut self, plantation_id: i32, cx: f64, cy: f64, max_distance_pixels: f64, limit: i64) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tree_code, crown_center_x, crown_center_y, coordinate_x, coordinate_y, \
+                    SQRT(POWER(COALESCE(crown_center_x, coordinate_x) - $2, 2) + POWER(COALESCE(crown_center_y, coordinate_y) - $3, 2)) AS distance \
+             FROM trees \
+             WHERE plantation_id = $1 \
+               AND (crown_center_x IS NOT NULL OR coordinate_x IS NOT NULL) \
+               AND SQRT(POWER(COALESCE(crown_center_x, coordinate_x) - $2, 2) + POWER(COALESCE(crown_center_y, coordinate_y) - $3, 2)) < $4 \
+             ORDER BY distance \
+             LIMIT $5",
+            &[&plantation_id, &cx, &cy, &max_distance_pixels, &limit],
+        ).map_err(|e| format!("find_nearby_trees error: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get("id");
+            let code: String = r.get("tree_code");
+            let tcx: Option<f64> = r.get("crown_center_x");
+            let tcy: Option<f64> = r.get("crown_center_y");
+            let tx: Option<f64> = r.get("coordinate_x");
+            let ty: Option<f64> = r.get("coordinate_y");
+            let dist: f64 = r.get("distance");
+            out.push(serde_json::json!({
+                "tree_id": id,
+                "tree_code": code,
+                "crown_center_x": tcx.or(tx),
+                "crown_center_y": tcy.or(ty),
+                "distance_pixels": dist
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn match_detection_to_tree_tx(&mut self, det_id: i32, tree_id: i32, mission_id: i32, detected_x: f64, detected_y: f64, center_shift: f64, match_confidence: Option<f64>, crown_bbox: Option<serde_json::Value>) -> Result<(), String> {
+        let mut tx = self.client.transaction().map_err(|e| format!("match transaction error: {}", e))?;
+        let affected = tx.execute(
+            "UPDATE uav_tree_detections SET review_status = 'confirmed', matched_tree_id = $1 WHERE id = $2 AND review_status = 'pending' AND matched_tree_id IS NULL",
+            &[&tree_id, &det_id],
+        ).map_err(|e| format!("match update detection error: {}", e))?;
+        if affected == 0 {
+            let _ = tx.rollback();
+            return Err("detection already processed or not found".to_string());
+        }
+        let bbox = crown_bbox.unwrap_or(serde_json::Value::Null);
+        tx.execute(
+            "INSERT INTO tree_coordinate_history (tree_id, mission_id, detected_x, detected_y, center_shift, match_confidence, crown_bbox_json) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            &[&tree_id, &mission_id, &detected_x, &detected_y, &center_shift, &match_confidence, &bbox],
+        ).map_err(|e| format!("match insert history error: {}", e))?;
+        tx.execute(
+            "UPDATE trees SET crown_center_x = COALESCE(crown_center_x, $2), crown_center_y = COALESCE(crown_center_y, $3), coordinate_x = $2, coordinate_y = $3, updated_at = NOW() WHERE id = $1",
+            &[&tree_id, &detected_x, &detected_y],
+        ).map_err(|e| format!("match update tree error: {}", e))?;
+        tx.commit().map_err(|e| format!("match commit error: {}", e))?;
+        Ok(())
+    }
+
     pub(crate) fn next_tree_code_seq(&mut self) -> Result<i64, String> {
         let row = self.client.query_one(
             "SELECT nextval('tree_code_seq')",
