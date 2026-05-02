@@ -82,7 +82,7 @@
         return canvas.toDataURL('image/png');
     }
 
-    function initMap(w, h) {
+    function initMap(w, h, realImgUrl) {
         orthoWidth = w;
         orthoHeight = h;
 
@@ -99,7 +99,8 @@
             attributionControl: false
         });
 
-        var imgUrl = generatePlaceholderImage(w, h);
+        // 优先使用真实图片，如果没有则使用占位图
+        var imgUrl = realImgUrl || generatePlaceholderImage(w, h);
         var bounds = [[0, 0], [h, w]];
         imageOverlay = L.imageOverlay(imgUrl, bounds).addTo(map);
         map.fitBounds(bounds);
@@ -135,7 +136,7 @@
             document.getElementById('info-size').textContent = o.width + ' x ' + o.height;
             document.getElementById('info-resolution').textContent = (o.resolution * 100).toFixed(1) + ' cm/px';
 
-            initMap(o.width, o.height);
+            initMap(o.width, o.height, o.image_url);
             document.getElementById('btn-detect-palms').disabled = false;
             loadDetections();
         }).catch(function (err) {
