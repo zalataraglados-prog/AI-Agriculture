@@ -655,6 +655,8 @@ fn handle_api(
         (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") => {
             if method == Method::Post && p == "/api/v1/uav/missions" {
                 crate::uav::handle_missions_post(request, db);
+            } else if method == Method::Get && p == "/api/v1/uav/missions" {
+                crate::uav::handle_missions_get(request, query, db);
             } else if method == Method::Post && p.ends_with("/orthomosaic") {
                 let mission_id = extract_path_segment(p, "/missions/").unwrap_or_default();
                 crate::uav::handle_orthomosaic_post(request, &mission_id, db);

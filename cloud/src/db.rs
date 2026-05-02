@@ -939,6 +939,28 @@ impl DbManager {
         Ok(row.get(0))
     }
 
+    pub(crate) fn query_uav_missions_by_plantation(&mut self, pid: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, mission_name, plantation_id, created_at FROM uav_missions WHERE plantation_id = $1 ORDER BY created_at DESC",
+            &[&pid]
+        ).map_err(|e| e.to_string())?;
+
+        let mut list = Vec::new();
+        for row in rows {
+            let id: i32 = row.get(0);
+            let name: &str = row.get(1);
+            let pid: i32 = row.get(2);
+            let ts: DateTime<Utc> = row.get(3);
+            list.push(serde_json::json!({
+                "id": id,
+                "mission_name": name,
+                "plantation_id": pid,
+                "created_at": ts.to_rfc3339(),
+            }));
+        }
+        Ok(list)
+    }
+
     pub(crate) fn insert_uav_orthomosaic(&mut self, mission_id: i32, width: i32, height: i32, resolution: f64, image_url: &str) -> Result<i32, String> {
         let row = self.client.query_one(
             "INSERT INTO uav_orthomosaics (mission_id, width, height, resolution, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING id",

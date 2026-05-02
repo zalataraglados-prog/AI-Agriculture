@@ -63,6 +63,22 @@ pub(crate) fn handle_missions_post(mut request: Request, db: Arc<Mutex<DbManager
     }
 }
 
+pub(crate) fn handle_missions_get(request: Request, query: &str, db: Arc<Mutex<DbManager>>) {
+    let params = crate::http_server::parse_query(query);
+    let pid: i32 = params.get("plantation_id")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+        
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.query_uav_missions_by_plantation(pid));
+        
+    match result {
+        Ok(missions) => respond_json(request, 200, &format!(r#"{{"status":"ok","missions":{}}}"#, serde_json::to_string(&missions).unwrap())),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
 pub(crate) fn handle_orthomosaic_post(mut request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
     let mid = mission_id.parse().unwrap_or(0);
 
