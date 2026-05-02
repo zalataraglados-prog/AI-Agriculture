@@ -83,6 +83,33 @@
         .btn-status:hover { background: rgba(255,255,255,0.1); }
         .btn-status.danger { border-color: rgba(239,68,68,0.3); color: #ef4444; }
         .btn-status.danger:hover { background: rgba(239,68,68,0.1); }
+        .session-controls {
+            display: grid;
+            grid-template-columns: 160px 1fr auto;
+            gap: 0.75rem;
+            align-items: end;
+            margin-top: 1rem;
+        }
+        .session-controls select,
+        .session-controls input {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            color: #e5e7eb;
+            padding: 0.7rem;
+        }
+        .session-result {
+            margin-top: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 0.8rem;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+        }
+        @media (max-width: 760px) {
+            .session-controls { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -111,6 +138,24 @@
                 <section class="panel" style="margin-top:1.5rem;">
                     <h2>Timeline / Coordinate History</h2>
                     <div id="timeline-content"></div>
+                </section>
+                <section class="panel">
+                    <h2>Observation Session</h2>
+                    <div id="barcode-box" class="status-box">Barcode: loading...</div>
+                    <div class="action-bar">
+                        <button id="btn-start-session" class="btn">Start Collection</button>
+                    </div>
+                    <div id="session-status" class="status-box">No active collection session</div>
+                    <div class="session-controls">
+                        <select id="image-role">
+                            <option value="fruit">Fruit bunch</option>
+                            <option value="trunk_base">Trunk base</option>
+                            <option value="crown">Crown</option>
+                        </select>
+                        <input id="session-image" type="file" accept="image/jpeg,image/png">
+                        <button id="btn-upload-session-image" class="btn" disabled>Upload</button>
+                    </div>
+                    <div id="session-result" class="session-result">Session images and mock analysis will appear here.</div>
                 </section>
                 <section class="panel">
                     <h2>Actions</h2>

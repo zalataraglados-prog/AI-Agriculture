@@ -1,11 +1,28 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
+    let code = params.get('code');
+    const barcode = params.get('barcode');
     const loading = document.getElementById('loading');
     const content = document.getElementById('profile-content');
+    let currentTree = null;
+    let currentSessionId = null;
+
+    if (!code && barcode) {
+        loading.textContent = 'Looking up barcode...';
+        try {
+            const res = await fetch(`/api/v1/trees/by-barcode/${encodeURIComponent(barcode)}`);
+            const data = await res.json();
+            if (data.status === 'ok' && data.tree?.tree_code) {
+                code = data.tree.tree_code;
+            }
+        } catch (e) {
+            loading.textContent = 'Barcode lookup failed: ' + e.message;
+            return;
+        }
+    }
 
     if (!code) {
-        loading.textContent = 'Error: No tree code provided. Use ?code=OP-XXXXXX';
+        loading.textContent = 'Error: No tree code or barcode provided. Use ?code=OP-XXXXXX or ?barcode=OP-XXXXXX';
         return;
     }
 
@@ -19,10 +36,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         const data = await res.json();
         const tree = data.tree;
+        currentTree = tree;
 
         renderBasicInfo(tree);
         renderLocationInfo(tree);
         renderActions(tree, code);
+        bindSessionActions(() => currentTree, () => currentSessionId, (id) => { currentSessionId = id; });
+        loadBarcode(code);
 
         loading.style.display = 'none';
         content.style.display = 'block';
@@ -40,6 +60,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             '<div class="timeline-empty">Failed to load timeline</div>';
     }
 });
+
+async function loadBarcode(code) {
+    const el = document.getElementById('barcode-box');
+    try {
+        const res = await fetch(`/api/v1/trees/${code}/barcode`);
+        const data = await res.json();
+        if (data.status === 'ok') {
+            el.textContent = `Barcode: ${data.barcode_value}`;
+        } else {
+            el.textContent = 'Barcode: unavailable';
+        }
+    } catch (e) {
+        el.textContent = 'Barcode: failed to load';
+    }
+}
 
 function renderBasicInfo(tree) {
     const statusClass = `badge-${tree.current_status}`;
@@ -111,6 +146,65 @@ function renderActions(tree, code) {
             }
         });
         bar.appendChild(btn);
+    });
+}
+
+function bindSessionActions(getTree, getSessionId, setSessionId) {
+    const startBtn = document.getElementById('btn-start-session');
+    const uploadBtn = document.getElementById('btn-upload-session-image');
+    const fileInput = document.getElementById('session-image');
+    const roleInput = document.getElementById('image-role');
+    const status = document.getElementById('session-status');
+    const result = document.getElementById('session-result');
+
+    fileInput.addEventListener('change', () => {
+        uploadBtn.disabled = !getSessionId() || !fileInput.files.length;
+    });
+
+    startBtn.addEventListener('click', async () => {
+        const tree = getTree();
+        if (!tree || !tree.id) return;
+        status.textContent = 'Creating observation session...';
+        try {
+            const res = await fetch(`/api/v1/trees/${tree.id}/sessions`, { method: 'POST' });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                setSessionId(data.session.id);
+                status.textContent = `Active session: ${data.session.session_code}`;
+                uploadBtn.disabled = !fileInput.files.length;
+            } else {
+                status.textContent = 'Session failed: ' + (data.message || 'unknown error');
+            }
+        } catch (e) {
+            status.textContent = 'Session error: ' + e.message;
+        }
+    });
+
+    uploadBtn.addEventListener('click', async () => {
+        const sessionId = getSessionId();
+        const file = fileInput.files[0];
+        if (!sessionId || !file) return;
+        const form = new FormData();
+        form.append('image_role', roleInput.value);
+        form.append('file', file);
+        status.textContent = 'Uploading session image...';
+        try {
+            const res = await fetch(`/api/v1/sessions/${sessionId}/images`, {
+                method: 'POST',
+                body: form
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                status.textContent = `Uploaded ${data.image.image_role} image`;
+                result.textContent = JSON.stringify(data.analysis, null, 2);
+                fileInput.value = '';
+                uploadBtn.disabled = true;
+            } else {
+                status.textContent = 'Upload failed: ' + (data.message || 'unknown error');
+            }
+        } catch (e) {
+            status.textContent = 'Upload error: ' + e.message;
+        }
     });
 }
 
