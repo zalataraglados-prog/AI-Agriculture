@@ -1136,32 +1136,43 @@ impl DbManager {
         Ok(out)
     }
 
-    pub(crate) fn count_trees_by_plantation(&mut self, pid: i32) -> Result<i64, String> {
-        let row = self.client.query_one(
-            "SELECT COUNT(*) FROM trees WHERE plantation_id = $1",
-            &[&pid],
-        ).map_err(|e| format!("count_trees_by_plantation error: {}", e))?;
+    pub(crate) fn count_trees_by_plantation_ext(&mut self, pid: i32, mid: i32) -> Result<i64, String> {
+        let sql = if mid > 0 {
+            "SELECT COUNT(t.*) FROM trees t \
+             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             WHERE t.plantation_id = $1 AND o.mission_id = $2"
+        } else {
+            "SELECT COUNT(*) FROM trees WHERE plantation_id = $1"
+        };
+        let row = if mid > 0 {
+            self.client.query_one(sql, &[&pid, &mid])
+        } else {
+            self.client.query_one(sql, &[&pid])
+        }.map_err(|e| format!("count_trees error: {}", e))?;
         Ok(row.get(0))
     }
 
-    pub(crate) fn count_all_trees(&mut self) -> Result<i64, String> {
-        let row = self.client.query_one(
-            "SELECT COUNT(*) FROM trees",
-            &[],
-        ).map_err(|e| format!("count_all_trees error: {}", e))?;
-        Ok(row.get(0))
-    }
-
-    pub(crate) fn list_all_trees(&mut self, limit: i64, offset: i64) -> Result<Vec<serde_json::Value>, String> {
-        let rows = self.client.query(
+    pub(crate) fn list_trees_by_plantation_ext(&mut self, pid: i32, mid: i32, limit: i64, offset: i64) -> Result<Vec<serde_json::Value>, String> {
+        let sql = if mid > 0 {
+            "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
+                    t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
+             FROM trees t \
+             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             JOIN uav_missions m ON o.mission_id = m.id \
+             WHERE t.plantation_id = $1 AND o.mission_id = $2 ORDER BY t.tree_code LIMIT $3 OFFSET $4"
+        } else {
             "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
                     t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
              FROM trees t \
              LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
              LEFT JOIN uav_missions m ON o.mission_id = m.id \
-             ORDER BY t.tree_code LIMIT $1 OFFSET $2",
-            &[&limit, &offset],
-        ).map_err(|e| format!("list_all_trees error: {}", e))?;
+             WHERE t.plantation_id = $1 ORDER BY t.tree_code LIMIT $2 OFFSET $3"
+        };
+        let rows = if mid > 0 {
+            self.client.query(sql, &[&pid, &mid, &limit, &offset])
+        } else {
+            self.client.query(sql, &[&pid, &limit, &offset])
+        }.map_err(|e| format!("list_trees error: {}", e))?;
 
         let mut out = Vec::new();
         for r in rows {
@@ -1176,15 +1187,69 @@ impl DbManager {
             let created_at: chrono::DateTime<chrono::Utc> = r.get(8);
             let mission_name: Option<String> = r.get(9);
             out.push(serde_json::json!({
-                "id": id,
-                "tree_code": code,
-                "species": species,
-                "current_status": status,
-                "coordinate_x": cx,
-                "coordinate_y": cy,
-                "barcode_value": barcode,
-                "manual_verified": verified,
-                "created_at": created_at.to_rfc3339(),
+                "id": id, "tree_code": code, "species": species, "current_status": status,
+                "coordinate_x": cx, "coordinate_y": cy, "barcode_value": barcode,
+                "manual_verified": verified, "created_at": created_at.to_rfc3339(),
+                "mission_name": mission_name
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn count_all_trees_ext(&mut self, mid: i32) -> Result<i64, String> {
+        let sql = if mid > 0 {
+            "SELECT COUNT(t.*) FROM trees t \
+             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             WHERE o.mission_id = $1"
+        } else {
+            "SELECT COUNT(*) FROM trees"
+        };
+        let row = if mid > 0 {
+            self.client.query_one(sql, &[&mid])
+        } else {
+            self.client.query_one(sql, &[])
+        }.map_err(|e| format!("count_all_trees error: {}", e))?;
+        Ok(row.get(0))
+    }
+
+    pub(crate) fn list_all_trees_ext(&mut self, mid: i32, limit: i64, offset: i64) -> Result<Vec<serde_json::Value>, String> {
+        let sql = if mid > 0 {
+            "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
+                    t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
+             FROM trees t \
+             JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             JOIN uav_missions m ON o.mission_id = m.id \
+             WHERE o.mission_id = $1 ORDER BY t.tree_code LIMIT $2 OFFSET $3"
+        } else {
+            "SELECT t.id, t.tree_code, t.species, t.current_status, t.coordinate_x, t.coordinate_y, \
+                    t.barcode_value, t.manual_verified, t.created_at, m.mission_name \
+             FROM trees t \
+             LEFT JOIN uav_orthomosaics o ON t.source_orthomosaic_id = o.id \
+             LEFT JOIN uav_missions m ON o.mission_id = m.id \
+             ORDER BY t.tree_code LIMIT $1 OFFSET $2"
+        };
+        let rows = if mid > 0 {
+            self.client.query(sql, &[&mid, &limit, &offset])
+        } else {
+            self.client.query(sql, &[&limit, &offset])
+        }.map_err(|e| format!("list_all_trees error: {}", e))?;
+
+        let mut out = Vec::new();
+        for r in rows {
+            let id: i32 = r.get(0);
+            let code: String = r.get(1);
+            let species: String = r.get(2);
+            let status: String = r.get(3);
+            let cx: Option<f64> = r.get(4);
+            let cy: Option<f64> = r.get(5);
+            let barcode: Option<String> = r.get(6);
+            let verified: bool = r.get(7);
+            let created_at: chrono::DateTime<chrono::Utc> = r.get(8);
+            let mission_name: Option<String> = r.get(9);
+            out.push(serde_json::json!({
+                "id": id, "tree_code": code, "species": species, "current_status": status,
+                "coordinate_x": cx, "coordinate_y": cy, "barcode_value": barcode,
+                "manual_verified": verified, "created_at": created_at.to_rfc3339(),
                 "mission_name": mission_name
             }));
         }
