@@ -51,17 +51,22 @@ document.addEventListener('DOMContentLoaded', () => {
     init();
 
     btnCreateMission.addEventListener('click', async () => {
-        const name = prompt("Enter Mission Name:", "Flight_" + Date.now());
-        if (!name) return;
+        const plantationName = document.getElementById('plantation-name').value || "Default Plantation";
+        const missionName = document.getElementById('mission-name').value || "Unnamed Mission";
+        
         try {
             const res = await fetch('/api/v1/uav/missions', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plantation_id: 1, mission_name: name })
+                body: JSON.stringify({ 
+                    plantation_id: 0, 
+                    plantation_name: plantationName,
+                    mission_name: missionName 
+                })
             });
             const data = await res.json();
             missionId = data.mission_id;
-            missionStatus.textContent = `Mission created: ID ${missionId}`;
+            missionStatus.textContent = `Mission created: ${missionName} (ID ${missionId})`;
             btnRegisterOrtho.disabled = false;
             orthoStatus.textContent = "Status: Ready to register";
         } catch (e) {
@@ -99,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnMockDetections.addEventListener('click', async () => {
         try {
-            // 先切瓦片 (新功能体验)
+            // 先切瓦片
             const tileRes = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
