@@ -1491,12 +1491,22 @@ impl DbManager {
 
     pub(crate) fn get_tree_by_barcode_value(&mut self, barcode_value: &str) -> Result<Option<serde_json::Value>, String> {
         let rows = self.client.query(
-            "SELECT tree_code FROM trees WHERE barcode_value = $1 OR tree_code = $1 LIMIT 1",
+            "SELECT tree_code FROM trees WHERE barcode_value = $1 LIMIT 1",
             &[&barcode_value],
         ).map_err(|e| format!("get_tree_by_barcode_value error: {}", e))?;
+        if !rows.is_empty() {
+            let tree_code: String = rows[0].get(0);
+            return self.get_tree_by_code(&tree_code);
+        }
+
+        let rows = self.client.query(
+            "SELECT tree_code FROM trees WHERE tree_code = $1 LIMIT 1",
+            &[&barcode_value],
+        ).map_err(|e| format!("get_tree_by_barcode_value fallback error: {}", e))?;
         if rows.is_empty() {
             return Ok(None);
         }
+
         let tree_code: String = rows[0].get(0);
         self.get_tree_by_code(&tree_code)
     }
