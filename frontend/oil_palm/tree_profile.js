@@ -41,7 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderBasicInfo(tree);
         renderLocationInfo(tree);
         renderActions(tree, code);
-        bindSessionActions(() => currentTree, () => currentSessionId, (id) => { currentSessionId = id; });
+        bindSessionActions(() => currentTree, () => currentSessionId, (id) => { 
+            currentSessionId = id; 
+            loadSessionImages(id);
+        });
         loadBarcode(code);
 
         loading.style.display = 'none';
@@ -183,22 +186,25 @@ function bindSessionActions(getTree, getSessionId, setSessionId) {
     uploadBtn.addEventListener('click', async () => {
         const sessionId = getSessionId();
         const file = fileInput.files[0];
+        const role = roleInput.value;
         if (!sessionId || !file) return;
         const form = new FormData();
-        form.append('image_role', roleInput.value);
+        form.append('image_role', role);
         form.append('file', file);
         status.textContent = 'Uploading session image...';
         try {
-            const res = await fetch(`/api/v1/sessions/${sessionId}/images`, {
+            // 我们同时在 URL 中带上 image_role 作为后端解析器的兜底
+            const res = await fetch(`/api/v1/sessions/${sessionId}/images?image_role=${role}`, {
                 method: 'POST',
                 body: form
             });
             const data = await res.json();
             if (data.status === 'ok') {
                 status.textContent = `Uploaded ${data.image.image_role} image`;
-                result.textContent = JSON.stringify(data.analysis, null, 2);
                 fileInput.value = '';
                 uploadBtn.disabled = true;
+                // 刷新图片列表
+                loadSessionImages(sessionId);
             } else {
                 status.textContent = 'Upload failed: ' + (data.message || 'unknown error');
             }
@@ -206,6 +212,34 @@ function bindSessionActions(getTree, getSessionId, setSessionId) {
             status.textContent = 'Upload error: ' + e.message;
         }
     });
+}
+
+async function loadSessionImages(sessionId) {
+    const el = document.getElementById('session-result');
+    if (!sessionId) return;
+    try {
+        const res = await fetch(`/api/v1/sessions/${sessionId}/images`);
+        const data = await res.json();
+        if (data.status === 'ok' && data.images.length > 0) {
+            el.innerHTML = `
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;">
+                    ${data.images.map(img => `
+                        <div class="info-card" style="padding:8px; border:1px solid rgba(255,255,255,0.1);">
+                            <img src="${img.image_url}" style="width:100%; border-radius:4px; aspect-ratio:1; object-fit:cover;">
+                            <div style="font-size:0.75rem; margin-top:5px; color:#60a5fa; font-weight:700; text-transform:uppercase;">${img.image_role}</div>
+                            <div style="font-size:0.7rem; color:rgba(255,255,255,0.5);">${formatDate(img.created_at)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+                    <h4 style="font-size:0.8rem; margin-bottom:5px; color:rgba(255,255,255,0.6);">Latest Analysis Detail</h4>
+                    <pre style="font-size:0.75rem; color:#94a3b8; overflow-x:auto;">${JSON.stringify(data.images[data.images.length-1].mock_analysis, null, 2)}</pre>
+                </div>
+            `;
+        }
+    } catch (e) {
+        console.error('Failed to load session images', e);
+    }
 }
 
 function formatDate(iso) {
