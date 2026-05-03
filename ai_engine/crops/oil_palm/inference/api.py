@@ -3,14 +3,16 @@
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from ai_engine.common.adapters.image_adapter import validate_image_bytes
 from ai_engine.common.schemas.prediction import PredictionResponse
+from ai_engine.crops.oil_palm.pipeline import build_default_oil_palm_pipeline
 from ai_engine.crops.oil_palm.inference.predictor import analyze_oil_palm_image
 
 router = APIRouter()
+_pipeline = build_default_oil_palm_pipeline()
 
 
 class CapabilityItem(BaseModel):
@@ -61,9 +63,49 @@ def oil_palm_route() -> dict:
                 output_fields=["metadata.yield_risk_score"],
                 metric="yield_risk_score",
             ),
+            CapabilityItem(
+                capability="image_role_routing",
+                v1_scope="mock routing for fruit/trunk_base/crown/uav_tile",
+                input_contract="multipart image file + image_role + optional tree_code/session_id",
+                output_fields=["status", "results[]", "geometry[]", "metadata", "model_version"],
+                metric="role-specific mock confidence",
+            ),
         ],
     )
-    return payload.model_dump()
+    data = payload.model_dump()
+    data["supported_image_roles"] = _pipeline.supported_image_roles
+    data["registered_capabilities"] = _pipeline.registry.capabilities("oil_palm")
+    return data
+
+
+@router.post("/oil-palm/analyze")
+async def oil_palm_analyze(
+    file: UploadFile = File(...),
+    image_role: str = Form(...),
+    tree_code: str | None = Form(default=None),
+    session_id: str | None = Form(default=None),
+) -> dict:
+    image_bytes = await file.read()
+    validate_image_bytes(image_bytes)
+    try:
+        return _pipeline.analyze(
+            image_bytes=image_bytes,
+            image_role=image_role,
+            tree_code=tree_code,
+            session_id=session_id,
+            metadata={
+                "filename": file.filename,
+                "content_type": file.content_type,
+            },
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": str(exc),
+                "supported_image_roles": _pipeline.supported_image_roles,
+            },
+        ) from exc
 
 
 @router.post("/oil-palm/predict-v1")
