@@ -225,7 +225,7 @@ async function loadSessionImages(sessionId) {
                 <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;">
                     ${data.images.map(img => `
                         <div class="info-card" style="padding:8px; border:1px solid rgba(255,255,255,0.1);">
-                            <img src="${img.image_url}" style="width:100%; border-radius:4px; aspect-ratio:1; object-fit:cover;">
+                            <img src="${fixImageUrl(img.image_url, img.upload_id)}" style="width:100%; border-radius:4px; aspect-ratio:1; object-fit:cover;">
                             <div style="font-size:0.75rem; margin-top:5px; color:#60a5fa; font-weight:700; text-transform:uppercase;">${img.image_role}</div>
                             <div style="font-size:0.7rem; color:rgba(255,255,255,0.5);">${formatDate(img.created_at)}</div>
                         </div>
@@ -240,6 +240,18 @@ async function loadSessionImages(sessionId) {
     } catch (e) {
         console.error('Failed to load session images', e);
     }
+}
+
+function fixImageUrl(url, uploadId) {
+    if (!url) return '';
+    if (url.includes('api/v1/image/download')) return url;
+    if (uploadId) return `/api/v1/image/download?upload_id=${uploadId}`;
+    // 处理可能的物理路径
+    const parts = url.split(/[\\/]/);
+    const filename = parts[parts.length - 1];
+    const idMatch = filename.match(/^(.+)\.\w+$/);
+    const id = idMatch ? idMatch[1] : filename;
+    return `/api/v1/image/download?upload_id=${id}`;
 }
 
 function formatDate(iso) {
