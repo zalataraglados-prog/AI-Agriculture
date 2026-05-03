@@ -1263,12 +1263,10 @@ fn handle_image_file_request(
         .map(|v| v.trim())
         .filter(|v| !v.is_empty())
         .and_then(|upload_id| {
-            let res = db.lock()
+            db.lock()
                 .ok()
                 .and_then(|mut guard| guard.get_saved_path_by_upload_id(upload_id).ok())
-                .flatten();
-            eprintln!("[DEBUG] image download req: upload_id={}, db_saved_path={:?}", upload_id, res);
-            res
+                .flatten()
         })
         .or_else(|| {
             q.get("saved_path")
@@ -1334,8 +1332,7 @@ fn handle_image_file_request(
     };
     let candidate = match fs::canonicalize(candidate) {
         Ok(v) => v,
-        Err(err) => {
-            eprintln!("[DEBUG] file not found for upload_id {}: {}", saved_path_raw, err);
+        Err(_) => {
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: "file not found".to_string(),
@@ -1347,8 +1344,6 @@ fn handle_image_file_request(
             return;
         }
     };
-
-    eprintln!("[DEBUG] Path Security Check: candidate={:?}, store_root={:?}", candidate, store_root);
 
     if !candidate.starts_with(&store_root) {
         eprintln!("[ERROR] Security Violation: candidate {:?} is outside of store_root {:?}", candidate, store_root);
