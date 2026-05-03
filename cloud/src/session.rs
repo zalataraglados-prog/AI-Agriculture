@@ -154,7 +154,7 @@ pub(crate) fn handle_add_session_image(
         "mock": true
     });
 
-    let now = Utc::now();
+    let now = chrono::Utc::now();
     let db_record = crate::db::ImageUploadDbRecord {
         upload_id: persisted.upload_id.clone(),
         device_id: tag.device_id.clone(),

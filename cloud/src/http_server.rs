@@ -1325,7 +1325,7 @@ fn handle_image_file_request(
     };
 
     let candidate = {
-        let p = PathBuf::from(saved_path_raw);
+        let p = PathBuf::from(saved_path_raw.clone());
         if p.is_absolute() {
             p
         } else {
