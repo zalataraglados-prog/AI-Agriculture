@@ -60,3 +60,10 @@ __pycache__/
 frontend/static/lib/
 frontend/static/ortho_test.png
 
+# Runtime data and uploaded images
+state/
+data/
+image_uploads/
+/cloud/data/
+/cloud/state/
+
