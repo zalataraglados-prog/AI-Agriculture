@@ -1489,6 +1489,108 @@ impl DbManager {
         })))
     }
 
+    pub(crate) fn get_tree_by_barcode_value(&mut self, barcode_value: &str) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT tree_code FROM trees WHERE barcode_value = $1 LIMIT 1",
+            &[&barcode_value],
+        ).map_err(|e| format!("get_tree_by_barcode_value error: {}", e))?;
+        if !rows.is_empty() {
+            let tree_code: String = rows[0].get(0);
+            return self.get_tree_by_code(&tree_code);
+        }
+
+        let rows = self.client.query(
+            "SELECT tree_code FROM trees WHERE tree_code = $1 LIMIT 1",
+            &[&barcode_value],
+        ).map_err(|e| format!("get_tree_by_barcode_value fallback error: {}", e))?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+
+        let tree_code: String = rows[0].get(0);
+        self.get_tree_by_code(&tree_code)
+    }
+
+    pub(crate) fn create_observation_session(&mut self, tree_id: i32) -> Result<serde_json::Value, String> {
+        if self.get_tree_by_id(tree_id)?.is_none() {
+            return Err("tree not found".to_string());
+        }
+
+        let row = self.client.query_one(
+            "INSERT INTO observation_sessions (tree_id, session_code) \
+             VALUES ($1, 'OS-' || LPAD(nextval('observation_session_code_seq')::text, 6, '0')) \
+             RETURNING id, session_code, status, created_at, updated_at",
+            &[&tree_id],
+        ).map_err(|e| format!("create_observation_session error: {}", e))?;
+
+        let id: i32 = row.get("id");
+        let session_code: String = row.get("session_code");
+        let status: String = row.get("status");
+        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+        let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
+
+        Ok(serde_json::json!({
+            "id": id,
+            "tree_id": tree_id,
+            "session_code": session_code,
+            "status": status,
+            "created_at": created_at.to_rfc3339(),
+            "updated_at": updated_at.to_rfc3339()
+        }))
+    }
+
+    pub(crate) fn get_observation_session(&mut self, session_id: i32) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT s.id, s.tree_id, s.session_code, s.status, s.created_at, t.tree_code \
+             FROM observation_sessions s \
+             JOIN trees t ON s.tree_id = t.id \
+             WHERE s.id = $1",
+            &[&session_id],
+        ).map_err(|e| format!("get_observation_session error: {}", e))?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let r = &rows[0];
+        let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+        Ok(Some(serde_json::json!({
+            "id": r.get::<_, i32>("id"),
+            "tree_id": r.get::<_, i32>("tree_id"),
+            "tree_code": r.get::<_, String>("tree_code"),
+            "session_code": r.get::<_, String>("session_code"),
+            "status": r.get::<_, String>("status"),
+            "created_at": created_at.to_rfc3339()
+        })))
+    }
+
+    pub(crate) fn insert_session_image(
+        &mut self,
+        session_id: i32,
+        image_url: &str,
+        image_role: &str,
+        upload_id: Option<&str>,
+        mock_analysis_json: serde_json::Value,
+        metadata_json: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        let row = self.client.query_one(
+            "INSERT INTO session_images (session_id, image_url, image_role, upload_id, mock_analysis_json, metadata_json) \
+             VALUES ($1, $2, $3, $4, $5, $6) \
+             RETURNING id, session_id, image_url, image_role, upload_id, mock_analysis_json, metadata_json, created_at",
+            &[&session_id, &image_url, &image_role, &upload_id, &mock_analysis_json, &metadata_json],
+        ).map_err(|e| format!("insert_session_image error: {}", e))?;
+
+        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+        Ok(serde_json::json!({
+            "id": row.get::<_, i32>("id"),
+            "session_id": row.get::<_, i32>("session_id"),
+            "image_url": row.get::<_, String>("image_url"),
+            "image_role": row.get::<_, String>("image_role"),
+            "upload_id": row.get::<_, Option<String>>("upload_id"),
+            "mock_analysis": row.get::<_, serde_json::Value>("mock_analysis_json"),
+            "metadata": row.get::<_, serde_json::Value>("metadata_json"),
+            "created_at": created_at.to_rfc3339()
+        }))
+    }
+
     pub(crate) fn get_detections_by_mission(&mut self, mission_id: i32) -> Result<Vec<serde_json::Value>, String> {
         let rows = self.client.query(
             "SELECT d.id, d.orthomosaic_id, d.crown_center_x, d.crown_center_y, d.confidence, d.review_status, d.matched_tree_id, d.bbox_global_json \

@@ -652,7 +652,7 @@ fn handle_api(
         (Method::Get, "/api/v1/trees") => {
             crate::tree::handle_list_trees(request, query, db);
         }
-        (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") => {
+        (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") || p.starts_with("/api/v1/sessions/") => {
             if method == Method::Post && p == "/api/v1/uav/missions" {
                 crate::uav::handle_missions_post(request, db);
             } else if method == Method::Get && p == "/api/v1/uav/missions" {
@@ -693,6 +693,18 @@ fn handle_api(
             } else if method == Method::Post && p.ends_with("/reject") {
                 let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
                 crate::uav::handle_reject_detection(request, &det_id, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/trees/by-barcode/") {
+                let barcode_value = extract_path_segment(p, "/by-barcode/").unwrap_or_default();
+                crate::session::handle_tree_by_barcode(request, &barcode_value, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/barcode") {
+                let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::session::handle_tree_barcode(request, &tree_code, db);
+            } else if method == Method::Post && p.starts_with("/api/v1/trees/") && p.ends_with("/sessions") {
+                let tree_id = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::session::handle_create_session(request, &tree_id, db);
+            } else if method == Method::Post && p.starts_with("/api/v1/sessions/") && p.ends_with("/images") {
+                let session_id = extract_path_segment(p, "/sessions/").unwrap_or_default();
+                crate::session::handle_add_session_image(request, &session_id, query, image_store_path, db);
             } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/timeline") {
                 let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::tree::handle_get_timeline(request, &tree_code, db);

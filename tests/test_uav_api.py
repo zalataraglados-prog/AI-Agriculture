@@ -329,3 +329,71 @@ def test_match_nonexistent_handling():
     assert res.status_code == 500
     res = requests.post(f"{BASE_URL}/api/v1/uav/missions/999999/match-existing-trees")
     assert res.status_code == 500
+
+
+def test_barcode_session_multi_image_flow():
+    """E2E: barcode lookup -> observation session -> multi-role image uploads."""
+    res = requests.post(
+        f"{BASE_URL}/api/v1/uav/missions",
+        json={
+            "plantation_id": 0,
+            "plantation_name": f"session_test_{int(time.time())}",
+            "mission_name": "session_collection_seed",
+        },
+    )
+    assert res.status_code == 200
+    mission_id = res.json()["mission_id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mission_id}/orthomosaic")
+    assert res.status_code == 200
+    ortho_id = res.json()["orthomosaic_id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections/mock")
+    assert res.status_code == 200
+
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections")
+    assert res.status_code == 200
+    det_id = res.json()["detections"][0]["id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det_id}/confirm")
+    assert res.status_code == 200
+    tree_code = res.json()["tree_code"]
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code}/barcode")
+    assert res.status_code == 200
+    barcode = res.json()["barcode_value"]
+    assert barcode == tree_code
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees/by-barcode/{barcode}")
+    assert res.status_code == 200
+    tree = res.json()["tree"]
+    assert tree["tree_code"] == tree_code
+
+    res = requests.post(f"{BASE_URL}/api/v1/trees/{tree['id']}/sessions")
+    assert res.status_code == 200
+    session = res.json()["session"]
+    assert session["tree_id"] == tree["id"]
+    assert session["session_code"].startswith("OS-")
+
+    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00"
+    for role in ["fruit", "trunk_base", "crown"]:
+        res = requests.post(
+            f"{BASE_URL}/api/v1/sessions/{session['id']}/images",
+            data={"image_role": role},
+            files={"file": (f"{role}.jpg", jpeg_bytes, "image/jpeg")},
+        )
+        assert res.status_code == 200
+        payload = res.json()
+        assert payload["status"] == "ok"
+        assert payload["image"]["image_role"] == role
+        assert payload["analysis"]["status"] == "success"
+        assert payload["analysis"]["metadata"]["tree_code"] == tree_code
+        assert payload["analysis"]["metadata"]["image_role"] == role
+        assert payload["analysis"]["model_version"] == "oil_palm_mock_session_v1"
+
+    res = requests.post(
+        f"{BASE_URL}/api/v1/sessions/{session['id']}/images",
+        data={"image_role": "leaf"},
+        files={"file": ("leaf.jpg", jpeg_bytes, "image/jpeg")},
+    )
+    assert res.status_code == 400

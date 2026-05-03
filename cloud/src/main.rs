@@ -11,6 +11,7 @@ mod payload;
 mod presence;
 mod registry;
 mod server;
+mod session;
 mod telemetry;
 mod time_util;
 mod token;
