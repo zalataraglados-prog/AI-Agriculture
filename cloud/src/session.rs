@@ -97,9 +97,10 @@ pub(crate) fn handle_add_session_image(
         .or_else(|| multipart_text_field(&content_type, &body, "image_role"))
         .unwrap_or_default();
     if !ALLOWED_IMAGE_ROLES.contains(&image_role.as_str()) {
+        eprintln!("[ERROR] invalid image_role '{}' for session {}. Allowed: {:?}", image_role, session_id, ALLOWED_IMAGE_ROLES);
         respond_json(request, 400, &serde_json::json!({
             "status": "error",
-            "message": "invalid image_role",
+            "message": format!("invalid image_role: '{}'", image_role),
             "allowed_roles": ALLOWED_IMAGE_ROLES
         }).to_string());
         return;
@@ -108,7 +109,8 @@ pub(crate) fn handle_add_session_image(
     let file_part = match parse_multipart_file(&content_type, &body) {
         Ok(v) => v,
         Err(e) => {
-            respond_json(request, 400, &serde_json::json!({"status":"error","message":e}).to_string());
+            eprintln!("[ERROR] parse_multipart_file failed for session {}: {}", session_id, e);
+            respond_json(request, 400, &serde_json::json!({"status":"error","message":format!("multipart parse error: {e}")}).to_string());
             return;
         }
     };
@@ -170,6 +172,24 @@ pub(crate) fn handle_add_session_image(
             "status": "ok",
             "image": image,
             "analysis": mock_analysis
+        }).to_string()),
+        Err(e) => {
+            eprintln!("[ERROR] DB insert_session_image failed: {}", e);
+            respond_json(request, 500, &serde_json::json!({"status":"error","message":e}).to_string());
+        }
+    }
+}
+
+pub(crate) fn handle_get_session_images(request: Request, session_id: &str, db: Arc<Mutex<DbManager>>) {
+    let sid = session_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.get_session_images(sid));
+
+    match result {
+        Ok(images) => respond_json(request, 200, &serde_json::json!({
+            "status": "ok",
+            "images": images
         }).to_string()),
         Err(e) => respond_json(request, 500, &serde_json::json!({"status":"error","message":e}).to_string()),
     }

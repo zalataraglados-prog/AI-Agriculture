@@ -1511,6 +1511,52 @@ impl DbManager {
         self.get_tree_by_code(&tree_code)
     }
 
+    pub(crate) fn get_session_images(&mut self, session_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, image_url, image_role, upload_id, mock_analysis_json, metadata_json, created_at \
+             FROM session_images WHERE session_id = $1 ORDER BY created_at ASC",
+            &[&session_id],
+        ).map_err(|e| format!("get_session_images error: {}", e))?;
+        
+        let mut out = Vec::new();
+        for r in rows {
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": r.get::<_, i32>("id"),
+                "image_url": r.get::<_, String>("image_url"),
+                "image_role": r.get::<_, String>("image_role"),
+                "upload_id": r.get::<_, Option<String>>("upload_id"),
+                "mock_analysis": r.get::<_, serde_json::Value>("mock_analysis_json"),
+                "metadata": r.get::<_, serde_json::Value>("metadata_json"),
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn get_session_images(&mut self, session_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, image_url, image_role, upload_id, mock_analysis_json, metadata_json, created_at \
+             FROM session_images WHERE session_id = $1 ORDER BY created_at ASC",
+            &[&session_id],
+        ).map_err(|e| format!("get_session_images error: {}", e))?;
+        
+        let mut out = Vec::new();
+        for r in rows {
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": r.get::<_, i32>("id"),
+                "image_url": r.get::<_, String>("image_url"),
+                "image_role": r.get::<_, String>("image_role"),
+                "upload_id": r.get::<_, Option<String>>("upload_id"),
+                "mock_analysis": r.get::<_, serde_json::Value>("mock_analysis_json"),
+                "metadata": r.get::<_, serde_json::Value>("metadata_json"),
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
     pub(crate) fn create_observation_session(&mut self, tree_id: i32) -> Result<serde_json::Value, String> {
         if self.get_tree_by_id(tree_id)?.is_none() {
             return Err("tree not found".to_string());

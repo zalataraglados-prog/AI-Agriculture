@@ -702,9 +702,15 @@ fn handle_api(
             } else if method == Method::Post && p.starts_with("/api/v1/trees/") && p.ends_with("/sessions") {
                 let tree_id = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::session::handle_create_session(request, &tree_id, db);
-            } else if method == Method::Post && p.starts_with("/api/v1/sessions/") && p.ends_with("/images") {
+            } else if p.starts_with("/api/v1/sessions/") && p.ends_with("/images") {
                 let session_id = extract_path_segment(p, "/sessions/").unwrap_or_default();
-                crate::session::handle_add_session_image(request, &session_id, query, image_store_path, db);
+                if method == Method::Post {
+                    crate::session::handle_add_session_image(request, &session_id, query, image_store_path, db);
+                } else if method == Method::Get {
+                    crate::session::handle_get_session_images(request, &session_id, db);
+                } else {
+                    let _ = request.respond(Response::from_string("Method Not Allowed").with_status_code(405));
+                }
             } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/timeline") {
                 let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::tree::handle_get_timeline(request, &tree_code, db);
