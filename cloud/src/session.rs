@@ -154,9 +154,29 @@ pub(crate) fn handle_add_session_image(
         "mock": true
     });
 
+    let now = Utc::now();
+    let db_record = crate::db::ImageUploadDbRecord {
+        upload_id: persisted.upload_id.clone(),
+        device_id: tag.device_id.clone(),
+        captured_at: now,
+        received_at: now,
+        location: tag.location.clone(),
+        crop_type: tag.crop_type.clone(),
+        farm_note: tag.farm_note.clone(),
+        saved_path: persisted.saved_path.clone(),
+        sha256: persisted.sha256.clone(),
+        image_type: persisted.image_type.clone(),
+        file_size: persisted.file_size as i64,
+        upload_status: "stored".to_string(),
+        error_message: None,
+    };
+
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
         .and_then(|mut g| {
+            // 首先存入通用的资产表，确保可以通过 /api/v1/image/file 下载
+            g.insert_image_upload(&db_record)?;
+
             let image_url = format!("/api/v1/image/file?upload_id={}", persisted.upload_id);
             g.insert_session_image(
                 sid,
