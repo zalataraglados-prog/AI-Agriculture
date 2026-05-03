@@ -244,14 +244,14 @@ async function loadSessionImages(sessionId) {
 
 function fixImageUrl(url, uploadId) {
     if (!url) return '';
-    if (url.includes('api/v1/image/download')) return url;
-    if (uploadId) return `/api/v1/image/download?upload_id=${uploadId}`;
+    if (url.includes('api/v1/image/file')) return url;
+    if (uploadId) return `/api/v1/image/file?upload_id=${uploadId}`;
     // 处理可能的物理路径
     const parts = url.split(/[\\/]/);
     const filename = parts[parts.length - 1];
     const idMatch = filename.match(/^(.+)\.\w+$/);
     const id = idMatch ? idMatch[1] : filename;
-    return `/api/v1/image/download?upload_id=${id}`;
+    return `/api/v1/image/file?upload_id=${id}`;
 }
 
 function formatDate(iso) {

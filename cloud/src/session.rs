@@ -157,7 +157,7 @@ pub(crate) fn handle_add_session_image(
     let result = db.lock()
         .map_err(|_| "db lock failed".to_string())
         .and_then(|mut g| {
-            let image_url = format!("/api/v1/image/download?upload_id={}", persisted.upload_id);
+            let image_url = format!("/api/v1/image/file?upload_id={}", persisted.upload_id);
             g.insert_session_image(
                 sid,
                 &image_url,
