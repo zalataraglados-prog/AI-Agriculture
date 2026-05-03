@@ -286,7 +286,23 @@ pub(crate) fn parse_multipart_file(
 
             if rest.starts_with(b"--") {
 
-                break;
+                let suffix = &rest[2..];
+
+                if suffix.starts_with(boundary.as_bytes()) {
+
+                    let after_boundary = &suffix[boundary.len()..];
+
+                    if after_boundary.starts_with(b"--") {
+
+                        break;
+
+                    }
+
+                    // 跳过中间的 boundary 字符串
+
+                    cursor += delimiter.len();
+
+                }
 
             }
 
