@@ -100,3 +100,42 @@ python -m ai_engine.infer --image-path test.jpg
   - stable v1 inference contract with frontend-friendly metadata fields.
 
 See `doc/issue65_oil_palm_v1_plan.md` for details and quick validation commands.
+
+## Oil Palm Mock Routing (Sprint D)
+
+This branch keeps the project mock-first. No real oil palm model is trained or loaded.
+
+- `common/predictors/base.py`: shared `BasePredictor` and `PredictorContext`.
+- `common/registry.py`: `ModelRegistry` keyed by `crop + task`.
+- `crops/oil_palm/pipeline.py`: `OilPalmPipeline` routes `image_role` to a mock predictor.
+- `crops/oil_palm/inference/mock_predictors.py`: role-specific mock predictors.
+
+Unified mock endpoint:
+
+```bash
+POST /api/v1/oil-palm/analyze
+```
+
+Multipart fields:
+
+- `file`: JPEG/PNG/GIF/BMP image bytes.
+- `image_role`: one of `fruit`, `trunk_base`, `crown`, `uav_tile`.
+- `tree_code`: optional tree asset code.
+- `session_id`: optional observation session id/code.
+
+Routing:
+
+- `fruit` -> `ffb_maturity`
+- `trunk_base` -> `ganoderma_risk`
+- `crown` -> `growth_vigor`
+- `uav_tile` -> `uav_tree_crown`
+
+Response keeps the future-compatible envelope:
+
+- `status`
+- `results[]`
+- `geometry[]`
+- `metadata`
+- `model_version`
+
+Legacy oil palm endpoints remain available for compatibility.
