@@ -141,6 +141,22 @@ Query API:
   - `predicted_class`
   - `limit` (default `100`, max `1000`)
 
+## Oil palm tree assessment and reports (mock aggregation)
+
+These APIs aggregate existing structured facts. They do not run real models.
+
+- `GET /api/v1/trees/{tree_code}/assessment`
+  - aggregates session images (`fruit`, `trunk_base`, `crown`) and UAV coordinate history
+  - returns `partial` or `complete`, `missing_evidence`, `valid_until`, dimension summaries, and a recommended action
+- `GET /api/v1/plantations/{plantation_id}/dashboard`
+  - returns plantation-level counts for harvest recommendations, disease risk, abnormal/UAV watch, and missing evidence
+- `GET /api/v1/plantations/{plantation_id}/blocks/report`
+  - groups assessment summaries by `block_id` (or `unassigned`)
+
+Frontend:
+- `frontend/oil_palm/tree_profile.html` displays a Tree Assessment card.
+- `frontend/oil_palm/plantation_dashboard.html` displays plantation stats and block reports.
+
 ## Agent chat proxy API
 
 - `POST /api/v1/chat`

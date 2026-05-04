@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plantation Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .dashboard-toolbar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .dashboard-toolbar select {
+            min-width: 240px;
+            background: rgba(0,0,0,0.25);
+            color: #e5e7eb;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+        .stat-card {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .stat-card span {
+            display: block;
+            color: #94a3b8;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+        .stat-card strong { font-size: 1.7rem; color: #f8fafc; }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .report-table th,
+        .report-table td {
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 0.65rem;
+        }
+        .report-table th { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Plantation Dashboard</h1>
+            <div>
+                <a href="tree_list.html" class="back-link">Tree Registry</a>
+                <a href="index.html" class="back-link" style="margin-left:12px;">UAV Review</a>
+            </div>
+        </header>
+        <main style="display:block;">
+            <div class="dashboard-toolbar">
+                <select id="plantation-select"></select>
+                <button id="btn-refresh" class="btn">Refresh</button>
+            </div>
+            <section class="panel">
+                <h2>Assessment Stats</h2>
+                <div id="stats-grid" class="stats-grid"></div>
+            </section>
+            <section class="panel" style="margin-top:1.5rem;">
+                <h2>Priority Trees</h2>
+                <div id="priority-list" class="status-box">Loading...</div>
+            </section>
+            <section class="panel" style="margin-top:1.5rem;">
+                <h2>Block Report</h2>
+                <div id="block-report"></div>
+            </section>
+        </main>
+    </div>
+    <script src="plantation_dashboard.js"></script>
+</body>
+</html>

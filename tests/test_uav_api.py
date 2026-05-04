@@ -397,3 +397,72 @@ def test_barcode_session_multi_image_flow():
         files={"file": ("leaf.jpg", jpeg_bytes, "image/jpeg")},
     )
     assert res.status_code == 400
+
+
+def test_tree_assessment_and_plantation_reports():
+    """E2E: session mock evidence aggregates into tree and plantation reports."""
+    plantation_name = f"assessment_test_{int(time.time())}"
+    res = requests.post(
+        f"{BASE_URL}/api/v1/uav/missions",
+        json={
+            "plantation_id": 0,
+            "plantation_name": plantation_name,
+            "mission_name": "assessment_seed",
+        },
+    )
+    assert res.status_code == 200
+    mission_id = res.json()["mission_id"]
+    plantation_id = res.json()["plantation_id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mission_id}/orthomosaic")
+    assert res.status_code == 200
+    ortho_id = res.json()["orthomosaic_id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections/mock")
+    assert res.status_code == 200
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections")
+    det_id = res.json()["detections"][0]["id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det_id}/confirm")
+    assert res.status_code == 200
+    tree_code = res.json()["tree_code"]
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code}")
+    tree = res.json()["tree"]
+    res = requests.post(f"{BASE_URL}/api/v1/trees/{tree['id']}/sessions")
+    assert res.status_code == 200
+    session_id = res.json()["session"]["id"]
+
+    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00"
+    for role in ["fruit", "trunk_base", "crown"]:
+        res = requests.post(
+            f"{BASE_URL}/api/v1/sessions/{session_id}/images",
+            data={"image_role": role},
+            files={"file": (f"{role}.jpg", jpeg_bytes, "image/jpeg")},
+        )
+        assert res.status_code == 200
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code}/assessment")
+    assert res.status_code == 200
+    assessment = res.json()["assessment"]
+    assert assessment["tree"]["tree_code"] == tree_code
+    assert assessment["metadata"]["mock"] is True
+    assert assessment["dimensions"]["fruit"]["evidence_status"] == "present"
+    assert assessment["dimensions"]["disease"]["evidence_status"] == "present"
+    assert assessment["dimensions"]["growth"]["evidence_status"] == "present"
+    assert "uav" in assessment["missing_evidence"]
+    assert assessment["completeness"] == "partial"
+    assert assessment["valid_until"]
+
+    res = requests.get(f"{BASE_URL}/api/v1/plantations/{plantation_id}/dashboard")
+    assert res.status_code == 200
+    dashboard = res.json()["dashboard"]
+    assert dashboard["stats"]["total_trees"] >= 1
+    assert dashboard["stats"]["missing_evidence"] >= 1
+    assert any(t["tree_code"] == tree_code for t in dashboard["trees"])
+
+    res = requests.get(f"{BASE_URL}/api/v1/plantations/{plantation_id}/blocks/report")
+    assert res.status_code == 200
+    report = res.json()["report"]
+    assert report["plantation_id"] == plantation_id
+    assert len(report["blocks"]) >= 1
