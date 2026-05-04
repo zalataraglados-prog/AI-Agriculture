@@ -569,7 +569,29 @@ OpenClaw 是分析助手，不是数据库，也不是业务事实源。
 * 如何测试。
 * 哪些东西不要改。
 
-## 17. 最终判断标准
+## 17. 系统可靠性与部署准则 (Reliability & Deployment)
+
+为了避免“环境与代码状态不一致”导致的部署失败，所有开发者必须遵守：
+
+### 17.1 路径鲁棒性原则 (Path Robustness)
+*   **禁止硬编码单一相对路径**：代码中处理静态资源（frontend/dashboard）时，必须优先读取环境变量（如 `STATIC_SOURCE_FRONTEND`、`STATIC_TARGET_FRONTEND`、`STATIC_SOURCE_DASHBOARD`、`STATIC_TARGET_DASHBOARD`、`PROJECT_ROOT`），再使用基于可执行文件位置或项目根的候选路径，最后才允许 CWD fallback。
+*   **CWD 无关性**：程序必须能在任意目录启动并找到静态资源、migration 和配置。不能假设启动位置在 `cloud/` 或仓库根目录。
+
+### 17.2 配置中心化原则 (Single Source of Truth)
+*   **禁止手动散落 export 数据库指令**：数据库、路径、端口和服务 URL 应通过 `.env` 文件或统一的 `config/` 目录管理。
+*   **敏感配置不入库**：真实 `.env`、密码、token 和服务器私有路径不得提交；只能提交 `.env.example` 或 README 中的占位示例。
+*   **版本化配置**：若配置项发生变化，必须同步更新 README、`.env.example` 或部署脚本的缺失项检测。
+
+### 17.3 部署幂等性 (Idempotent Deployment)
+*   **优先使用部署脚本**：云端推荐使用 `scripts/deploy_cloud.sh` 发布。脚本应自动包含：读取 `.env`、检查必要配置、构建二进制、停止本项目旧进程、检查端口占用、按绝对路径启动并做健康检查。
+*   **谨慎清理进程**：部署脚本不得默认执行过宽的 `pkill -f cloud`、`pkill -f uvicorn` 或永久 `systemctl disable`。只允许停止明确命名的本项目服务、PID 文件记录的进程，或由用户显式开启的强制清理。
+*   **端口独占检查**：程序或脚本遇到端口占用时，应清晰打印占用 PID 和命令，避免静默失败或直接 Panic。
+
+### 17.4 进程隔离原则
+*   **禁止重名二进制**：不要在不同目录下保留同名的 `cloud` 二进制，应统一使用版本化或唯一命名的 `ai-agri-cloud-receiver`。
+*   **Systemd 协同**：若使用系统服务，必须确保 `systemd` 配置文件中的环境变量与开发环境 `.env` 同步。
+
+## 18. 最终判断标准
 
 一个修改是好修改，当且仅当它让项目更接近：
 

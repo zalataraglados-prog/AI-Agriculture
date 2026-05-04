@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fs;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -2038,11 +2038,68 @@ fn split_query(url: &str) -> (&str, &str) {
 
 fn resolve_static_file_path(file_path: &str) -> PathBuf {
     let normalized = file_path.trim_start_matches('/');
-    let preferred = PathBuf::from("frontend").join(normalized);
-    if preferred.exists() {
-        return preferred;
+    let mut candidates = Vec::new();
+
+    push_env_static_candidates(&mut candidates, normalized);
+
+    if let Ok(project_root) = std::env::var("PROJECT_ROOT") {
+        push_project_static_candidates(&mut candidates, Path::new(&project_root), normalized);
     }
-    PathBuf::from("dashboard").join(normalized)
+
+    if let Some(exe_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf))
+    {
+        for ancestor in exe_dir.ancestors().take(8) {
+            push_project_static_candidates(&mut candidates, ancestor, normalized);
+        }
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        push_project_static_candidates(&mut candidates, &cwd, normalized);
+    }
+
+    for candidate in &candidates {
+        if candidate.exists() {
+            return candidate.to_path_buf();
+        }
+    }
+
+    candidates
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| PathBuf::from("frontend").join(normalized))
+}
+
+fn push_env_static_candidates(candidates: &mut Vec<PathBuf>, normalized: &str) {
+    for key in [
+        "STATIC_SOURCE_FRONTEND",
+        "STATIC_TARGET_FRONTEND",
+        "STATIC_SOURCE_DASHBOARD",
+        "STATIC_TARGET_DASHBOARD",
+    ] {
+        if let Ok(root) = std::env::var(key) {
+            push_static_candidate(candidates, Path::new(&root), normalized);
+        }
+    }
+}
+
+fn push_project_static_candidates(candidates: &mut Vec<PathBuf>, root: &Path, normalized: &str) {
+    push_static_candidate(candidates, &root.join("frontend"), normalized);
+    push_static_candidate(
+        candidates,
+        &root.join("cloud").join("dashboard"),
+        normalized,
+    );
+    push_static_candidate(candidates, &root.join("dashboard"), normalized);
+}
+
+fn push_static_candidate(candidates: &mut Vec<PathBuf>, root: &Path, normalized: &str) {
+    candidates.push(root.join(normalized));
+
+    if let Some(dashboard_path) = normalized.strip_prefix("dashboard/") {
+        candidates.push(root.join(dashboard_path));
+    }
 }
 
 pub(crate) fn parse_query(query: &str) -> HashMap<String, String> {
