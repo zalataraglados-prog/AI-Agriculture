@@ -72,6 +72,23 @@ async function loadPlantations(preferredId) {
     }
 }
 
+async function loadDashboard(plantationId) {
+    if (!plantationId) return;
+    const [dashboardRes, blocksRes] = await Promise.all([
+        fetch(`/api/v1/plantations/${plantationId}/dashboard`),
+        fetch(`/api/v1/plantations/${plantationId}/blocks/report`)
+    ]);
+    const dashboardData = await dashboardRes.json();
+    const blocksData = await blocksRes.json();
+    
+    const dashboard = dashboardData.dashboard || {};
+    const report = blocksData.report || {};
+    
+    renderStats(dashboard.stats || {});
+    renderPriority(dashboard.priority_trees || []);
+    renderBlocks(report.blocks || []);
+}
+
 function renderStats(stats) {
     const grid = document.getElementById('stats-grid');
     const cards = [
@@ -92,7 +109,7 @@ function renderStats(stats) {
 
 function renderPriority(items) {
     const el = document.getElementById('priority-list');
-    if (!items.length) {
+    if (!items || !items.length) {
         el.textContent = 'No priority trees';
         return;
     }
@@ -109,7 +126,7 @@ function renderPriority(items) {
 
 function renderBlocks(blocks) {
     const el = document.getElementById('block-report');
-    if (!blocks.length) {
+    if (!blocks || !blocks.length) {
         el.innerHTML = '<div class="status-box">No block data</div>';
         return;
     }
@@ -138,3 +155,4 @@ function renderBlocks(blocks) {
         </table>
     `;
 }
+
