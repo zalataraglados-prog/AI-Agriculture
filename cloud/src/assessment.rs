@@ -85,39 +85,47 @@ fn build_plantation_dashboard(g: &mut DbManager, plantation_id: i32) -> Result<V
         let Some(assessment) = build_tree_assessment_by_code(g, &tree_code)? else {
             continue;
         };
-        if assessment["tree"]["current_status"].as_str() == Some("active") {
+        let is_active = assessment["tree"]["current_status"].as_str() == Some("active");
+        let dashboard_action = if is_active {
+            assessment["recommended_action"].as_str().unwrap_or("wait")
+        } else {
+            "inactive"
+        };
+
+        if is_active {
             active += 1;
-        }
-        if assessment["dimensions"]["fruit"]["status"].as_str() == Some("harvest_ready") {
-            harvest_recommended += 1;
-        }
-        if ["medium", "high"].contains(&assessment["dimensions"]["disease"]["risk_level"].as_str().unwrap_or("")) {
-            disease_risk += 1;
-        }
-        if assessment["dimensions"]["uav"]["status"].as_str() == Some("watch") {
-            abnormal += 1;
-        }
-        if assessment["missing_evidence"].as_array().map(|v| !v.is_empty()).unwrap_or(false) {
-            missing_evidence += 1;
-        }
-        if assessment["completeness"].as_str() == Some("complete") {
-            complete += 1;
-        }
-        if let Some(action) = assessment["recommended_action"].as_str() {
-            if action != "wait" {
-                priority.push(json!({
-                    "tree_code": tree_code,
-                    "recommended_action": action,
-                    "summary": assessment["summary"]
-                }));
+            if assessment["dimensions"]["fruit"]["status"].as_str() == Some("harvest_ready") {
+                harvest_recommended += 1;
+            }
+            if ["medium", "high"].contains(&assessment["dimensions"]["disease"]["risk_level"].as_str().unwrap_or("")) {
+                disease_risk += 1;
+            }
+            if assessment["dimensions"]["uav"]["status"].as_str() == Some("watch") {
+                abnormal += 1;
+            }
+            if assessment["missing_evidence"].as_array().map(|v| !v.is_empty()).unwrap_or(false) {
+                missing_evidence += 1;
+            }
+            if assessment["completeness"].as_str() == Some("complete") {
+                complete += 1;
+            }
+            if let Some(action) = assessment["recommended_action"].as_str() {
+                if action != "wait" {
+                    priority.push(json!({
+                        "tree_code": tree_code,
+                        "recommended_action": action,
+                        "summary": assessment["summary"]
+                    }));
+                }
             }
         }
+
         trees.push(json!({
             "tree_code": tree_code,
             "block_id": assessment["tree"]["block_id"],
             "current_status": assessment["tree"]["current_status"],
             "completeness": assessment["completeness"],
-            "recommended_action": assessment["recommended_action"],
+            "recommended_action": dashboard_action,
             "summary": assessment["summary"],
             "valid_until": assessment["valid_until"]
         }));
