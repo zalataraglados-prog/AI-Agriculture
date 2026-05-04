@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadSessionImages(id);
         });
         loadBarcode(code);
+        loadAssessment(code);
 
         loading.style.display = 'none';
         content.style.display = 'block';
@@ -77,6 +78,41 @@ async function loadBarcode(code) {
     } catch (e) {
         el.textContent = 'Barcode: failed to load';
     }
+}
+
+async function loadAssessment(code) {
+    const summaryEl = document.getElementById('assessment-summary');
+    const gridEl = document.getElementById('assessment-grid');
+    try {
+        const res = await fetch(`/api/v1/trees/${code}/assessment`);
+        const data = await res.json();
+        if (data.status !== 'ok') {
+            summaryEl.textContent = 'Assessment unavailable';
+            return;
+        }
+        const a = data.assessment;
+        summaryEl.textContent = `${a.summary} Action: ${a.recommended_action}. Completeness: ${a.completeness}. Valid until: ${formatDate(a.valid_until)}.`;
+        const d = a.dimensions || {};
+        gridEl.innerHTML = [
+            assessmentTile('Fruit', d.fruit?.status, d.fruit?.label, d.fruit?.confidence),
+            assessmentTile('Disease', d.disease?.risk_level || d.disease?.status, d.disease?.label, d.disease?.confidence),
+            assessmentTile('Growth', d.growth?.status, d.growth?.label, d.growth?.vigor_index),
+            assessmentTile('UAV', d.uav?.status, `shift ${d.uav?.center_shift ?? '-'}`, d.uav?.confidence)
+        ].join('');
+    } catch (e) {
+        summaryEl.textContent = 'Assessment failed: ' + e.message;
+    }
+}
+
+function assessmentTile(title, status, label, metric) {
+    const m = metric === null || metric === undefined ? '-' : (Number.isFinite(Number(metric)) ? Number(metric).toFixed(2) : metric);
+    return `
+        <div class="assessment-tile">
+            <strong>${title}</strong>
+            <div class="assessment-main">${status || 'unknown'}</div>
+            <div class="assessment-sub">${label || '-'} &bull; ${m}</div>
+        </div>
+    `;
 }
 
 function renderBasicInfo(tree) {
@@ -205,6 +241,8 @@ function bindSessionActions(getTree, getSessionId, setSessionId) {
                 uploadBtn.disabled = true;
                 // 刷新图片列表
                 loadSessionImages(sessionId);
+                const tree = getTree();
+                if (tree?.tree_code) loadAssessment(tree.tree_code);
             } else {
                 status.textContent = 'Upload failed: ' + (data.message || 'unknown error');
             }
