@@ -1,33 +1,75 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const select = document.getElementById('plantation-select');
-    const refresh = document.getElementById('btn-refresh');
+    const dropdown = document.getElementById('plantation-dropdown');
+    const options = document.getElementById('plantation-options');
     const params = new URLSearchParams(window.location.search);
+    const preferredId = params.get('plantation_id');
 
-    await loadPlantations(params.get('plantation_id'));
-    refresh.addEventListener('click', () => loadDashboard(select.value));
-    if (select.value) loadDashboard(select.value);
+    // --- Dropdown Interaction ---
+    function closeAll() {
+        options.classList.remove('show');
+        dropdown.classList.remove('active');
+    }
+
+    document.addEventListener('click', closeAll);
+
+    dropdown.onclick = (e) => {
+        e.stopPropagation();
+        const wasOpen = options.classList.contains('show');
+        closeAll();
+        if (!wasOpen) {
+            options.classList.add('show');
+            dropdown.classList.add('active');
+        }
+    };
+
+    await loadPlantations(preferredId);
 });
 
 async function loadPlantations(preferredId) {
-    const select = document.getElementById('plantation-select');
-    const res = await fetch('/api/v1/plantations');
-    const data = await res.json();
-    const plantations = data.plantations || [];
-    select.innerHTML = plantations.map(p => `<option value="${p.id}">${p.name} (#${p.id})</option>`).join('');
-    if (preferredId) select.value = preferredId;
-}
+    const options = document.getElementById('plantation-options');
+    const text = document.getElementById('plantation-text');
 
-async function loadDashboard(plantationId) {
-    if (!plantationId) return;
-    const [dashboardRes, blocksRes] = await Promise.all([
-        fetch(`/api/v1/plantations/${plantationId}/dashboard`),
-        fetch(`/api/v1/plantations/${plantationId}/blocks/report`)
-    ]);
-    const dashboard = (await dashboardRes.json()).dashboard;
-    const report = (await blocksRes.json()).report;
-    renderStats(dashboard.stats || {});
-    renderPriority(dashboard.priority_trees || []);
-    renderBlocks(report.blocks || []);
+    try {
+        const res = await fetch('/api/v1/plantations');
+        const data = await res.json();
+        const list = data.plantations || [];
+
+        options.innerHTML = '';
+        list.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'option-item';
+            div.textContent = `${p.name} (#${p.id})`;
+            if (String(p.id) === String(preferredId)) {
+                div.classList.add('selected');
+                text.textContent = div.textContent;
+                loadDashboard(p.id);
+            }
+            div.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                text.textContent = div.textContent;
+                options.classList.remove('show');
+                const dropdown = document.getElementById('plantation-dropdown');
+                dropdown.classList.remove('active');
+                loadDashboard(p.id);
+                // Update URL without reload
+                const url = new URL(window.location);
+                url.searchParams.set('plantation_id', p.id);
+                window.history.pushState({}, '', url);
+            };
+            options.appendChild(div);
+        });
+
+        // If no preference but we have data, select first by default
+        if (!preferredId && list.length > 0) {
+            const first = options.firstChild;
+            first.click();
+        }
+    } catch (e) {
+        console.error('Failed to load plantations', e);
+        text.textContent = 'Error loading plantations';
+    }
 }
 
 function renderStats(stats) {

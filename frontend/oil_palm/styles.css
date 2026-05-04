@@ -290,3 +290,89 @@ h2 {
     color: var(--danger);
     font-size: 1.25rem;
 }
+
+/* ========== Custom Dropdown UI ========== */
+
+.custom-select {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    min-width: 240px;
+}
+
+.custom-select:hover {
+    border-color: var(--accent);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.custom-select.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.options-list {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+}
+
+.options-list.show {
+    display: block;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.option-item {
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.option-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+}
+
+.option-item.selected {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+.option-item.selected::after {
+    content: '✓';
+    font-weight: 700;
+}
+
+.options-list::-webkit-scrollbar { width: 6px; }
+.options-list::-webkit-scrollbar-track { background: transparent; }
+.options-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.options-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }

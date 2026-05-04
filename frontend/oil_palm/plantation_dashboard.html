@@ -65,8 +65,13 @@
         </header>
         <main style="display:block;">
             <div class="dashboard-toolbar">
-                <select id="plantation-select"></select>
-                <button id="btn-refresh" class="btn">Refresh</button>
+                <div class="filter-group" style="position:relative; min-width:300px;">
+                    <div id="plantation-dropdown" class="custom-select">
+                        <span id="plantation-text">Select Plantation...</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <div id="plantation-options" class="options-list"></div>
+                </div>
             </div>
             <section class="panel">
                 <h2>Assessment Stats</h2>
