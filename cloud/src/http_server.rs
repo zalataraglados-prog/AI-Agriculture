@@ -652,7 +652,7 @@ fn handle_api(
         (Method::Get, "/api/v1/trees") => {
             crate::tree::handle_list_trees(request, query, db);
         }
-        (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") || p.starts_with("/api/v1/sessions/") => {
+        (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") || p.starts_with("/api/v1/sessions/") || p.starts_with("/api/v1/plantations/") => {
             if method == Method::Post && p == "/api/v1/uav/missions" {
                 crate::uav::handle_missions_post(request, db);
             } else if method == Method::Get && p == "/api/v1/uav/missions" {
@@ -711,6 +711,15 @@ fn handle_api(
                 } else {
                     let _ = request.respond(Response::from_string("Method Not Allowed").with_status_code(405));
                 }
+            } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/assessment") {
+                let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::assessment::handle_tree_assessment(request, &tree_code, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/plantations/") && p.ends_with("/dashboard") {
+                let plantation_id = extract_path_segment(p, "/plantations/").unwrap_or_default();
+                crate::assessment::handle_plantation_dashboard(request, &plantation_id, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/plantations/") && p.ends_with("/blocks/report") {
+                let plantation_id = extract_path_segment(p, "/plantations/").unwrap_or_default();
+                crate::assessment::handle_blocks_report(request, &plantation_id, db);
             } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/timeline") {
                 let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::tree::handle_get_timeline(request, &tree_code, db);

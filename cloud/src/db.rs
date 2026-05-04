@@ -1534,6 +1534,87 @@ impl DbManager {
         Ok(out)
     }
 
+    pub(crate) fn get_session_images_by_tree_id(&mut self, tree_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT si.id, si.session_id, si.image_url, si.image_role, si.upload_id, \
+                    si.mock_analysis_json, si.metadata_json, si.created_at, os.session_code \
+             FROM session_images si \
+             JOIN observation_sessions os ON si.session_id = os.id \
+             WHERE os.tree_id = $1 \
+             ORDER BY si.created_at ASC",
+            &[&tree_id],
+        ).map_err(|e| format!("get_session_images_by_tree_id error: {}", e))?;
+
+        let mut out = Vec::new();
+        for r in rows {
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": r.get::<_, i32>("id"),
+                "session_id": r.get::<_, i32>("session_id"),
+                "session_code": r.get::<_, String>("session_code"),
+                "image_url": r.get::<_, String>("image_url"),
+                "image_role": r.get::<_, String>("image_role"),
+                "upload_id": r.get::<_, Option<String>>("upload_id"),
+                "mock_analysis": r.get::<_, serde_json::Value>("mock_analysis_json"),
+                "metadata": r.get::<_, serde_json::Value>("metadata_json"),
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn get_tree_coordinate_history_by_tree_id(&mut self, tree_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT h.id, h.mission_id, h.detected_x, h.detected_y, h.center_shift, \
+                    h.match_confidence, h.crown_bbox_json, h.created_at, m.mission_name \
+             FROM tree_coordinate_history h \
+             JOIN uav_missions m ON h.mission_id = m.id \
+             WHERE h.tree_id = $1 \
+             ORDER BY h.created_at ASC",
+            &[&tree_id],
+        ).map_err(|e| format!("get_tree_coordinate_history_by_tree_id error: {}", e))?;
+
+        let mut out = Vec::new();
+        for r in rows {
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": r.get::<_, i32>("id"),
+                "mission_id": r.get::<_, i32>("mission_id"),
+                "mission_name": r.get::<_, String>("mission_name"),
+                "detected_x": r.get::<_, Option<f64>>("detected_x"),
+                "detected_y": r.get::<_, Option<f64>>("detected_y"),
+                "center_shift": r.get::<_, Option<f64>>("center_shift"),
+                "match_confidence": r.get::<_, Option<f64>>("match_confidence"),
+                "crown_bbox": r.get::<_, Option<serde_json::Value>>("crown_bbox_json"),
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn list_assessment_trees_by_plantation(&mut self, plantation_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tree_code, current_status, block_id, created_at, updated_at \
+             FROM trees WHERE plantation_id = $1 ORDER BY COALESCE(block_id, ''), tree_code",
+            &[&plantation_id],
+        ).map_err(|e| format!("list_assessment_trees_by_plantation error: {}", e))?;
+
+        let mut out = Vec::new();
+        for r in rows {
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            let updated_at: chrono::DateTime<chrono::Utc> = r.get("updated_at");
+            out.push(serde_json::json!({
+                "id": r.get::<_, i32>("id"),
+                "tree_code": r.get::<_, String>("tree_code"),
+                "current_status": r.get::<_, String>("current_status"),
+                "block_id": r.get::<_, Option<String>>("block_id"),
+                "created_at": created_at.to_rfc3339(),
+                "updated_at": updated_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
     pub(crate) fn create_observation_session(&mut self, tree_id: i32) -> Result<serde_json::Value, String> {
         if self.get_tree_by_id(tree_id)?.is_none() {
             return Err("tree not found".to_string());

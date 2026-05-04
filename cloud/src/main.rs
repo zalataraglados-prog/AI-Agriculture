@@ -1,4 +1,5 @@
 mod ai_client;
+mod assessment;
 mod auth;
 mod cli;
 mod config;
