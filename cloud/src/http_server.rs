@@ -652,6 +652,9 @@ fn handle_api(
         (Method::Get, "/api/v1/trees") => {
             crate::tree::handle_list_trees(request, query, db);
         }
+        (method, p) if p.starts_with("/api/v1/openclaw/tools") => {
+            crate::openclaw_tools::handle_tool_request(request, method, p, query, db);
+        }
         (method, p) if p.starts_with("/api/v1/uav/") || p.starts_with("/api/v1/trees/") || p.starts_with("/api/v1/sessions/") || p.starts_with("/api/v1/plantations/") => {
             if method == Method::Post && p == "/api/v1/uav/missions" {
                 crate::uav::handle_missions_post(request, db);

@@ -59,7 +59,7 @@ pub(crate) fn handle_blocks_report(request: Request, plantation_id: &str, db: Ar
     }
 }
 
-fn build_tree_assessment_by_code(g: &mut DbManager, tree_code: &str) -> Result<Option<Value>, String> {
+pub(crate) fn build_tree_assessment_by_code(g: &mut DbManager, tree_code: &str) -> Result<Option<Value>, String> {
     let Some(tree) = g.get_tree_by_code(tree_code)? else {
         return Ok(None);
     };
@@ -69,7 +69,7 @@ fn build_tree_assessment_by_code(g: &mut DbManager, tree_code: &str) -> Result<O
     Ok(Some(build_tree_assessment(tree, images, history)))
 }
 
-fn build_plantation_dashboard(g: &mut DbManager, plantation_id: i32) -> Result<Value, String> {
+pub(crate) fn build_plantation_dashboard(g: &mut DbManager, plantation_id: i32) -> Result<Value, String> {
     let tree_refs = g.list_assessment_trees_by_plantation(plantation_id)?;
     let mut trees = Vec::new();
     let mut harvest_recommended = 0;
@@ -148,7 +148,7 @@ fn build_plantation_dashboard(g: &mut DbManager, plantation_id: i32) -> Result<V
     }))
 }
 
-fn build_blocks_report(g: &mut DbManager, plantation_id: i32) -> Result<Value, String> {
+pub(crate) fn build_blocks_report(g: &mut DbManager, plantation_id: i32) -> Result<Value, String> {
     let dashboard = build_plantation_dashboard(g, plantation_id)?;
     let mut blocks: BTreeMap<String, Value> = BTreeMap::new();
     for tree in dashboard["trees"].as_array().cloned().unwrap_or_default() {
