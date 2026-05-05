@@ -62,13 +62,50 @@ curl "http://127.0.0.1:8088/api/v1/openclaw/tools/missing-evidence?tree_code=OP-
 curl "http://127.0.0.1:8088/api/v1/openclaw/tools/patrol-report?plantation_id=1"
 ```
 
-Only after these return structured JSON should `/root/.openclaw/` be updated.
+Only after these return structured JSON should OpenClaw chat integration be
+updated.
+
+## Adapter Tool Context Mode
+
+OpenClaw v2026.3.28 uses strict validation for `openclaw.json` and may reject
+custom tool entries under `tools` or `agents.defaults`. For that runtime, do not
+force tool definitions into the OpenClaw config. Use the chat adapter as a
+tool-context bridge instead.
+
+The adapter receives `/api/v1/chat`, detects simple agriculture intents, calls
+the cloud tool API on `127.0.0.1:8088`, and injects a bounded `[tool_context]`
+block into the prompt before invoking:
+
+```text
+openclaw agent --local --agent main --message ... --json
+```
+
+Supported intent hints:
+
+- `OP-000048` + general profile wording -> `query_tree_profile`
+- `OP-000048` + missing/evidence wording -> `query_missing_evidence`
+- `OP-000048` + timeline/history wording -> `query_tree_timeline`
+- patrol/priority wording + `plantation_id` -> `generate_patrol_report`
+- plantation/report/dashboard wording + `plantation_id` -> `query_plantation_report`
+
+Adapter environment variables:
+
+```text
+CLOUD_TOOL_BASE_URL=http://127.0.0.1:8088/api/v1/openclaw/tools
+CLOUD_TOOL_TIMEOUT_SEC=5
+CLOUD_TOOL_CONTEXT_MAX_CHARS=12000
+OPENCLAW_DEFAULT_PLANTATION_ID=1
+```
+
+`OPENCLAW_DEFAULT_PLANTATION_ID` is optional. Prefer passing an explicit
+`plantation_id` in the question or frontend context.
 
 ## OpenClaw Registration Template
 
 Use `doc/openclaw-tool-manifest.example.json` as a template for the cloud-side
-tool registration. The exact format may need to be adapted to the installed
-OpenClaw version. Keep the real file on the cloud host.
+tool registration only if the installed OpenClaw version supports external tool
+registration. For strict-schema versions, treat it as a contract document and use
+adapter tool-context mode instead. Keep the real file on the cloud host.
 
 Suggested behavior for the main agent:
 

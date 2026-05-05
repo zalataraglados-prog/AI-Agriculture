@@ -181,14 +181,25 @@ Adapter performance knobs (for cold-start mitigation):
 - `CHAT_ADAPTER_WORKERS` (default `2`): bounded concurrent CLI workers
 - `CHAT_ADAPTER_TIMEOUT_SEC` (default `180`)
 - `CHAT_ADAPTER_CWD` (default `/opt/ai-agriculture/cloud`)
+- `CLOUD_TOOL_BASE_URL` (default `http://127.0.0.1:8088/api/v1/openclaw/tools`)
+- `CLOUD_TOOL_TIMEOUT_SEC` (default `5`)
+- `CLOUD_TOOL_CONTEXT_MAX_CHARS` (default `12000`)
+- `OPENCLAW_DEFAULT_PLANTATION_ID` (optional fallback for patrol/report questions)
 - startup warmup is enabled by default (can disable with `--no-warmup`)
 
 Example:
 
 ```bash
 CHAT_ADAPTER_WORKERS=4 CHAT_ADAPTER_TIMEOUT_SEC=90 \
+CLOUD_TOOL_BASE_URL=http://127.0.0.1:8088/api/v1/openclaw/tools \
 python3 scripts/openclaw_chat_adapter.py --host 127.0.0.1 --port 3000
 ```
+
+For OpenClaw versions that reject custom tool entries in `openclaw.json`, the
+adapter injects bounded `tool_context` into the chat prompt. It detects tree
+codes such as `OP-000048`, plantation IDs, missing-evidence questions, and patrol
+questions, calls the read-only tool endpoints locally, and then asks OpenClaw to
+explain those facts.
 
 ## OpenClaw read-only tool API
 

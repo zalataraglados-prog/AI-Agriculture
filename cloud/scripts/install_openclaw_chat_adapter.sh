@@ -4,6 +4,10 @@ set -euo pipefail
 INSTALL_ROOT="${INSTALL_ROOT:-/opt/ai-agriculture/cloud}"
 SERVICE_NAME="${SERVICE_NAME:-openclaw-chat-adapter}"
 SCRIPT_PATH="${SCRIPT_PATH:-$INSTALL_ROOT/scripts/openclaw_chat_adapter.py}"
+CLOUD_TOOL_BASE_URL="${CLOUD_TOOL_BASE_URL:-http://127.0.0.1:8088/api/v1/openclaw/tools}"
+CLOUD_TOOL_TIMEOUT_SEC="${CLOUD_TOOL_TIMEOUT_SEC:-5}"
+CLOUD_TOOL_CONTEXT_MAX_CHARS="${CLOUD_TOOL_CONTEXT_MAX_CHARS:-12000}"
+OPENCLAW_DEFAULT_PLANTATION_ID="${OPENCLAW_DEFAULT_PLANTATION_ID:-}"
 
 if [[ "$EUID" -ne 0 ]]; then
   SUDO="sudo"
@@ -24,6 +28,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=${INSTALL_ROOT}
+Environment=CLOUD_TOOL_BASE_URL=${CLOUD_TOOL_BASE_URL}
+Environment=CLOUD_TOOL_TIMEOUT_SEC=${CLOUD_TOOL_TIMEOUT_SEC}
+Environment=CLOUD_TOOL_CONTEXT_MAX_CHARS=${CLOUD_TOOL_CONTEXT_MAX_CHARS}
+Environment=OPENCLAW_DEFAULT_PLANTATION_ID=${OPENCLAW_DEFAULT_PLANTATION_ID}
 ExecStart=/usr/bin/python3 ${SCRIPT_PATH} --host 127.0.0.1 --port 3000
 Restart=always
 RestartSec=2
