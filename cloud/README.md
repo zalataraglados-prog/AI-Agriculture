@@ -190,6 +190,21 @@ CHAT_ADAPTER_WORKERS=4 CHAT_ADAPTER_TIMEOUT_SEC=90 \
 python3 scripts/openclaw_chat_adapter.py --host 127.0.0.1 --port 3000
 ```
 
+## OpenClaw read-only tool API
+
+Sprint F exposes bounded, read-only agricultural tool endpoints for OpenClaw:
+
+- `GET /api/v1/openclaw/tools/manifest`
+- `GET /api/v1/openclaw/tools/tree-profile?tree_code=OP-000001`
+- `GET /api/v1/openclaw/tools/tree-timeline?tree_code=OP-000001&limit=20`
+- `GET /api/v1/openclaw/tools/plantation-report?plantation_id=1&limit=50`
+- `GET /api/v1/openclaw/tools/missing-evidence?tree_code=OP-000001`
+- `GET /api/v1/openclaw/tools/patrol-report?plantation_id=1&limit=50`
+- `POST /api/v1/openclaw/tools/explain-prediction`
+
+These endpoints reuse existing structured data and do not write database state.
+See `doc/openclaw-tools.md` for the cloud-side OpenClaw registration template.
+
 ## Auth API (issue #64 baseline)
 
 Auth is session-token based for management/business APIs:

@@ -1,0 +1,71 @@
+{
+  "description": "Example only. Adapt this to the real /root/.openclaw/openclaw.json or agent tool format on the cloud host.",
+  "baseUrl": "http://127.0.0.1:8088/api/v1/openclaw/tools",
+  "safety": {
+    "readOnly": true,
+    "databaseWrites": false,
+    "directDatabaseAccess": false,
+    "diagnosisPolicy": "suspected_not_confirmed",
+    "maxReturnedItems": 50
+  },
+  "tools": [
+    {
+      "name": "query_tree_profile",
+      "method": "GET",
+      "url": "{{baseUrl}}/tree-profile",
+      "parameters": {
+        "tree_code": { "type": "string", "required": true },
+        "limit": { "type": "integer", "required": false, "default": 10, "maximum": 50 }
+      },
+      "description": "Fetch a tree profile, current assessment, and bounded recent timeline evidence."
+    },
+    {
+      "name": "query_tree_timeline",
+      "method": "GET",
+      "url": "{{baseUrl}}/tree-timeline",
+      "parameters": {
+        "tree_code": { "type": "string", "required": true },
+        "limit": { "type": "integer", "required": false, "default": 20, "maximum": 50 }
+      },
+      "description": "Fetch UAV coordinate history for one tree."
+    },
+    {
+      "name": "query_plantation_report",
+      "method": "GET",
+      "url": "{{baseUrl}}/plantation-report",
+      "parameters": {
+        "plantation_id": { "type": "integer", "required": true },
+        "limit": { "type": "integer", "required": false, "default": 50, "maximum": 50 }
+      },
+      "description": "Fetch plantation dashboard and block report summaries."
+    },
+    {
+      "name": "query_missing_evidence",
+      "method": "GET",
+      "url": "{{baseUrl}}/missing-evidence",
+      "parameters": {
+        "tree_code": { "type": "string", "required": true }
+      },
+      "description": "List missing evidence dimensions and recommended capture actions for one tree."
+    },
+    {
+      "name": "explain_prediction",
+      "method": "POST",
+      "url": "{{baseUrl}}/explain-prediction",
+      "parameters": {
+        "result_json": { "type": "object", "required": true }
+      },
+      "description": "Explain a mock prediction deterministically without claiming diagnosis."
+    },
+    {
+      "name": "generate_patrol_report",
+      "method": "GET",
+      "url": "{{baseUrl}}/patrol-report",
+      "parameters": {
+        "plantation_id": { "type": "integer", "required": true },
+        "limit": { "type": "integer", "required": false, "default": 50, "maximum": 50 }
+      },
+      "description": "Return priority trees for field patrol."
+    }
+  ]
+}

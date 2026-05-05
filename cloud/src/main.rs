@@ -8,6 +8,7 @@ mod db;
 mod http_server;
 mod image_upload;
 mod model;
+mod openclaw_tools;
 mod payload;
 mod presence;
 mod registry;

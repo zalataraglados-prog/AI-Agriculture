@@ -466,3 +466,102 @@ def test_tree_assessment_and_plantation_reports():
     report = res.json()["report"]
     assert report["plantation_id"] == plantation_id
     assert len(report["blocks"]) >= 1
+
+
+def test_openclaw_tools_read_only_reports():
+    """E2E: OpenClaw tool endpoints expose bounded read-only tree facts."""
+    plantation_name = f"openclaw_tools_{int(time.time())}"
+    res = requests.post(
+        f"{BASE_URL}/api/v1/uav/missions",
+        json={
+            "plantation_id": 0,
+            "plantation_name": plantation_name,
+            "mission_name": "openclaw_seed",
+        },
+    )
+    assert res.status_code == 200
+    mission_id = res.json()["mission_id"]
+    plantation_id = res.json()["plantation_id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/missions/{mission_id}/orthomosaic")
+    assert res.status_code == 200
+    ortho_id = res.json()["orthomosaic_id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections/mock")
+    assert res.status_code == 200
+    res = requests.get(f"{BASE_URL}/api/v1/uav/orthomosaics/{ortho_id}/detections")
+    det_id = res.json()["detections"][0]["id"]
+
+    res = requests.post(f"{BASE_URL}/api/v1/uav/detections/{det_id}/confirm")
+    assert res.status_code == 200
+    tree_code = res.json()["tree_code"]
+
+    res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code}")
+    tree = res.json()["tree"]
+    res = requests.post(f"{BASE_URL}/api/v1/trees/{tree['id']}/sessions")
+    assert res.status_code == 200
+    session_id = res.json()["session"]["id"]
+
+    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00"
+    for role in ["fruit", "trunk_base", "crown"]:
+        res = requests.post(
+            f"{BASE_URL}/api/v1/sessions/{session_id}/images",
+            data={"image_role": role},
+            files={"file": (f"{role}.jpg", jpeg_bytes, "image/jpeg")},
+        )
+        assert res.status_code == 200
+
+    res = requests.get(f"{BASE_URL}/api/v1/openclaw/tools/manifest")
+    assert res.status_code == 200
+    manifest = res.json()
+    assert manifest["read_only"] is True
+    assert any(tool["name"] == "query_tree_profile" for tool in manifest["tools"])
+
+    res = requests.get(f"{BASE_URL}/api/v1/openclaw/tools/tree-profile?tree_code={tree_code}&limit=1")
+    assert res.status_code == 200
+    profile = res.json()
+    assert profile["tool"] == "query_tree_profile"
+    assert profile["tree"]["tree_code"] == tree_code
+    assert profile["metadata"]["read_only"] is True
+    assert len(profile["timeline"]) <= 1
+
+    res = requests.get(f"{BASE_URL}/api/v1/openclaw/tools/tree-timeline?tree_code={tree_code}&limit=1")
+    assert res.status_code == 200
+    timeline = res.json()
+    assert timeline["tool"] == "query_tree_timeline"
+    assert len(timeline["timeline"]) <= 1
+
+    res = requests.get(f"{BASE_URL}/api/v1/openclaw/tools/missing-evidence?tree_code={tree_code}")
+    assert res.status_code == 200
+    missing = res.json()
+    assert missing["tool"] == "query_missing_evidence"
+    assert "uav" in missing["missing_evidence"]
+    assert any(item["evidence"] == "uav" for item in missing["recommendations"])
+
+    res = requests.get(
+        f"{BASE_URL}/api/v1/openclaw/tools/plantation-report?plantation_id={plantation_id}&limit=1"
+    )
+    assert res.status_code == 200
+    report = res.json()
+    assert report["tool"] == "query_plantation_report"
+    assert len(report["dashboard"]["trees"]) <= 1
+
+    res = requests.get(f"{BASE_URL}/api/v1/openclaw/tools/patrol-report?plantation_id={plantation_id}&limit=50")
+    assert res.status_code == 200
+    patrol = res.json()
+    assert patrol["tool"] == "generate_patrol_report"
+    assert len(patrol["items"]) <= 50
+
+    res = requests.post(
+        f"{BASE_URL}/api/v1/openclaw/tools/explain-prediction",
+        json={
+            "result_json": {
+                "metadata": {"image_role": "trunk_base"},
+                "results": [{"label": "suspected_early", "confidence": 0.82}],
+            }
+        },
+    )
+    assert res.status_code == 200
+    explanation = res.json()["explanation"]
+    assert explanation["risk_language"] == "suspected_not_confirmed"
+    assert "not a confirmed diagnosis" in explanation["summary"]
