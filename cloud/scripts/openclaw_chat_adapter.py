@@ -60,6 +60,7 @@ class OpenClawAdapter:
         tool_timeout_sec: float,
         max_tool_context_chars: int,
         default_plantation_id: str | None,
+        cloud_tool_auth_bearer: str | None,
     ) -> None:
         self.timeout_sec = timeout_sec
         self.cwd = cwd
@@ -68,6 +69,7 @@ class OpenClawAdapter:
         self.tool_timeout_sec = max(1.0, tool_timeout_sec)
         self.max_tool_context_chars = max(1000, max_tool_context_chars)
         self.default_plantation_id = default_plantation_id
+        self.cloud_tool_auth_bearer = cloud_tool_auth_bearer
         self.env = dict(os.environ)
         self.env.setdefault("HOME", "/root")
         self.jobs: "queue.Queue[tuple[list[str], queue.Queue[tuple[bool, Any]]]]" = queue.Queue()
@@ -169,7 +171,7 @@ class OpenClawAdapter:
         except Exception as exc:  # noqa: BLE001
             print(f"[openclaw-chat-adapter] warmup skipped: {exc}")
 
-    def build_tool_context(self, message: str, context: Any) -> dict[str, Any] | None:
+    def build_tool_context(self, message: str, context: Any, authorization_header: str | None = None) -> dict[str, Any] | None:
         requests = select_tool_requests(message, context, self.default_plantation_id)
         if not requests:
             return None
@@ -184,7 +186,7 @@ class OpenClawAdapter:
                             "path": item.path,
                             "params": item.params,
                         },
-                        "response": self.fetch_tool(item),
+                        "response": self.fetch_tool(item, authorization_header),
                     }
                 )
             except Exception as exc:  # noqa: BLE001
@@ -208,16 +210,21 @@ class OpenClawAdapter:
             "results": results,
         }
 
-    def fetch_tool(self, item: ToolRequest) -> dict[str, Any]:
+    def fetch_tool(self, item: ToolRequest, authorization_header: str | None = None) -> dict[str, Any]:
         query = urllib.parse.urlencode(item.params)
         url = f"{self.cloud_tool_base_url}{item.path}"
         if query:
             url = f"{url}?{query}"
 
+        headers = {"Accept": "application/json"}
+        tool_authorization = authorization_header or self.cloud_tool_auth_bearer
+        if tool_authorization:
+            headers["Authorization"] = normalize_bearer_header(tool_authorization)
+
         req = urllib.request.Request(
             url,
             method="GET",
-            headers={"Accept": "application/json"},
+            headers=headers,
         )
         try:
             with urllib.request.urlopen(req, timeout=self.tool_timeout_sec) as resp:  # noqa: S310
@@ -285,7 +292,8 @@ class ChatHandler(BaseHTTPRequestHandler):
                 prompt += "\n\n[context]\n" + json.dumps(context, ensure_ascii=False)
             except Exception:  # noqa: BLE001
                 pass
-        tool_context = self.server.adapter.build_tool_context(message, context)  # type: ignore[attr-defined]
+        authorization_header = self.headers.get("Authorization")
+        tool_context = self.server.adapter.build_tool_context(message, context, authorization_header)  # type: ignore[attr-defined]
         if tool_context:
             prompt += "\n\n[tool_context]\n" + compact_tool_context(
                 tool_context,
@@ -398,6 +406,15 @@ def compact_tool_context(payload: dict[str, Any], max_chars: int) -> str:
     )
 
 
+def normalize_bearer_header(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        return cleaned
+    if cleaned[:7].lower() == "bearer ":
+        return cleaned
+    return f"Bearer {cleaned}"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="OpenClaw /api/v1/chat adapter")
     parser.add_argument("--host", default=os.getenv("CHAT_ADAPTER_HOST", "127.0.0.1"))
@@ -416,6 +433,7 @@ def main() -> None:
         default=int(os.getenv("CLOUD_TOOL_CONTEXT_MAX_CHARS", "12000")),
     )
     parser.add_argument("--default-plantation-id", default=os.getenv("OPENCLAW_DEFAULT_PLANTATION_ID"))
+    parser.add_argument("--cloud-tool-auth-bearer", default=os.getenv("CLOUD_TOOL_AUTH_BEARER"))
     parser.add_argument("--no-warmup", action="store_true", help="Disable startup warmup request.")
     args = parser.parse_args()
 
@@ -428,6 +446,7 @@ def main() -> None:
         tool_timeout_sec=max(1.0, args.tool_timeout_sec),
         max_tool_context_chars=max(1000, args.max_tool_context_chars),
         default_plantation_id=args.default_plantation_id,
+        cloud_tool_auth_bearer=args.cloud_tool_auth_bearer,
     )
     print(f"[openclaw-chat-adapter] listening on http://{args.host}:{args.port}")
     print(

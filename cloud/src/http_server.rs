@@ -1046,6 +1046,7 @@ fn handle_chat_proxy(
     http_client: &reqwest::blocking::Client,
 ) {
     let req_started = Instant::now();
+    let authorization_header = authorization_header_value(&request);
     let mut body = Vec::new();
     let read_started = Instant::now();
     if let Err(err) = request.as_reader().read_to_end(&mut body) {
@@ -1115,7 +1116,11 @@ fn handle_chat_proxy(
 
     let forward_url = format!("{}/api/v1/chat", openclaw_url.trim_end_matches('/'));
     let upstream_started = Instant::now();
-    let upstream = http_client.post(forward_url).json(&req).send();
+    let mut upstream_request = http_client.post(forward_url).json(&req);
+    if let Some(header_value) = authorization_header {
+        upstream_request = upstream_request.header(reqwest::header::AUTHORIZATION, header_value);
+    }
+    let upstream = upstream_request.send();
     let upstream_ms = upstream_started.elapsed().as_millis() as u64;
 
     let upstream = match upstream {
@@ -1261,6 +1266,15 @@ fn handle_chat_proxy(
     })
     .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream bad response\"}".to_string());
     respond_json_with_status(request, 503, &payload);
+}
+
+fn authorization_header_value(request: &tiny_http::Request) -> Option<String> {
+    request
+        .headers()
+        .iter()
+        .find(|h| h.field.equiv("Authorization"))
+        .map(|h| h.value.as_str().trim().to_string())
+        .filter(|value| !value.is_empty())
 }
 
 fn handle_image_file_request(

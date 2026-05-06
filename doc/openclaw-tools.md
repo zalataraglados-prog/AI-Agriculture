@@ -95,10 +95,16 @@ CLOUD_TOOL_BASE_URL=http://127.0.0.1:8088/api/v1/openclaw/tools
 CLOUD_TOOL_TIMEOUT_SEC=5
 CLOUD_TOOL_CONTEXT_MAX_CHARS=12000
 OPENCLAW_DEFAULT_PLANTATION_ID=1
+CLOUD_TOOL_AUTH_BEARER=
 ```
 
 `OPENCLAW_DEFAULT_PLANTATION_ID` is optional. Prefer passing an explicit
 `plantation_id` in the question or frontend context.
+
+If `CLOUD_AUTH_ENABLED=true`, cloud forwards the original chat request
+`Authorization` header to the adapter, and the adapter reuses that bearer token
+for tool API calls. `CLOUD_TOOL_AUTH_BEARER` is an optional fallback for direct
+adapter requests; avoid hardcoding long-lived real tokens in repository files.
 
 ## OpenClaw Registration Template
 

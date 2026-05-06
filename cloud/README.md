@@ -185,6 +185,7 @@ Adapter performance knobs (for cold-start mitigation):
 - `CLOUD_TOOL_TIMEOUT_SEC` (default `5`)
 - `CLOUD_TOOL_CONTEXT_MAX_CHARS` (default `12000`)
 - `OPENCLAW_DEFAULT_PLANTATION_ID` (optional fallback for patrol/report questions)
+- `CLOUD_TOOL_AUTH_BEARER` (optional fallback token for tool API calls)
 - startup warmup is enabled by default (can disable with `--no-warmup`)
 
 Example:
@@ -200,6 +201,11 @@ adapter injects bounded `tool_context` into the chat prompt. It detects tree
 codes such as `OP-000048`, plantation IDs, missing-evidence questions, and patrol
 questions, calls the read-only tool endpoints locally, and then asks OpenClaw to
 explain those facts.
+
+When cloud auth is enabled, `POST /api/v1/chat` forwards the request
+`Authorization` header to the adapter, and the adapter reuses it when calling the
+tool endpoints. `CLOUD_TOOL_AUTH_BEARER` is only a fallback for direct adapter
+calls that do not arrive through cloud.
 
 ## OpenClaw read-only tool API
 

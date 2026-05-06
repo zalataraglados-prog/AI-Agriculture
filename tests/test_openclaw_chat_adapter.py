@@ -1,4 +1,5 @@
 import importlib.util
+from unittest import mock
 import sys
 from pathlib import Path
 
@@ -53,3 +54,69 @@ def test_compacts_large_tool_context():
     text = adapter.compact_tool_context({"source": "test", "blob": "x" * 5000}, 1200)
     assert len(text) <= 1200
     assert '"truncated": true' in text
+
+
+def test_fetch_tool_propagates_authorization_header():
+    adapter = load_adapter_module()
+    service = adapter.OpenClawAdapter.__new__(adapter.OpenClawAdapter)
+    service.cloud_tool_base_url = "http://127.0.0.1:8088/api/v1/openclaw/tools"
+    service.tool_timeout_sec = 1
+    service.cloud_tool_auth_bearer = None
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"status":"ok"}'
+
+    def fake_urlopen(req, timeout):
+        captured["authorization"] = req.headers.get("Authorization")
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    with mock.patch.object(adapter.urllib.request, "urlopen", side_effect=fake_urlopen):
+        payload = service.fetch_tool(
+            adapter.ToolRequest("query_tree_profile", "/tree-profile", {"tree_code": "OP-000048"}),
+            "Bearer test-token",
+        )
+
+    assert payload["status"] == "ok"
+    assert captured["authorization"] == "Bearer test-token"
+    assert captured["timeout"] == 1
+
+
+def test_fetch_tool_uses_fallback_bearer_token():
+    adapter = load_adapter_module()
+    service = adapter.OpenClawAdapter.__new__(adapter.OpenClawAdapter)
+    service.cloud_tool_base_url = "http://127.0.0.1:8088/api/v1/openclaw/tools"
+    service.tool_timeout_sec = 1
+    service.cloud_tool_auth_bearer = "fallback-token"
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"status":"ok"}'
+
+    def fake_urlopen(req, timeout):
+        captured["authorization"] = req.headers.get("Authorization")
+        return FakeResponse()
+
+    with mock.patch.object(adapter.urllib.request, "urlopen", side_effect=fake_urlopen):
+        service.fetch_tool(adapter.ToolRequest("query_tree_profile", "/tree-profile", {"tree_code": "OP-000048"}))
+
+    assert captured["authorization"] == "Bearer fallback-token"
