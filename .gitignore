@@ -56,7 +56,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Datasets: raw images, processed data, training format — never commit
+# Datasets: raw images, processed data, training format - never commit
 datasets/**/raw/
 datasets/**/processed/
 datasets/**/yolo/
@@ -81,4 +81,3 @@ data/
 image_uploads/
 /cloud/data/
 /cloud/state/
-

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 from typing import Any
 
 from ai_engine.common.predictors.base import BasePredictor, PredictorContext
@@ -32,14 +31,6 @@ OIL_PALM_CONFIDENCE_THRESHOLD = float(
     os.environ.get("OIL_PALM_CONFIDENCE_THRESHOLD", "0.5")
 )
 
-# Per-task model path environment variables
-_TASK_MODEL_PATH_ENV = {
-    "ffb_maturity": "OIL_PALM_FFB_MODEL_PATH",
-    "uav_tree_crown": "OIL_PALM_UAV_CROWN_MODEL_PATH",
-    "ganoderma_risk": "OIL_PALM_GANODERMA_MODEL_PATH",
-    "a0_image_routing": "OIL_PALM_A0_MODEL_PATH",
-}
-
 # Mock predictor classes keyed by task
 _MOCK_PREDICTORS: dict[str, type[BasePredictor]] = {
     "ffb_maturity": FFBMockPredictor,
@@ -47,53 +38,6 @@ _MOCK_PREDICTORS: dict[str, type[BasePredictor]] = {
     "growth_vigor": GrowthMockPredictor,
     "uav_tree_crown": UAVTileMockPredictor,
 }
-
-# Real predictor classes keyed by task (lazy-imported to avoid heavy deps in mock mode)
-_REAL_PREDICTOR_IMPORT_MAP: dict[str, tuple[str, str]] = {
-    "ffb_maturity": (
-        "ai_engine.crops.oil_palm.inference.real_predictors",
-        "FFBRealPredictor",
-    ),
-    "uav_tree_crown": (
-        "ai_engine.crops.oil_palm.inference.real_predictors",
-        "UAVTileRealPredictor",
-    ),
-    "ganoderma_risk": (
-        "ai_engine.crops.oil_palm.inference.real_predictors",
-        "GanodermaRealPredictor",
-    ),
-    "growth_vigor": (
-        "ai_engine.crops.oil_palm.inference.real_predictors",
-        "GrowthRealPredictor",
-    ),
-}
-
-
-def _get_model_path(task: str) -> str | None:
-    """Get the model weight file path from environment variable for a given task."""
-    env_key = _TASK_MODEL_PATH_ENV.get(task)
-    if env_key is None:
-        return None
-    return os.environ.get(env_key)
-
-
-def _try_load_real_predictor(
-    task: str, model_path: str, confidence_threshold: float
-) -> BasePredictor | None:
-    """Attempt to lazy-import and instantiate a real predictor for the given task.
-
-    Returns None if the import map has no entry for the task.
-    Raises ImportError or other exceptions on failure.
-    """
-    entry = _REAL_PREDICTOR_IMPORT_MAP.get(task)
-    if entry is None:
-        return None
-    module_path, class_name = entry
-    import importlib
-
-    module = importlib.import_module(module_path)
-    cls = getattr(module, class_name)
-    return cls(model_path=model_path, confidence_threshold=confidence_threshold)
 
 
 class OilPalmPipeline:
@@ -135,6 +79,11 @@ class OilPalmPipeline:
         envelope["metadata"].update(context.metadata)
         envelope["metadata"]["pipeline"] = f"oil_palm_{self.model_mode}_pipeline_v1"
         envelope["metadata"]["model_mode"] = self.model_mode
+        if self.model_mode == "hybrid":
+            envelope["metadata"]["model_mode_note"] = (
+                "foundation branch: real oil palm predictors are not registered yet; "
+                "hybrid safely falls back to mock predictors"
+            )
         envelope["metadata"]["registered_capabilities"] = self.registry.capabilities(self.crop)
         return envelope
 
@@ -145,11 +94,10 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
     Mode semantics:
     - mock:   All tasks use mock predictors. No real weights needed.
               Suitable for demo, CI, and environments without model files.
-    - real:   All declared real tasks must load real weights.
-              Missing weight files cause fail-fast (RuntimeError).
-              Suitable for production validation.
-    - hybrid: Try real predictor if weight file exists, otherwise fallback to mock.
-              Suitable for incremental model deployment.
+    - real:   Fail fast in this foundation branch. Real predictors are enabled
+              only by the later per-task model branches.
+    - hybrid: Safe foundation fallback. All tasks still use mock predictors until
+              a per-task model branch registers a real predictor.
     """
     mode = OIL_PALM_MODEL_MODE
     if mode not in ("mock", "real", "hybrid"):
@@ -159,67 +107,30 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
         mode = "mock"
 
     logger.info("Building OilPalmPipeline in mode=%s", mode)
+    if mode == "real":
+        raise RuntimeError(
+            "OIL_PALM_MODEL_MODE=real is not available in "
+            "feature/oil-palm-model-data-foundation. Real oil palm predictors "
+            "must be implemented and registered by per-task model branches "
+            "(feature/ffb-maturity-model, feature/uav-crown-detection-model, "
+            "feature/ganoderma-risk-model, feature/oil-palm-a0-routing-model)."
+        )
+
+    if mode == "hybrid":
+        logger.info(
+            "Oil palm hybrid mode is running as safe mock fallback in the "
+            "model data foundation branch; real predictors are not registered yet."
+        )
+
     registry = ModelRegistry()
 
     # Tasks that get registered into the pipeline
     tasks_to_register = ["ffb_maturity", "ganoderma_risk", "growth_vigor", "uav_tree_crown"]
 
     for task in tasks_to_register:
-        if mode == "mock":
-            # Pure mock: register mock predictor directly
-            mock_cls = _MOCK_PREDICTORS.get(task)
-            if mock_cls:
-                registry.register(mock_cls())
-                logger.info("  [%s] registered mock predictor", task)
-            continue
-
-        # real or hybrid: check for model weight path
-        model_path = _get_model_path(task)
-        weight_exists = model_path and Path(model_path).exists()
-
-        if mode == "real":
-            if not model_path:
-                raise RuntimeError(
-                    f"OIL_PALM_MODEL_MODE=real but no model path set for task={task}. "
-                    f"Set {_TASK_MODEL_PATH_ENV.get(task, '???')} environment variable."
-                )
-            if not weight_exists:
-                raise RuntimeError(
-                    f"OIL_PALM_MODEL_MODE=real but weight file not found: {model_path} "
-                    f"for task={task}"
-                )
-            predictor = _try_load_real_predictor(
-                task, model_path, OIL_PALM_CONFIDENCE_THRESHOLD
-            )
-            if predictor is None:
-                raise RuntimeError(
-                    f"No real predictor implementation registered for task={task}"
-                )
-            registry.register(predictor)
-            logger.info("  [%s] registered real predictor (path=%s)", task, model_path)
-
-        elif mode == "hybrid":
-            if weight_exists and model_path:
-                try:
-                    predictor = _try_load_real_predictor(
-                        task, model_path, OIL_PALM_CONFIDENCE_THRESHOLD
-                    )
-                    if predictor:
-                        registry.register(predictor)
-                        logger.info(
-                            "  [%s] registered real predictor (path=%s)", task, model_path
-                        )
-                        continue
-                except Exception as exc:
-                    logger.warning(
-                        "  [%s] failed to load real predictor, falling back to mock: %s",
-                        task, exc,
-                    )
-
-            # Fallback to mock
-            mock_cls = _MOCK_PREDICTORS.get(task)
-            if mock_cls:
-                registry.register(mock_cls())
-                logger.info("  [%s] registered mock predictor (hybrid fallback)", task)
+        mock_cls = _MOCK_PREDICTORS.get(task)
+        if mock_cls:
+            registry.register(mock_cls())
+            logger.info("  [%s] registered mock predictor", task)
 
     return OilPalmPipeline(registry, model_mode=mode)

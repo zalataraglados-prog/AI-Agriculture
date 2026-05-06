@@ -1,63 +1,75 @@
 # Oil Palm Models
 
-本目录存放油棕各 AI 任务的模型配置、标签、Model Card 和指标模板。
+This directory stores oil palm model metadata: labels, model cards, metrics
+templates, and future checkpoint mount points. It does not store trained
+weights in Git.
 
-## 核心原则
+## Principles
 
-- **权重不入库**：`*.pt`、`*.pth`、`*.onnx` 等模型权重文件通过 `.gitignore` 排除。
-- **部署挂载**：生产环境通过 Volume Mount 挂载：`-v ./models:/app/models:ro`
-- **版本追踪**：每次模型更新在 `model_card.md` 中记录 Changelog，并更新 `metrics.example.json`。
-- **模式切换**：通过 `OIL_PALM_MODEL_MODE` 环境变量控制 mock/real/hybrid 模式。
+- Model weights are not committed. Files such as `*.pt`, `*.pth`, and `*.onnx`
+  are ignored by `.gitignore`.
+- Production should mount model artifacts through deployment configuration.
+- Every real model update should include a model card and metrics JSON.
+- `OIL_PALM_MODEL_MODE` defines the runtime mode, but this foundation branch
+  does not register real predictors yet.
 
-## 目录结构
+## Directory Layout
 
 ```text
 models/oil_palm/
-├── README.md                        # 本文件
-├── ffb_maturity/
-│   ├── model_card.md                # Model Card
-│   ├── labels.json                  # 标签映射
-│   ├── metrics.example.json         # 指标模板
-│   └── best.pt                      # 权重 (gitignore)
-├── uav_tree_crown/
-│   ├── model_card.md
-│   ├── labels.json
-│   ├── metrics.example.json
-│   └── best.pt                      # 权重 (gitignore)
-├── ganoderma_risk/
-│   ├── model_card.md
-│   ├── labels.json
-│   ├── metrics.example.json
-│   └── best.pt                      # 权重 (gitignore)
-└── a0_image_routing/
-    ├── model_card.md
-    ├── labels.json
-    ├── metrics.example.json
-    └── best.pt                      # 权重 (gitignore)
+  README.md
+  ffb_maturity/
+    model_card.md
+    labels.json
+    metrics.example.json
+    best.pt              # ignored
+  uav_tree_crown/
+    model_card.md
+    labels.json
+    metrics.example.json
+    best.pt              # ignored
+  ganoderma_risk/
+    model_card.md
+    labels.json
+    metrics.example.json
+    best.pt              # ignored
+  a0_image_routing/
+    model_card.md
+    labels.json
+    metrics.example.json
+    best.pt              # ignored
 ```
 
-## 任务概览
+## Task Overview
 
-| 任务 | 类型 | 推荐框架 | 当前状态 | 标签数 |
-|------|------|---------|---------|--------|
-| ffb_maturity | 目标检测 + 分类 | YOLOv8 | mock | 6 |
-| uav_tree_crown | 目标检测 | YOLOv8 | mock | 1 |
-| ganoderma_risk | 图像分类 | ResNet / EfficientNet | mock | 3 |
-| a0_image_routing | 图像分类 | MobileNet / EfficientNet | mock | 4 |
+| Task | Type | Suggested framework | Current status | Labels |
+| --- | --- | --- | --- | --- |
+| `ffb_maturity` | object detection + maturity class | YOLO family | mock | 6 |
+| `uav_tree_crown` | object detection | YOLO family | mock | 1 |
+| `ganoderma_risk` | image classification | ResNet / EfficientNet | mock | 3 |
+| `a0_image_routing` | image classification | MobileNet / EfficientNet | placeholder only | 4 |
 
-## 环境变量
+`growth_vigor` currently remains a mock pipeline task. The planned v1 is likely
+an aggregation score rather than a single-image trained model, so there is no
+`OIL_PALM_GROWTH_MODEL_PATH` in this foundation branch.
 
-| 变量名 | 默认值 | 说明 |
-|--------|-------|------|
-| `OIL_PALM_MODEL_MODE` | `mock` | 模型运行模式：`mock` / `real` / `hybrid` |
-| `OIL_PALM_FFB_MODEL_PATH` | - | FFB 果串模型权重路径 |
-| `OIL_PALM_UAV_CROWN_MODEL_PATH` | - | UAV 树冠模型权重路径 |
-| `OIL_PALM_GANODERMA_MODEL_PATH` | - | Ganoderma 风险模型权重路径 |
-| `OIL_PALM_A0_MODEL_PATH` | - | A0 图片路由模型权重路径 |
-| `OIL_PALM_CONFIDENCE_THRESHOLD` | `0.5` | 推理置信度阈值 |
+## Runtime Mode
 
-### 模式语义
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `OIL_PALM_MODEL_MODE` | `mock` | Oil palm runtime mode: `mock`, `real`, or `hybrid` |
+| `OIL_PALM_CONFIDENCE_THRESHOLD` | `0.5` | Future real predictor confidence threshold |
 
-- **mock**：所有 task 强制走 mock predictor。适合 demo、CI、无权重环境。
-- **real**：所有已声明为 real 的 task 必须加载真实权重。缺失则 fail fast。适合正式验证。
-- **hybrid**：有权重走 real，无权重 fallback mock。适合分阶段上线。
+Future per-task branches will enable these path variables:
+
+- `OIL_PALM_FFB_MODEL_PATH`
+- `OIL_PALM_UAV_CROWN_MODEL_PATH`
+- `OIL_PALM_GANODERMA_MODEL_PATH`
+- `OIL_PALM_A0_MODEL_PATH`
+
+Mode semantics in this foundation branch:
+
+- `mock`: all registered oil palm tasks use mock predictors.
+- `hybrid`: safe mock fallback. Real predictors are not registered yet.
+- `real`: fail-fast with a clear message until per-task branches implement real
+  predictors.

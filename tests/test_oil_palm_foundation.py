@@ -4,9 +4,8 @@ Validates:
 - Manifest files are valid JSON with required fields
 - Labels.json files are valid non-empty lists
 - Metrics example files have required structure
-- Real predictor skeletons raise NotImplementedError
 - Data utils functions work correctly
-- Pipeline defaults to mock mode with model_mode in metadata
+- Pipeline mode switching stays safe in the foundation branch
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASETS_OIL_PALM = PROJECT_ROOT / "datasets" / "oil_palm"
 MODELS_OIL_PALM = PROJECT_ROOT / "models" / "oil_palm"
 MANIFEST_DIR = DATASETS_OIL_PALM / "manifests"
+TEST_OUTPUT_DIR = PROJECT_ROOT / "target" / "test_oil_palm_foundation"
 
 TASKS = ["ffb_maturity", "uav_tree_crown", "ganoderma_risk", "a0_image_routing"]
 
@@ -143,72 +143,6 @@ class TestMetrics:
 
 
 # ---------------------------------------------------------------------------
-# Real predictor tests
-# ---------------------------------------------------------------------------
-
-
-class TestRealPredictors:
-    """Verify real predictor skeletons raise NotImplementedError."""
-
-    def test_ffb_real_predictor_not_implemented(self) -> None:
-        from ai_engine.crops.oil_palm.inference.real_predictors import FFBRealPredictor
-        from ai_engine.common.predictors.base import PredictorContext
-
-        p = FFBRealPredictor(model_path="dummy.pt")
-        ctx = PredictorContext(crop="oil_palm", task="ffb_maturity")
-        with pytest.raises(NotImplementedError):
-            p.predict(b"fake_image", ctx)
-
-    def test_uav_real_predictor_not_implemented(self) -> None:
-        from ai_engine.crops.oil_palm.inference.real_predictors import UAVTileRealPredictor
-        from ai_engine.common.predictors.base import PredictorContext
-
-        p = UAVTileRealPredictor(model_path="dummy.pt")
-        ctx = PredictorContext(crop="oil_palm", task="uav_tree_crown")
-        with pytest.raises(NotImplementedError):
-            p.predict(b"fake_image", ctx)
-
-    def test_ganoderma_real_predictor_not_implemented(self) -> None:
-        from ai_engine.crops.oil_palm.inference.real_predictors import GanodermaRealPredictor
-        from ai_engine.common.predictors.base import PredictorContext
-
-        p = GanodermaRealPredictor(model_path="dummy.pt")
-        ctx = PredictorContext(crop="oil_palm", task="ganoderma_risk")
-        with pytest.raises(NotImplementedError):
-            p.predict(b"fake_image", ctx)
-
-    def test_growth_real_predictor_not_implemented(self) -> None:
-        from ai_engine.crops.oil_palm.inference.real_predictors import GrowthRealPredictor
-        from ai_engine.common.predictors.base import PredictorContext
-
-        p = GrowthRealPredictor(model_path="dummy.pt")
-        ctx = PredictorContext(crop="oil_palm", task="growth_vigor")
-        with pytest.raises(NotImplementedError):
-            p.predict(b"fake_image", ctx)
-
-    def test_a0_real_predictor_not_implemented(self) -> None:
-        from ai_engine.crops.oil_palm.inference.real_predictors import A0RoutingRealPredictor
-        from ai_engine.common.predictors.base import PredictorContext
-
-        p = A0RoutingRealPredictor(model_path="dummy.pt")
-        ctx = PredictorContext(crop="oil_palm", task="a0_image_routing")
-        with pytest.raises(NotImplementedError):
-            p.predict(b"fake_image", ctx)
-
-    def test_real_predictors_have_mode_real(self) -> None:
-        from ai_engine.crops.oil_palm.inference.real_predictors import (
-            FFBRealPredictor,
-            UAVTileRealPredictor,
-            GanodermaRealPredictor,
-            GrowthRealPredictor,
-            A0RoutingRealPredictor,
-        )
-        for cls in [FFBRealPredictor, UAVTileRealPredictor, GanodermaRealPredictor,
-                    GrowthRealPredictor, A0RoutingRealPredictor]:
-            assert cls.mode == "real"
-
-
-# ---------------------------------------------------------------------------
 # Data utils tests
 # ---------------------------------------------------------------------------
 
@@ -256,33 +190,37 @@ class TestDataUtils:
 class TestMetricsUtils:
     """Test training common metrics utilities."""
 
-    def test_save_and_load_metrics(self, tmp_path: Path) -> None:
+    def test_save_and_load_metrics(self) -> None:
         from ai_engine.crops.oil_palm.training.common.metrics_utils import (
             save_metrics, load_metrics,
         )
 
+        out_dir = TEST_OUTPUT_DIR / "save_and_load_metrics"
+        out_dir.mkdir(parents=True, exist_ok=True)
         metrics = {
             "model_version": "test_v1",
             "task": "ffb_maturity",
             "metrics": {"mAP50": 0.75, "precision": 0.8},
         }
-        out = save_metrics(metrics, tmp_path / "metrics.json")
+        out = save_metrics(metrics, out_dir / "metrics.json")
         loaded = load_metrics(out)
         assert loaded["model_version"] == "test_v1"
         assert loaded["metrics"]["mAP50"] == 0.75
 
-    def test_compare_metrics(self, tmp_path: Path) -> None:
+    def test_compare_metrics(self) -> None:
         from ai_engine.crops.oil_palm.training.common.metrics_utils import (
             save_metrics, compare_metrics,
         )
 
+        out_dir = TEST_OUTPUT_DIR / "compare_metrics"
+        out_dir.mkdir(parents=True, exist_ok=True)
         old = {"model_version": "v1", "metrics": {"mAP50": 0.70, "precision": 0.75}}
         new = {"model_version": "v2", "metrics": {"mAP50": 0.80, "precision": 0.72}}
 
-        save_metrics(old, tmp_path / "old.json")
-        save_metrics(new, tmp_path / "new.json")
+        save_metrics(old, out_dir / "old.json")
+        save_metrics(new, out_dir / "new.json")
 
-        result = compare_metrics(tmp_path / "old.json", tmp_path / "new.json")
+        result = compare_metrics(out_dir / "old.json", out_dir / "new.json")
         assert result["old_version"] == "v1"
         assert result["new_version"] == "v2"
         assert result["changes"]["mAP50"]["improved"] is True
@@ -295,32 +233,81 @@ class TestMetricsUtils:
 
 
 class TestPipelineMode:
-    """Test that pipeline correctly reflects model mode in metadata."""
+    """Test foundation-safe oil palm model modes."""
 
-    def test_pipeline_mock_mode_is_default(self) -> None:
+    def _reload_pipeline(self, monkeypatch: pytest.MonkeyPatch, mode: str | None = None):
+        import importlib
+        import ai_engine.crops.oil_palm.pipeline as pipeline_mod
+
+        if mode is None:
+            monkeypatch.delenv("OIL_PALM_MODEL_MODE", raising=False)
+        else:
+            monkeypatch.setenv("OIL_PALM_MODEL_MODE", mode)
+
+        return importlib.reload(pipeline_mod)
+
+    def test_pipeline_mock_mode_is_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Default build (no env override) should produce mock mode."""
-        import os
-        # Ensure env var is not set or is 'mock'
-        old = os.environ.pop("OIL_PALM_MODEL_MODE", None)
-        try:
-            # Re-import to pick up fresh module-level env read
-            import importlib
-            import ai_engine.crops.oil_palm.pipeline as pipeline_mod
-            importlib.reload(pipeline_mod)
-            p = pipeline_mod.build_default_oil_palm_pipeline()
-            assert p.model_mode == "mock"
-        finally:
-            if old is not None:
-                os.environ["OIL_PALM_MODEL_MODE"] = old
+        pipeline_mod = self._reload_pipeline(monkeypatch)
+        p = pipeline_mod.build_default_oil_palm_pipeline()
+        assert p.model_mode == "mock"
 
-    def test_pipeline_metadata_includes_model_mode(self) -> None:
+    def test_pipeline_metadata_includes_model_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """analyze() output metadata should contain model_mode field."""
-        from ai_engine.crops.oil_palm.pipeline import build_default_oil_palm_pipeline
-
-        pipeline = build_default_oil_palm_pipeline()
+        pipeline_mod = self._reload_pipeline(monkeypatch)
+        pipeline = pipeline_mod.build_default_oil_palm_pipeline()
         result = pipeline.analyze(
             image_bytes=b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR",
             image_role="fruit",
         )
         assert "model_mode" in result["metadata"]
         assert result["metadata"]["model_mode"] == "mock"
+
+    def test_pipeline_hybrid_mode_safely_uses_mock_predictors(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Foundation hybrid mode must not register unavailable real predictors."""
+        monkeypatch.setenv(
+            "OIL_PALM_FFB_MODEL_PATH",
+            str(MODELS_OIL_PALM / "ffb_maturity" / "labels.json"),
+        )
+        pipeline_mod = self._reload_pipeline(monkeypatch, "hybrid")
+
+        pipeline = pipeline_mod.build_default_oil_palm_pipeline()
+        assert pipeline.model_mode == "hybrid"
+        capabilities = pipeline.registry.capabilities("oil_palm")
+        assert {item["mode"] for item in capabilities} == {"mock"}
+        assert {item["task"] for item in capabilities} == {
+            "ffb_maturity",
+            "ganoderma_risk",
+            "growth_vigor",
+            "uav_tree_crown",
+        }
+
+        result = pipeline.analyze(
+            image_bytes=b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR",
+            image_role="fruit",
+        )
+        assert result["metadata"]["model_mode"] == "hybrid"
+        assert "foundation branch" in result["metadata"]["model_mode_note"]
+        assert result["model_version"].endswith("_mock_v1")
+
+    def test_pipeline_real_mode_fails_fast(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Real mode is intentionally unavailable until per-task model branches."""
+        pipeline_mod = self._reload_pipeline(monkeypatch, "real")
+
+        with pytest.raises(RuntimeError, match="Real oil palm predictors"):
+            pipeline_mod.build_default_oil_palm_pipeline()
+
+    def test_a0_is_foundation_only_not_registered(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A0 has dataset/model placeholders but is not registered into pipeline."""
+        pipeline_mod = self._reload_pipeline(monkeypatch)
+        pipeline = pipeline_mod.build_default_oil_palm_pipeline()
+
+        assert "a0_image_routing" not in pipeline.supported_image_roles
+        assert all(
+            item["task"] != "a0_image_routing"
+            for item in pipeline.registry.capabilities("oil_palm")
+        )
