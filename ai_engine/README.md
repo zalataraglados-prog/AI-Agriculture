@@ -1,136 +1,124 @@
 # AI Engine
 
-智慧农业 AI 推理引擎，采用模块化多作物架构。
+AI Engine is the FastAPI inference service for the multi-crop AI-Agriculture
+platform. It keeps crop modules isolated while sharing common schemas,
+predictor interfaces, image adapters, and health endpoints.
 
-## 目录结构
+## Directory Layout
 
-```
+```text
 ai_engine/
-├── main.py                          # FastAPI 入口（lifespan 预加载、CORS、路由挂载）
-├── infer.py                         # 本地单图推理 CLI 工具
-├── common/                          # 跨作物共享模块
-│   ├── health.py                    # GET /api/v1/health（profile-safe）
-│   ├── base_predictor.py            # 模型基类 BasePredictor
-│   ├── adapters/
-│   │   └── image_adapter.py         # L2: 图像解码适配器
-│   └── schemas/
-│       └── prediction.py            # Pydantic 数据契约
-└── crops/                           # 作物隔离模块（禁止跨 crop 导入）
-    ├── rice/
-    │   ├── inference/
-    │   │   ├── api.py               # POST /api/v1/predict, /api/v1/rice/predict
-    │   │   └── rice_leaf_classifier.py  # L3: 水稻病害分类器
-    │   └── training/
-    │       ├── train_rice_leaf_classifier.py
-    │       ├── evaluate.py
-    │       └── prepare_rice_cls_dataset.py
-    └── oil_palm/
-        ├── inference/
-        │   ├── api.py               # POST /api/v1/oil-palm/analyze-image 等 Mock 端点
-        │   └── predictor.py         # YOLOv8 占位
-        └── training/                # 待实现
+  main.py
+  infer.py
+  common/
+    health.py
+    registry.py
+    predictors/
+      base.py
+    adapters/
+      image_adapter.py
+    schemas/
+      prediction.py
+  crops/
+    rice/
+      inference/
+      training/
+    oil_palm/
+      inference/
+        api.py
+        predictor.py
+        mock_predictors.py
+      pipeline.py
+      training/
+        common/
+        data_importers/
+        ffb_maturity/
+        uav_tree_crown/
+        ganoderma_risk/
+        a0_image_routing/
 ```
 
-## 架构规则
+## Crop Boundaries
 
-- `common/` 只放跨 crop 共享逻辑（适配器、Schema、健康检查）。
-- `crops/<crop>/` 内的模块**禁止互相导入**。
-- `main.py` 根据 `CROP_PROFILE` 环境变量决定加载哪个 crop 的模型。
+- `common/` contains cross-crop infrastructure only.
+- `crops/rice/` and `crops/oil_palm/` must not import business logic from each other.
+- `CROP_PROFILE` selects the active profile at runtime.
+- Legacy rice endpoints remain available for compatibility.
 
-## 启动服务
+## Run Locally
 
 ```bash
-# 水稻模式（默认）
+# Rice profile (default)
 CROP_PROFILE=rice uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 8000
 
-# 油棕模式
+# Oil palm profile
 CROP_PROFILE=oil_palm uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## 环境变量
+## Environment Variables
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `CROP_PROFILE` | 作物模式 (`rice` / `oil_palm`) | `rice` |
-| `MODEL_CHECKPOINT_PATH` | 模型权重路径 | `models/rice/rice_leaf_classifier/best_model.pth` |
-| `MODEL_LABELS_FILE` | 标签映射路径 | `models/rice/rice_leaf_classifier/labels.json` |
-| `MODEL_CONFIG_FILE` | 模型配置路径 | `models/rice/rice_leaf_classifier/config.yaml` |
-| `MODEL_ADVICE_FILE` | 病害建议路径 | `models/rice/rice_leaf_classifier/advice_map.yaml` |
-| `CORS_ORIGINS` | 允许跨域源 | `http://localhost:8088,http://127.0.0.1:8088` |
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `CROP_PROFILE` | Crop profile: `rice` or `oil_palm` | `rice` |
+| `MODEL_CHECKPOINT_PATH` | Rice checkpoint path | `models/rice/rice_leaf_classifier/best_model.pth` |
+| `MODEL_LABELS_FILE` | Rice labels path | `models/rice/rice_leaf_classifier/labels.json` |
+| `MODEL_CONFIG_FILE` | Rice config path | `models/rice/rice_leaf_classifier/config.yaml` |
+| `MODEL_ADVICE_FILE` | Rice advice map path | `models/rice/rice_leaf_classifier/advice_map.yaml` |
+| `CORS_ORIGINS` | Allowed dashboard/backend origins | `http://localhost:8088,http://127.0.0.1:8088` |
+| `OIL_PALM_MODEL_MODE` | Oil palm mode: `mock`, `real`, or `hybrid` | `mock` |
+| `OIL_PALM_CONFIDENCE_THRESHOLD` | Future real predictor confidence threshold | `0.5` |
 
-## API 端点
+Future oil palm model path variables are documented in `ai_engine/.env.example`.
+They are reserved for later per-task model branches.
 
-### 通用
+## API Endpoints
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/health` | Profile-safe 健康检查 |
+Common:
 
-### 水稻 (Rice)
+- `GET /api/v1/health`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/predict` | 兼容旧端点（hidden in schema） |
-| POST | `/api/v1/rice/predict` | 水稻病害分类 |
-| GET | `/api/v1/rice/health` | 水稻模型健康检查 |
+Rice:
 
-### 油棕 (Oil Palm) — Mock
+- `POST /api/v1/predict`
+- `POST /api/v1/rice/predict`
+- `GET /api/v1/rice/health`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/oil-palm/analyze-image` | 单张分析 |
-| POST | `/api/v1/oil-palm/analyze-session` | 会话分析 |
-| POST | `/api/v1/oil-palm/analyze-uav-mission` | 无人机任务分析 |
-
-## 本地 CLI 推理
-
-```bash
-python -m ai_engine.infer --help
-python -m ai_engine.infer --image-path test.jpg
-```
-## Oil Palm V1 additions (Issue #65)
+Oil palm:
 
 - `GET /api/v1/oil-palm/route`
-  - capability roadmap payload for:
-    - disease_analysis
-    - growth_analysis
-    - weather_prediction
-    - yield_assessment
+- `POST /api/v1/oil-palm/analyze`
 - `POST /api/v1/oil-palm/predict-v1`
-  - stable v1 inference contract with frontend-friendly metadata fields.
+- `POST /api/v1/oil-palm/analyze-image`
+- `POST /api/v1/oil-palm/analyze-session`
+- `POST /api/v1/oil-palm/analyze-uav-mission`
 
-See `doc/issue65_oil_palm_v1_plan.md` for details and quick validation commands.
+## Oil Palm Model Modes
 
-## Oil Palm Mock Routing (Sprint D)
+`feature/oil-palm-model-data-foundation` defines the configuration surface but
+does not implement real oil palm predictors yet.
 
-This branch keeps the project mock-first. No real oil palm model is trained or loaded.
+- `mock`: all tasks use mock predictors. This is the default and is safe for CI,
+  demos, and environments without weights.
+- `hybrid`: safe fallback mode in this foundation branch. It still uses mock
+  predictors until a later per-task branch registers real predictors.
+- `real`: fail-fast in this foundation branch. Use it only after per-task model
+  branches implement and register real predictors.
 
-- `common/predictors/base.py`: shared `BasePredictor` and `PredictorContext`.
-- `common/registry.py`: `ModelRegistry` keyed by `crop + task`.
-- `crops/oil_palm/pipeline.py`: `OilPalmPipeline` routes `image_role` to a mock predictor.
-- `crops/oil_palm/inference/mock_predictors.py`: role-specific mock predictors.
+Current oil palm image role routing:
 
-Unified mock endpoint:
+| `image_role` | Task |
+| --- | --- |
+| `fruit` | `ffb_maturity` |
+| `trunk_base` | `ganoderma_risk` |
+| `crown` | `growth_vigor` |
+| `uav_tile` | `uav_tree_crown` |
 
-```bash
-POST /api/v1/oil-palm/analyze
-```
+A0 image routing has dataset/model placeholders only. It is not registered into
+the oil palm pipeline until `feature/oil-palm-a0-routing-model`.
 
-Multipart fields:
+## Response Contract
 
-- `file`: JPEG/PNG/GIF/BMP image bytes.
-- `image_role`: one of `fruit`, `trunk_base`, `crown`, `uav_tile`.
-- `tree_code`: optional tree asset code.
-- `session_id`: optional observation session id/code.
-
-Routing:
-
-- `fruit` -> `ffb_maturity`
-- `trunk_base` -> `ganoderma_risk`
-- `crown` -> `growth_vigor`
-- `uav_tile` -> `uav_tree_crown`
-
-Response keeps the future-compatible envelope:
+Oil palm mock and future real predictors should preserve this envelope:
 
 - `status`
 - `results[]`
@@ -138,4 +126,5 @@ Response keeps the future-compatible envelope:
 - `metadata`
 - `model_version`
 
-Legacy oil palm endpoints remain available for compatibility.
+This keeps Cloud, frontend, assessment reports, and OpenClaw tools stable while
+real models are added incrementally.

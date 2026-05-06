@@ -1,0 +1,32 @@
+{
+  "model_version": "oil_palm_uav_crown_v0.0.0",
+  "framework": "YOLOv8",
+  "task": "uav_tree_crown",
+  "dataset_version": null,
+  "dataset_manifest": "datasets/oil_palm/manifests/uav_tree_crown.example.json",
+  "metrics": {
+    "mAP50": null,
+    "mAP50_95": null,
+    "precision": null,
+    "recall": null,
+    "f1": null,
+    "per_class": {
+      "oil_palm_crown": {"precision": null, "recall": null, "ap50": null}
+    }
+  },
+  "inference": {
+    "fps_gpu": null,
+    "fps_cpu": null,
+    "input_size": [640, 640],
+    "device": null
+  },
+  "training": {
+    "epochs": null,
+    "batch_size": null,
+    "optimizer": null,
+    "learning_rate": null,
+    "augmentation": null,
+    "seed": 42
+  },
+  "notes": "Placeholder - fill after first training run"
+}

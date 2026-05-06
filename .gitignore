@@ -56,6 +56,21 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Datasets: raw images, processed data, training format - never commit
+datasets/**/raw/
+datasets/**/processed/
+datasets/**/yolo/
+datasets/**/classification/
+!datasets/**/raw/.gitkeep
+!datasets/**/processed/.gitkeep
+!datasets/**/yolo/.gitkeep
+!datasets/**/classification/.gitkeep
+
+# Model training runs and weights
+models/**/weights/
+models/**/runs/
+models/**/wandb/
+
 # Frontend local libraries and test assets
 frontend/static/lib/
 frontend/static/ortho_test.png
@@ -66,4 +81,3 @@ data/
 image_uploads/
 /cloud/data/
 /cloud/state/
-

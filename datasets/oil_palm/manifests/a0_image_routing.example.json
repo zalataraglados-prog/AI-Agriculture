@@ -1,0 +1,38 @@
+{
+  "task": "a0_image_routing",
+  "version": "0.1.0",
+  "description": "A0 image role routing classification dataset manifest",
+  "internal_training_standard": {
+    "format": "classification_directory",
+    "annotation_type": "image_level_label",
+    "image_size": [224, 224],
+    "coordinate_system": null
+  },
+  "sources": [],
+  "label_map": {
+    "0": "fruit",
+    "1": "trunk_base",
+    "2": "crown",
+    "3": "unknown"
+  },
+  "label_notes": "A0 is the entry gatekeeper. It classifies image_role, not disease or maturity. Images may come from existing FFB, Ganoderma, UAV datasets re-labeled by role. 'unknown' covers images that don't clearly belong to any production role.",
+  "split_strategy": {
+    "method": "group_by_source_dataset",
+    "ratios": {"train": 0.70, "val": 0.15, "test": 0.15},
+    "seed": 42,
+    "constraint": "Images from the same source dataset or session should stay in the same split",
+    "notes": "A0 data may be bootstrapped from existing task datasets with role re-labeling"
+  },
+  "expected_counts": {
+    "train": null,
+    "val": null,
+    "test": null,
+    "total": null
+  },
+  "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
+  "notes": [
+    "A0 model is the routing gatekeeper, not a production predictor",
+    "Training data can be bootstrapped from other task datasets by re-labeling image_role",
+    "This manifest will evolve as dedicated A0 datasets are collected"
+  ]
+}
