@@ -1,10 +1,10 @@
 # models
 
-用于存放模型相关文件（权重、标签、配置）。
+用于存放模型相关文件（权重、标签、配置、Model Card、指标模板）。
 
 ## 目录结构
 
-```
+```text
 models/
 ├── rice/
 │   └── rice_leaf_classifier/
@@ -12,11 +12,30 @@ models/
 │       ├── labels.json         # 类别标签映射
 │       ├── config.yaml         # 模型架构配置
 │       └── advice_map.yaml     # 病害建议映射
-└── oil_palm/                   # 油棕模型（待接入）
+└── oil_palm/
+    ├── README.md               # 油棕模型总览
+    ├── ffb_maturity/           # FFB 果串检测 + 成熟度分类
+    │   ├── model_card.md
+    │   ├── labels.json
+    │   └── metrics.example.json
+    ├── uav_tree_crown/         # UAV 树冠检测
+    │   ├── model_card.md
+    │   ├── labels.json
+    │   └── metrics.example.json
+    ├── ganoderma_risk/          # Ganoderma 风险分类
+    │   ├── model_card.md
+    │   ├── labels.json
+    │   └── metrics.example.json
+    └── a0_image_routing/        # A0 图片角色路由
+        ├── model_card.md
+        ├── labels.json
+        └── metrics.example.json
 ```
 
 ## 说明
 
-- 训练得到的权重文件（`.pth`）默认不直接提交，按仓库 `.gitignore` 规范决定。
+- 训练权重文件（`.pth`、`.pt`、`.onnx`）不提交，按 `.gitignore` 排除。
 - 生产部署通过 Volume Mount 挂载：`-v ./models:/app/models:ro`。
-- 这里只维护模型版本说明与占位文件。
+- 这里只维护模型版本说明、标签、指标模板与 Model Card。
+- 油棕模型通过 `OIL_PALM_MODEL_MODE` 环境变量控制 mock/real/hybrid 模式。
+  详见 `models/oil_palm/README.md`。
