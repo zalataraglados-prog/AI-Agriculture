@@ -92,7 +92,19 @@ async def lifespan(app: FastAPI):
             # Fail fast: orchestration (Docker/K8s) will see the crash and not route traffic.
             raise RuntimeError(f"Required model assets not found or invalid: {exc}") from exc
     elif CROP_PROFILE == "oil_palm":
-        logger.info("Oil Palm mode: Using mock/future YOLOv8 predictor.")
+        oil_palm_mode = os.environ.get("OIL_PALM_MODEL_MODE", "mock")
+        logger.info("Oil Palm mode: OIL_PALM_MODEL_MODE=%s", oil_palm_mode)
+        if oil_palm_mode in ("real", "hybrid"):
+            logger.info("  OIL_PALM_FFB_MODEL_PATH=%s",
+                        os.environ.get("OIL_PALM_FFB_MODEL_PATH", "(not set)"))
+            logger.info("  OIL_PALM_UAV_CROWN_MODEL_PATH=%s",
+                        os.environ.get("OIL_PALM_UAV_CROWN_MODEL_PATH", "(not set)"))
+            logger.info("  OIL_PALM_GANODERMA_MODEL_PATH=%s",
+                        os.environ.get("OIL_PALM_GANODERMA_MODEL_PATH", "(not set)"))
+            logger.info("  OIL_PALM_A0_MODEL_PATH=%s",
+                        os.environ.get("OIL_PALM_A0_MODEL_PATH", "(not set)"))
+            logger.info("  OIL_PALM_CONFIDENCE_THRESHOLD=%s",
+                        os.environ.get("OIL_PALM_CONFIDENCE_THRESHOLD", "0.5"))
     
     yield
     logger.info("=== Smart Farm AI Engine shutting down ===")
