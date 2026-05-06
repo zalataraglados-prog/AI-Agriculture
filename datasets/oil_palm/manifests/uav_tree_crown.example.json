@@ -1,0 +1,45 @@
+{
+  "task": "uav_tree_crown",
+  "version": "0.1.0",
+  "description": "UAV tile oil palm crown detection dataset manifest",
+  "internal_training_standard": {
+    "format": "yolo",
+    "annotation_type": "bbox",
+    "image_size": [640, 640],
+    "coordinate_system": "normalized_xywh"
+  },
+  "sources": [
+    {
+      "name": "MOPAD UAV Oil Palm",
+      "url": "https://www.sciencedirect.com/science/article/pii/S0924271621000083",
+      "license": "check original paper",
+      "format": "orthomosaic tiles + annotations",
+      "estimated_images": null,
+      "importer": "import_uav_coco_dataset.py",
+      "notes": "UAV orthomosaic based palm detection"
+    }
+  ],
+  "label_map": {
+    "0": "oil_palm_crown"
+  },
+  "label_notes": "Single-class detection. Future versions may add dead_palm or other_tree classes.",
+  "split_strategy": {
+    "method": "group_by_mission",
+    "ratios": {"train": 0.70, "val": 0.15, "test": 0.15},
+    "seed": 42,
+    "constraint": "All tiles from the same UAV mission must stay in the same split",
+    "notes": "Adjacent tiles have spatial overlap; splitting by mission prevents data leakage"
+  },
+  "expected_counts": {
+    "train": null,
+    "val": null,
+    "test": null,
+    "total": null
+  },
+  "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
+  "notes": [
+    "raw layer accepts COCO, Pascal VOC, or custom annotation formats",
+    "importers convert to unified YOLO format in processed/yolo layer",
+    "Tile size and overlap should be documented per source"
+  ]
+}

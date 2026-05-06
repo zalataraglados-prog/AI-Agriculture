@@ -1,0 +1,47 @@
+{
+  "task": "ganoderma_risk",
+  "version": "0.1.0",
+  "description": "Ganoderma / BSR risk classification dataset manifest",
+  "internal_training_standard": {
+    "format": "classification_directory",
+    "annotation_type": "image_level_label",
+    "image_size": [224, 224],
+    "coordinate_system": null
+  },
+  "sources": [
+    {
+      "name": "Gotani Ganoderma Dataset",
+      "url": "https://www.iradarx.com/gotani/datasets/",
+      "license": "check original source",
+      "format": "images + CSV labels",
+      "estimated_images": null,
+      "importer": "import_ganoderma_csv_dataset.py",
+      "notes": "May include hyperspectral or small-sample data; verify RGB availability"
+    }
+  ],
+  "label_map": {
+    "0": "healthy",
+    "1": "suspected_risk",
+    "2": "other_stress_unknown"
+  },
+  "label_notes": "v1 conservative labels. Without expert or lab confirmation, all risk labels are 'suspected', never 'confirmed'. Future expansion may add: suspected_early, moderate, severe, dead_or_collapsed.",
+  "split_strategy": {
+    "method": "group_by_plantation_block",
+    "ratios": {"train": 0.70, "val": 0.15, "test": 0.15},
+    "seed": 42,
+    "constraint": "Images from the same tree or plantation block must stay in the same split",
+    "notes": "Ganoderma data is often small-sample; consider stratified sampling to preserve class balance"
+  },
+  "expected_counts": {
+    "train": null,
+    "val": null,
+    "test": null,
+    "total": null
+  },
+  "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
+  "notes": [
+    "raw layer accepts any format including CSV, JSON, COCO, or custom",
+    "importers normalize to classification directory structure",
+    "Ganoderma risk is NEVER confirmed without expert evidence"
+  ]
+}

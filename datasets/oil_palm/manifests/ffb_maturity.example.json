@@ -1,0 +1,59 @@
+{
+  "task": "ffb_maturity",
+  "version": "0.1.0",
+  "description": "FFB fresh fruit bunch detection and maturity classification dataset manifest",
+  "internal_training_standard": {
+    "format": "yolo",
+    "annotation_type": "bbox + class_label",
+    "image_size": [640, 640],
+    "coordinate_system": "normalized_xywh"
+  },
+  "sources": [
+    {
+      "name": "Scientific Data RGB-depth FFB 2025",
+      "url": "https://www.nature.com/articles/s41597-025-04953-6",
+      "license": "CC BY 4.0",
+      "format": "images + annotations (custom)",
+      "estimated_images": null,
+      "importer": "import_ffb_scientific_data_2025.py",
+      "notes": "Outdoor RGB + depth, multi-maturity stages"
+    },
+    {
+      "name": "Oil Palm Fruits Dataset (Mendeley)",
+      "url": "https://www.mendeley.com/catalogue/db2376f7-a002-33a7-8255-316aebfaa72b/",
+      "license": "CC BY 4.0",
+      "format": "images + annotations",
+      "estimated_images": null,
+      "importer": "import_ffb_mendeley_2025.py",
+      "notes": "Multi-class fruit detection dataset"
+    }
+  ],
+  "label_map": {
+    "0": "flower",
+    "1": "unripe",
+    "2": "underripe",
+    "3": "ripe",
+    "4": "overripe",
+    "5": "abnormal"
+  },
+  "label_notes": "Labels represent internal training standard. Source datasets may use different label schemes; importers handle the mapping.",
+  "split_strategy": {
+    "method": "group_by_plantation_block",
+    "ratios": {"train": 0.70, "val": 0.15, "test": 0.15},
+    "seed": 42,
+    "constraint": "Same tree, video, or mission images must stay in same split",
+    "notes": "Test set should simulate truly unseen plantation blocks when possible"
+  },
+  "expected_counts": {
+    "train": null,
+    "val": null,
+    "test": null,
+    "total": null
+  },
+  "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
+  "notes": [
+    "raw layer accepts any format from any source",
+    "importers convert raw data into unified processed format",
+    "This manifest is a conversion spec, not a gate for excluding non-standard datasets"
+  ]
+}
