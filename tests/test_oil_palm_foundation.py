@@ -183,6 +183,45 @@ class TestDataUtils:
 
 
 # ---------------------------------------------------------------------------
+# Importer tests
+# ---------------------------------------------------------------------------
+
+
+class TestBaseImporter:
+    """Test shared importer safeguards."""
+
+    def _build_importer(self, raw_dir: Path):
+        from ai_engine.crops.oil_palm.training.data_importers.base_importer import (
+            BaseImporter,
+            ImportResult,
+        )
+
+        class DummyImporter(BaseImporter):
+            def convert(self) -> ImportResult:
+                return ImportResult(source_name="dummy", task="ffb_maturity")
+
+        return DummyImporter(raw_dir=raw_dir, output_dir=TEST_OUTPUT_DIR / "dummy_out")
+
+    def test_validate_raw_dir_ignores_gitkeep_only_directory(self) -> None:
+        raw_dir = TEST_OUTPUT_DIR / "raw_gitkeep_only"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / ".gitkeep").write_text("", encoding="utf-8")
+
+        importer = self._build_importer(raw_dir)
+        with pytest.raises(ValueError, match="Raw directory is empty"):
+            importer.validate_raw_dir()
+
+    def test_validate_raw_dir_accepts_real_data_with_sentinel(self) -> None:
+        raw_dir = TEST_OUTPUT_DIR / "raw_with_data"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / ".gitkeep").write_text("", encoding="utf-8")
+        (raw_dir / "sample.jpg").write_bytes(b"fake image bytes")
+
+        importer = self._build_importer(raw_dir)
+        assert importer.validate_raw_dir() is True
+
+
+# ---------------------------------------------------------------------------
 # Metrics utils tests
 # ---------------------------------------------------------------------------
 
@@ -262,6 +301,17 @@ class TestPipelineMode:
         )
         assert "model_mode" in result["metadata"]
         assert result["metadata"]["model_mode"] == "mock"
+
+    def test_invalid_confidence_threshold_does_not_break_import(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Future threshold parsing must not happen at module import time."""
+        monkeypatch.setenv("OIL_PALM_CONFIDENCE_THRESHOLD", "")
+        pipeline_mod = self._reload_pipeline(monkeypatch)
+
+        pipeline = pipeline_mod.build_default_oil_palm_pipeline()
+        assert pipeline.model_mode == "mock"
+        assert pipeline_mod.get_oil_palm_confidence_threshold() == 0.5
 
     def test_pipeline_hybrid_mode_safely_uses_mock_predictors(
         self, monkeypatch: pytest.MonkeyPatch

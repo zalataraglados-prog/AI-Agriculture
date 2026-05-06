@@ -27,9 +27,22 @@ IMAGE_ROLE_TO_TASK = {
 # ---------------------------------------------------------------------------
 
 OIL_PALM_MODEL_MODE = os.environ.get("OIL_PALM_MODEL_MODE", "mock").lower()
-OIL_PALM_CONFIDENCE_THRESHOLD = float(
-    os.environ.get("OIL_PALM_CONFIDENCE_THRESHOLD", "0.5")
-)
+
+
+def get_oil_palm_confidence_threshold(default: float = 0.5) -> float:
+    """Parse the future real-predictor threshold only when it is needed."""
+    raw = os.environ.get("OIL_PALM_CONFIDENCE_THRESHOLD")
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid OIL_PALM_CONFIDENCE_THRESHOLD=%r, falling back to %s",
+            raw,
+            default,
+        )
+        return default
 
 # Mock predictor classes keyed by task
 _MOCK_PREDICTORS: dict[str, type[BasePredictor]] = {
