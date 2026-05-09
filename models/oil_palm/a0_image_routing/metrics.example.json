@@ -1,26 +1,28 @@
 {
   "model_version": "oil_palm_a0_v0.0.0",
-  "framework": "MobileNetV3",
+  "framework": "YOLO",
   "task": "a0_image_routing",
   "dataset_version": null,
   "dataset_manifest": "datasets/oil_palm/manifests/a0_image_routing.example.json",
   "metrics": {
-    "accuracy": null,
-    "precision_macro": null,
-    "recall_macro": null,
-    "f1_macro": null,
+    "mAP50": null,
+    "mAP50_95": null,
+    "precision": null,
+    "recall": null,
+    "route_accuracy": null,
+    "wrong_auto_route_rate": null,
+    "no_supported_structure_recall": null,
     "per_class": {
-      "fruit": {"precision": null, "recall": null, "f1": null},
-      "trunk_base": {"precision": null, "recall": null, "f1": null},
-      "crown": {"precision": null, "recall": null, "f1": null},
-      "unknown": {"precision": null, "recall": null, "f1": null}
+      "fruit_bunch": {"precision": null, "recall": null, "ap50": null},
+      "trunk_base": {"precision": null, "recall": null, "ap50": null},
+      "crown_region": {"precision": null, "recall": null, "ap50": null}
     },
-    "confusion_matrix": null
+    "negative_sample_false_positive_rate": null
   },
   "inference": {
     "fps_gpu": null,
     "fps_cpu": null,
-    "input_size": [224, 224],
+    "input_size": [640, 640],
     "device": null
   },
   "training": {
@@ -31,5 +33,5 @@
     "augmentation": null,
     "seed": 42
   },
-  "notes": "Placeholder - A0 is the routing gatekeeper, lightweight model. Fill after first training run."
+  "notes": "Placeholder - A0 is the YOLO structure-detection routing gatekeeper. It outputs bbox candidates for user confirmation; unknown is an inference status, not a trained bbox class. Fill after first training run."
 }

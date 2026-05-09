@@ -47,7 +47,7 @@ models/oil_palm/
 | `ffb_maturity` | object detection + maturity class | YOLO family | mock | 6 |
 | `uav_tree_crown` | object detection | YOLO family | mock | 1 |
 | `ganoderma_risk` | image classification | ResNet / EfficientNet | mock | 3 |
-| `a0_image_routing` | image classification | MobileNet / EfficientNet | placeholder only | 4 |
+| `a0_image_routing` | structure detection + routing | YOLO family | mock | 3 |
 
 `growth_vigor` currently remains a mock pipeline task. The planned v1 is likely
 an aggregation score rather than a single-image trained model, so there is no
