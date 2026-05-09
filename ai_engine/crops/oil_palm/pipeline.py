@@ -7,6 +7,7 @@ from typing import Any
 from ai_engine.common.predictors.base import BasePredictor, PredictorContext
 from ai_engine.common.registry import ModelRegistry
 from ai_engine.crops.oil_palm.inference.mock_predictors import (
+    A0StructureMockPredictor,
     FFBMockPredictor,
     GanodermaMockPredictor,
     GrowthMockPredictor,
@@ -46,6 +47,7 @@ def get_oil_palm_confidence_threshold(default: float = 0.5) -> float:
 
 # Mock predictor classes keyed by task
 _MOCK_PREDICTORS: dict[str, type[BasePredictor]] = {
+    "a0_structure_detection": A0StructureMockPredictor,
     "ffb_maturity": FFBMockPredictor,
     "ganoderma_risk": GanodermaMockPredictor,
     "growth_vigor": GrowthMockPredictor,
@@ -100,6 +102,38 @@ class OilPalmPipeline:
         envelope["metadata"]["registered_capabilities"] = self.registry.capabilities(self.crop)
         return envelope
 
+    def detect_structures(
+        self,
+        *,
+        image_bytes: bytes,
+        image_role: str,
+        tree_code: str | None = None,
+        session_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        normalized_role = image_role.strip().lower()
+        context = PredictorContext(
+            crop=self.crop,
+            task="a0_structure_detection",
+            image_role=normalized_role,
+            tree_code=tree_code,
+            session_id=session_id,
+            metadata=metadata or {},
+        )
+        predictor = self.registry.get(self.crop, "a0_structure_detection")
+        envelope = predictor.predict(image_bytes, context)
+        envelope.setdefault("metadata", {})
+        envelope["metadata"].update(
+            {
+                "tree_code": tree_code,
+                "session_id": session_id,
+                "pipeline": f"oil_palm_{self.model_mode}_pipeline_v1",
+                "model_mode": self.model_mode,
+                "registered_capabilities": self.registry.capabilities(self.crop),
+            }
+        )
+        return envelope
+
 
 def build_default_oil_palm_pipeline() -> OilPalmPipeline:
     """Build the oil palm pipeline based on OIL_PALM_MODEL_MODE.
@@ -138,7 +172,13 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
     registry = ModelRegistry()
 
     # Tasks that get registered into the pipeline
-    tasks_to_register = ["ffb_maturity", "ganoderma_risk", "growth_vigor", "uav_tree_crown"]
+    tasks_to_register = [
+        "a0_structure_detection",
+        "ffb_maturity",
+        "ganoderma_risk",
+        "growth_vigor",
+        "uav_tree_crown",
+    ]
 
     for task in tasks_to_register:
         mock_cls = _MOCK_PREDICTORS.get(task)

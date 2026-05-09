@@ -1,8 +1,44 @@
 import requests
 import pytest
 import time
+import base64
 
 BASE_URL = "http://127.0.0.1:8088"
+PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+)
+
+
+def upload_and_confirm_session_image(session_id, role, reject_extra=False):
+    res = requests.post(
+        f"{BASE_URL}/api/v1/sessions/{session_id}/images",
+        data={"image_role": role},
+        files={"file": (f"{role}.png", PNG_BYTES, "image/png")},
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["status"] == "ok"
+    assert payload["requires_confirmation"] is True
+    assert payload["image"]["image_role"] == role
+    assert payload["analysis"]["model_version"] == "oil_palm_a0_detector_mock_v1"
+    candidates = payload["analysis"]["metadata"]["a0_candidates"]
+    assert len(candidates) >= 1
+    selected = [c["candidate_id"] for c in candidates]
+    if reject_extra and len(selected) > 1:
+        selected = selected[:1]
+
+    res = requests.post(
+        f"{BASE_URL}/api/v1/sessions/{session_id}/images/{payload['image']['id']}/confirm",
+        json={"selected_candidate_ids": selected},
+    )
+    assert res.status_code == 200
+    confirmed = res.json()
+    assert confirmed["status"] == "ok"
+    assert confirmed["analysis"]["metadata"]["tree_code"]
+    assert confirmed["analysis"]["metadata"]["image_role"] == role
+    assert confirmed["analysis"]["metadata"]["mask_source"] == "a0_user_confirmation_v1"
+    assert confirmed["masked_upload_id"].startswith("mask_")
+    return confirmed
 
 def test_uav_full_flow():
     # 1. Create Mission
@@ -375,26 +411,19 @@ def test_barcode_session_multi_image_flow():
     assert session["tree_id"] == tree["id"]
     assert session["session_code"].startswith("OS-")
 
-    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00"
     for role in ["fruit", "trunk_base", "crown"]:
-        res = requests.post(
-            f"{BASE_URL}/api/v1/sessions/{session['id']}/images",
-            data={"image_role": role},
-            files={"file": (f"{role}.jpg", jpeg_bytes, "image/jpeg")},
+        confirmed = upload_and_confirm_session_image(
+            session["id"],
+            role,
+            reject_extra=(role == "fruit"),
         )
-        assert res.status_code == 200
-        payload = res.json()
-        assert payload["status"] == "ok"
-        assert payload["image"]["image_role"] == role
-        assert payload["analysis"]["status"] == "success"
-        assert payload["analysis"]["metadata"]["tree_code"] == tree_code
-        assert payload["analysis"]["metadata"]["image_role"] == role
-        assert payload["analysis"]["model_version"] == "oil_palm_mock_session_v1"
+        assert confirmed["analysis"]["metadata"]["tree_code"] == tree_code
+        assert confirmed["analysis"]["model_version"] == "oil_palm_mock_session_v1"
 
     res = requests.post(
         f"{BASE_URL}/api/v1/sessions/{session['id']}/images",
         data={"image_role": "leaf"},
-        files={"file": ("leaf.jpg", jpeg_bytes, "image/jpeg")},
+        files={"file": ("leaf.png", PNG_BYTES, "image/png")},
     )
     assert res.status_code == 400
 
@@ -433,14 +462,8 @@ def test_tree_assessment_and_plantation_reports():
     assert res.status_code == 200
     session_id = res.json()["session"]["id"]
 
-    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00"
     for role in ["fruit", "trunk_base", "crown"]:
-        res = requests.post(
-            f"{BASE_URL}/api/v1/sessions/{session_id}/images",
-            data={"image_role": role},
-            files={"file": (f"{role}.jpg", jpeg_bytes, "image/jpeg")},
-        )
-        assert res.status_code == 200
+        upload_and_confirm_session_image(session_id, role)
 
     res = requests.get(f"{BASE_URL}/api/v1/trees/{tree_code}/assessment")
     assert res.status_code == 200
@@ -502,14 +525,8 @@ def test_openclaw_tools_read_only_reports():
     assert res.status_code == 200
     session_id = res.json()["session"]["id"]
 
-    jpeg_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00"
     for role in ["fruit", "trunk_base", "crown"]:
-        res = requests.post(
-            f"{BASE_URL}/api/v1/sessions/{session_id}/images",
-            data={"image_role": role},
-            files={"file": (f"{role}.jpg", jpeg_bytes, "image/jpeg")},
-        )
-        assert res.status_code == 200
+        upload_and_confirm_session_image(session_id, role)
 
     res = requests.get(f"{BASE_URL}/api/v1/openclaw/tools/manifest")
     assert res.status_code == 200

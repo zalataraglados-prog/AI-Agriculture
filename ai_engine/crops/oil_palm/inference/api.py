@@ -65,10 +65,10 @@ def oil_palm_route() -> dict:
             ),
             CapabilityItem(
                 capability="image_role_routing",
-                v1_scope="mock routing for fruit/trunk_base/crown/uav_tile",
+                v1_scope="mock routing for fruit/trunk_base/crown/uav_tile plus A0 structure detection",
                 input_contract="multipart image file + image_role + optional tree_code/session_id",
                 output_fields=["status", "results[]", "geometry[]", "metadata", "model_version"],
-                metric="role-specific mock confidence",
+                metric="role-specific mock confidence / route_status",
             ),
         ],
     )
@@ -106,6 +106,29 @@ async def oil_palm_analyze(
                 "supported_image_roles": _pipeline.supported_image_roles,
             },
         ) from exc
+
+
+@router.post("/oil-palm/a0/detect")
+async def oil_palm_a0_detect(
+    file: UploadFile = File(...),
+    image_role: str = Form(...),
+    tree_code: str | None = Form(default=None),
+    session_id: str | None = Form(default=None),
+    mock_detect_role: str | None = Form(default=None),
+) -> dict:
+    image_bytes = await file.read()
+    validate_image_bytes(image_bytes)
+    return _pipeline.detect_structures(
+        image_bytes=image_bytes,
+        image_role=image_role,
+        tree_code=tree_code,
+        session_id=session_id,
+        metadata={
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "mock_detect_role": mock_detect_role,
+        },
+    )
 
 
 @router.post("/oil-palm/predict-v1")

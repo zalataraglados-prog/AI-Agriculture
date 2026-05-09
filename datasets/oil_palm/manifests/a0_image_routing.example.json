@@ -1,27 +1,26 @@
 {
   "task": "a0_image_routing",
   "version": "0.1.0",
-  "description": "A0 image role routing classification dataset manifest",
+  "description": "A0 structure detection and routing dataset manifest",
   "internal_training_standard": {
-    "format": "classification_directory",
-    "annotation_type": "image_level_label",
-    "image_size": [224, 224],
-    "coordinate_system": null
+    "format": "yolo_detection",
+    "annotation_type": "bbox",
+    "image_size": null,
+    "coordinate_system": "normalized_xywh"
   },
   "sources": [],
   "label_map": {
-    "0": "fruit",
+    "0": "fruit_bunch",
     "1": "trunk_base",
-    "2": "crown",
-    "3": "unknown"
+    "2": "crown_region"
   },
-  "label_notes": "A0 is the entry gatekeeper. It classifies image_role, not disease or maturity. Images may come from existing FFB, Ganoderma, UAV datasets re-labeled by role. 'unknown' covers images that don't clearly belong to any production role.",
+  "label_notes": "A0 is the entry gatekeeper. It detects supported oil palm structures and proposes bbox candidates for user confirmation. It does not predict FFB maturity, Ganoderma risk, or growth status. 'unknown' is not a YOLO class; images without supported structures should be kept as negative/empty-label samples and surfaced by inference as route_status=no_supported_structure_detected or uncertain.",
   "split_strategy": {
-    "method": "group_by_source_dataset",
+    "method": "group_by_source_dataset_or_session",
     "ratios": {"train": 0.70, "val": 0.15, "test": 0.15},
     "seed": 42,
-    "constraint": "Images from the same source dataset or session should stay in the same split",
-    "notes": "A0 data may be bootstrapped from existing task datasets with role re-labeling"
+    "constraint": "Images from the same source dataset, session, video, plantation, block, or tree should stay in the same split",
+    "notes": "A0 data may be bootstrapped from existing task datasets by drawing structure bboxes. Empty-label negative samples should stay in the same grouped split as their source context."
   },
   "expected_counts": {
     "train": null,
@@ -31,8 +30,9 @@
   },
   "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
   "notes": [
-    "A0 model is the routing gatekeeper, not a production predictor",
-    "Training data can be bootstrapped from other task datasets by re-labeling image_role",
+    "A0 model is the structure-detection routing gatekeeper, not a production predictor",
+    "Training data can be bootstrapped from other task datasets by adding fruit_bunch, trunk_base, and crown_region bboxes",
+    "Do not train an unknown bbox class; use empty-label negatives for unsupported content",
     "This manifest will evolve as dedicated A0 datasets are collected"
   ]
 }

@@ -153,8 +153,21 @@ These APIs aggregate existing structured facts. They do not run real models.
 - `GET /api/v1/plantations/{plantation_id}/blocks/report`
   - groups assessment summaries by `block_id` (or `unassigned`)
 
+Observation session image upload now uses an A0 confirmation step:
+
+- `POST /api/v1/sessions/{session_id}/images`
+  - saves the original image and returns mock A0 `a0_candidates`
+  - response includes `requires_confirmation: true`
+- `POST /api/v1/sessions/{session_id}/images/{image_id}/confirm`
+  - body: `{"selected_candidate_ids":["a0_fruit_001"]}`
+  - rejected bbox candidates are masked in a derived PNG image
+  - downstream mock analysis runs on the masked asset and records `source_upload_id`,
+    `masked_upload_id`, `selected_candidate_ids`, and `mask_source`
+
 Frontend:
 - `frontend/oil_palm/tree_profile.html` displays a Tree Assessment card.
+- `frontend/oil_palm/tree_profile.html` displays an A0 bbox review overlay before
+  downstream mock analysis.
 - `frontend/oil_palm/plantation_dashboard.html` displays plantation stats and block reports.
 
 ## Agent chat proxy API

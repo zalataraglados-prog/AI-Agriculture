@@ -1,33 +1,51 @@
 # A0 Image Routing Training
 
-## 目标
+## Goal
 
-训练图片角色分类模型 (A0 Routing Model)。
-A0 是"入口守门员"，负责判断上传图片属于哪个 `image_role`。
+Train the A0 structure-detection routing model. A0 is the entry gatekeeper: it
+detects supported oil palm structures, proposes bbox candidates, and validates
+the user's selected `image_role`.
 
-## 推荐框架
+A0 does not predict FFB maturity, Ganoderma risk, growth status, yield, or any
+tree-level conclusion.
 
-MobileNetV3 / EfficientNet-B0 (轻量级，低延迟)
+## Recommended Framework
 
-## 标签
+Use a lightweight YOLO-family detector. The first production candidate should be
+a nano/small model that can return bbox candidates with low latency.
 
-`fruit`, `trunk_base`, `crown`, `unknown`
+## Labels
 
-详见 `models/oil_palm/a0_image_routing/labels.json`
+See `models/oil_palm/a0_image_routing/labels.json`.
 
-## 数据来源
+- `fruit_bunch`
+- `trunk_base`
+- `crown_region`
 
-训练数据可以从现有 FFB、Ganoderma、UAV crown 数据集中按角色重新标注获得。
+`unknown` is not a YOLO class. Unsupported or unclear images should be included
+as empty-label negative samples. At inference time, the service should return a
+route status such as `no_supported_structure_detected`, `role_mismatch`, or
+`uncertain`.
 
-## 训练命令
+## Data Sources
+
+Training data can be bootstrapped from existing FFB, Ganoderma, and UAV crown
+datasets by adding structure bboxes. Keep source, license, plantation/session,
+and grouping metadata so train/val/test splits do not leak near-duplicate
+evidence across sets.
+
+## Training Command
 
 ```bash
-# TODO: 等 feature/oil-palm-a0-routing-model 分支实现后补充
+# TODO: add once feature/oil-palm-a0-routing-model implements training scripts
 ```
 
-## 设计原则
+## Design Principles
 
-- A0 v1 **不替代**用户的 `image_role` 选择，只做校验和建议
-- 不确定时应返回 `unknown` 而非错误角色
-- 等模型稳定后，再允许 `auto` 路由模式
-- A0 不在本分支注册到 OilPalmPipeline
+- A0 v1 does not replace the user's `image_role`; it validates the selected
+  structure and proposes bbox candidates.
+- Multiple candidates require user confirmation before downstream inference.
+- Rejected candidates should be masked in a derived image before FFB/Ganoderma
+  or growth analysis.
+- When uncertain, return `route_status=uncertain` rather than a wrong route.
+- A0 remains a routing gatekeeper, not a production diagnosis or maturity model.

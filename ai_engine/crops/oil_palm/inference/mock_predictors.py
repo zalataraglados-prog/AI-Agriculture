@@ -160,3 +160,120 @@ class UAVTileMockPredictor(BasePredictor):
                 "advice": "mock: route candidate crown to UAV review before creating tree asset",
             },
         )
+
+
+class A0StructureMockPredictor(BasePredictor):
+    crop = "oil_palm"
+    task = "a0_structure_detection"
+    model_version = "oil_palm_a0_detector_mock_v1"
+    mode = "mock"
+
+    def predict(self, image_bytes: bytes, context: PredictorContext) -> dict[str, Any]:
+        requested_role = (context.image_role or "").strip().lower()
+        detected_role = str(context.metadata.get("mock_detect_role") or requested_role).strip().lower()
+        candidates = _a0_candidates_for_role(detected_role)
+        requested_label = _A0_ROLE_TO_LABEL.get(requested_role)
+        detected_labels = sorted({item["label"] for item in candidates})
+
+        if not candidates:
+            route_status = "no_supported_structure_detected"
+        elif requested_label is None:
+            route_status = "unsupported_requested_role"
+        elif requested_label not in detected_labels:
+            route_status = "role_mismatch"
+        else:
+            route_status = "needs_user_confirmation"
+
+        results = []
+        geometry = []
+        for item in candidates:
+            candidate_geometry = item["geometry"]
+            candidate_metadata = {
+                "candidate_id": item["candidate_id"],
+                "suggested_role": item["suggested_role"],
+                "selected_by_default": True,
+            }
+            geometry.append(candidate_geometry)
+            results.append(
+                {
+                    "task": self.task,
+                    "label": item["label"],
+                    "confidence": item["confidence"],
+                    "geometry": candidate_geometry,
+                    "metadata": candidate_metadata,
+                }
+            )
+
+        metadata = {
+            "crop": context.crop,
+            "task": self.task,
+            "image_role": requested_role,
+            "requested_image_role": requested_role,
+            "detected_roles": sorted({item["suggested_role"] for item in candidates}),
+            "route_status": route_status,
+            "a0_candidates": candidates,
+            "requires_user_confirmation": route_status == "needs_user_confirmation",
+            "mock": True,
+        }
+        return {
+            "status": "success",
+            "results": results,
+            "geometry": geometry,
+            "metadata": metadata,
+            "model_version": self.model_version,
+        }
+
+
+_A0_ROLE_TO_LABEL = {
+    "fruit": "fruit_bunch",
+    "trunk_base": "trunk_base",
+    "crown": "crown_region",
+}
+
+
+def _a0_candidates_for_role(role: str) -> list[dict[str, Any]]:
+    if role == "fruit":
+        return [
+            {
+                "candidate_id": "a0_fruit_001",
+                "label": "fruit_bunch",
+                "suggested_role": "fruit",
+                "confidence": 0.91,
+                "geometry": {"type": "bbox", "x": 0.18, "y": 0.34, "w": 0.18, "h": 0.2},
+            },
+            {
+                "candidate_id": "a0_fruit_002",
+                "label": "fruit_bunch",
+                "suggested_role": "fruit",
+                "confidence": 0.86,
+                "geometry": {"type": "bbox", "x": 0.52, "y": 0.28, "w": 0.2, "h": 0.24},
+            },
+            {
+                "candidate_id": "a0_fruit_003",
+                "label": "fruit_bunch",
+                "suggested_role": "fruit",
+                "confidence": 0.78,
+                "geometry": {"type": "bbox", "x": 0.68, "y": 0.56, "w": 0.16, "h": 0.18},
+            },
+        ]
+    if role == "trunk_base":
+        return [
+            {
+                "candidate_id": "a0_trunk_base_001",
+                "label": "trunk_base",
+                "suggested_role": "trunk_base",
+                "confidence": 0.88,
+                "geometry": {"type": "bbox", "x": 0.38, "y": 0.52, "w": 0.24, "h": 0.34},
+            }
+        ]
+    if role == "crown":
+        return [
+            {
+                "candidate_id": "a0_crown_001",
+                "label": "crown_region",
+                "suggested_role": "crown",
+                "confidence": 0.82,
+                "geometry": {"type": "bbox", "x": 0.18, "y": 0.1, "w": 0.64, "h": 0.48},
+            }
+        ]
+    return []

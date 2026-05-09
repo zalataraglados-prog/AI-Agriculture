@@ -108,6 +108,20 @@ class TestLabels:
             f"  labels.json: {file_labels}"
         )
 
+    def test_a0_yolo_labels_do_not_include_unknown(self) -> None:
+        labels_path = MODELS_OIL_PALM / "a0_image_routing" / "labels.json"
+        manifest_path = MANIFEST_DIR / "a0_image_routing.example.json"
+
+        with open(labels_path, "r", encoding="utf-8") as f:
+            labels = json.load(f)
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+
+        assert labels == ["fruit_bunch", "trunk_base", "crown_region"]
+        assert "unknown" not in labels
+        assert manifest["internal_training_standard"]["format"] == "yolo_detection"
+        assert manifest["internal_training_standard"]["annotation_type"] == "bbox"
+
 
 # ---------------------------------------------------------------------------
 # Metrics tests
@@ -328,6 +342,7 @@ class TestPipelineMode:
         capabilities = pipeline.registry.capabilities("oil_palm")
         assert {item["mode"] for item in capabilities} == {"mock"}
         assert {item["task"] for item in capabilities} == {
+            "a0_structure_detection",
             "ffb_maturity",
             "ganoderma_risk",
             "growth_vigor",
@@ -349,15 +364,15 @@ class TestPipelineMode:
         with pytest.raises(RuntimeError, match="Real oil palm predictors"):
             pipeline_mod.build_default_oil_palm_pipeline()
 
-    def test_a0_is_foundation_only_not_registered(
+    def test_a0_structure_detector_is_registered_as_mock(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A0 has dataset/model placeholders but is not registered into pipeline."""
+        """A0 is registered as a mock structure detector, not a real model."""
         pipeline_mod = self._reload_pipeline(monkeypatch)
         pipeline = pipeline_mod.build_default_oil_palm_pipeline()
 
-        assert "a0_image_routing" not in pipeline.supported_image_roles
-        assert all(
-            item["task"] != "a0_image_routing"
-            for item in pipeline.registry.capabilities("oil_palm")
+        capabilities = pipeline.registry.capabilities("oil_palm")
+        assert any(
+            item["task"] == "a0_structure_detection" and item["mode"] == "mock"
+            for item in capabilities
         )

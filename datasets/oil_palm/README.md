@@ -53,7 +53,7 @@ datasets/oil_palm/
 └── a0_image_routing/
     ├── raw/
     ├── processed/
-    ├── classification/
+    ├── yolo/
     ├── splits/
     └── licenses/
 ```
@@ -93,16 +93,17 @@ datasets/oil_palm/
 
 > 没有专家或实验室确认时，标签使用 `suspected`，不写成 `confirmed`。
 
-### A0 图片角色路由 (a0_image_routing)
+### A0 图片结构路由 (a0_image_routing)
 
-分类任务，图片角色识别。
+YOLO bbox 检测任务，识别可进入后续模型的结构候选。
 
 | Index | Label       | 说明              |
 |-------|-------------|------------------|
-| 0     | fruit       | 果串图片           |
-| 1     | trunk_base  | 树基部/树干图片     |
-| 2     | crown       | 树冠/冠层图片       |
-| 3     | unknown     | 无法识别的图片类型   |
+| 0     | fruit_bunch | 果串候选           |
+| 1     | trunk_base  | 树基部候选         |
+| 2     | crown_region| 树冠/冠层候选       |
+
+`unknown` 不作为 YOLO 类别；无有效结构的图片作为空标注负样本，推理时通过 `route_status` 表达。
 
 ## 数据准备工作流
 

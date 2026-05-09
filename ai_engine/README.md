@@ -113,8 +113,14 @@ Current oil palm image role routing:
 | `crown` | `growth_vigor` |
 | `uav_tile` | `uav_tree_crown` |
 
-A0 image routing has dataset/model placeholders only. It is not registered into
-the oil palm pipeline until `feature/oil-palm-a0-routing-model`.
+A0 structure detection is registered as a mock gatekeeper in this foundation
+branch. It validates the requested `image_role`, returns bbox candidates, and
+uses `route_status` values such as `needs_user_confirmation`,
+`role_mismatch`, and `no_supported_structure_detected`. Real A0 YOLO weights are
+still reserved for `feature/oil-palm-a0-routing-model`.
+
+Current A0 YOLO labels are `fruit_bunch`, `trunk_base`, and `crown_region`.
+`unknown` is an inference status, not a trained bbox class.
 
 ## Response Contract
 
