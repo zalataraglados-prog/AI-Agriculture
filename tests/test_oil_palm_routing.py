@@ -72,4 +72,51 @@ def test_oil_palm_route_exposes_registered_mock_capabilities():
     payload = response.json()
     assert "fruit" in payload["supported_image_roles"]
     tasks = {item["task"] for item in payload["registered_capabilities"]}
-    assert {"ffb_maturity", "ganoderma_risk", "growth_vigor", "uav_tree_crown"} <= tasks
+    assert {
+        "a0_structure_detection",
+        "ffb_maturity",
+        "ganoderma_risk",
+        "growth_vigor",
+        "uav_tree_crown",
+    } <= tasks
+
+
+def test_oil_palm_a0_detect_returns_bbox_candidates_for_fruit():
+    client = build_client()
+    response = client.post(
+        "/api/v1/oil-palm/a0/detect",
+        data={
+            "image_role": "fruit",
+            "tree_code": "OP-000001",
+            "session_id": "OS-000001",
+        },
+        files={"file": ("fruit.png", PNG_BYTES, "image/png")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    envelope = PredictionEnvelope.model_validate(payload)
+    assert envelope.status == "success"
+    assert envelope.model_version == "oil_palm_a0_detector_mock_v1"
+    assert envelope.metadata["route_status"] == "needs_user_confirmation"
+    assert envelope.metadata["requires_user_confirmation"] is True
+    assert len(envelope.metadata["a0_candidates"]) >= 2
+    assert {item.label for item in envelope.results} == {"fruit_bunch"}
+    assert all(item.geometry["type"] == "bbox" for item in envelope.results)
+
+
+def test_oil_palm_a0_detect_reports_role_mismatch():
+    client = build_client()
+    response = client.post(
+        "/api/v1/oil-palm/a0/detect",
+        data={
+            "image_role": "fruit",
+            "mock_detect_role": "trunk_base",
+        },
+        files={"file": ("mismatch.png", PNG_BYTES, "image/png")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["metadata"]["route_status"] == "role_mismatch"
+    assert payload["results"][0]["label"] == "trunk_base"
