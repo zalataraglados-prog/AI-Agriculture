@@ -236,13 +236,18 @@ function bindSessionActions(getTree, getSessionId, setSessionId) {
             });
             const data = await res.json();
             if (data.status === 'ok') {
-                status.textContent = `Uploaded ${data.image.image_role} image`;
+                status.textContent = data.requires_confirmation
+                    ? `Uploaded ${data.image.image_role} image. Confirm A0 candidates before analysis.`
+                    : `Uploaded ${data.image.image_role} image`;
                 fileInput.value = '';
                 uploadBtn.disabled = true;
-                // 刷新图片列表
-                loadSessionImages(sessionId);
-                const tree = getTree();
-                if (tree?.tree_code) loadAssessment(tree.tree_code);
+                if (data.requires_confirmation) {
+                    showA0Review(sessionId, data.image, data.analysis, getTree());
+                } else {
+                    loadSessionImages(sessionId);
+                    const tree = getTree();
+                    if (tree?.tree_code) loadAssessment(tree.tree_code);
+                }
             } else {
                 status.textContent = 'Upload failed: ' + (data.message || 'unknown error');
             }
@@ -250,6 +255,81 @@ function bindSessionActions(getTree, getSessionId, setSessionId) {
             status.textContent = 'Upload error: ' + e.message;
         }
     });
+}
+
+function showA0Review(sessionId, image, analysis, tree) {
+    const review = document.getElementById('a0-review');
+    const stage = document.getElementById('a0-stage');
+    const counts = document.getElementById('a0-review-counts');
+    const status = document.getElementById('a0-review-status');
+    const confirmBtn = document.getElementById('btn-confirm-a0');
+    const cancelBtn = document.getElementById('btn-cancel-a0');
+    const candidates = analysis?.metadata?.a0_candidates || [];
+    const selected = new Set(candidates.map(c => c.candidate_id));
+
+    review.style.display = 'grid';
+    stage.innerHTML = `<img id="a0-review-img" src="${fixImageUrl(image.image_url, image.upload_id)}" alt="A0 review image">`;
+    status.textContent = analysis?.metadata?.route_status === 'needs_user_confirmation'
+        ? 'Tap boxes to remove candidates that do not belong to this tree.'
+        : `A0 route status: ${analysis?.metadata?.route_status || 'unknown'}`;
+
+    function renderBoxes() {
+        stage.querySelectorAll('.a0-box').forEach(el => el.remove());
+        candidates.forEach(candidate => {
+            const g = candidate.geometry || {};
+            if (g.type !== 'bbox') return;
+            const box = document.createElement('button');
+            box.type = 'button';
+            box.className = 'a0-box' + (selected.has(candidate.candidate_id) ? '' : ' rejected');
+            box.style.left = `${Number(g.x || 0) * 100}%`;
+            box.style.top = `${Number(g.y || 0) * 100}%`;
+            box.style.width = `${Number(g.w || 0) * 100}%`;
+            box.style.height = `${Number(g.h || 0) * 100}%`;
+            box.innerHTML = `<span>${candidate.label} ${(Number(candidate.confidence || 0) * 100).toFixed(0)}%</span>`;
+            box.addEventListener('click', () => {
+                if (selected.has(candidate.candidate_id)) {
+                    selected.delete(candidate.candidate_id);
+                } else {
+                    selected.add(candidate.candidate_id);
+                }
+                renderBoxes();
+            });
+            stage.appendChild(box);
+        });
+        counts.textContent = `Selected: ${selected.size} / Rejected: ${Math.max(candidates.length - selected.size, 0)}`;
+        confirmBtn.disabled = selected.size === 0;
+    }
+
+    confirmBtn.onclick = async () => {
+        if (!selected.size) {
+            status.textContent = 'Select at least one candidate or upload a new image.';
+            return;
+        }
+        status.textContent = 'Creating masked image and running downstream mock analysis...';
+        try {
+            const res = await fetch(`/api/v1/sessions/${sessionId}/images/${image.id}/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ selected_candidate_ids: Array.from(selected) })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                review.style.display = 'none';
+                await loadSessionImages(sessionId);
+                if (tree?.tree_code) loadAssessment(tree.tree_code);
+            } else {
+                status.textContent = 'Confirmation failed: ' + (data.message || 'unknown error');
+            }
+        } catch (e) {
+            status.textContent = 'Confirmation error: ' + e.message;
+        }
+    };
+
+    cancelBtn.onclick = () => {
+        review.style.display = 'none';
+    };
+
+    renderBoxes();
 }
 
 async function loadSessionImages(sessionId) {
@@ -265,6 +345,7 @@ async function loadSessionImages(sessionId) {
                         <div class="info-card" style="padding:8px; border:1px solid rgba(255,255,255,0.1);">
                             <img src="${fixImageUrl(img.image_url, img.upload_id)}" style="width:100%; border-radius:4px; aspect-ratio:1; object-fit:cover;">
                             <div style="font-size:0.75rem; margin-top:5px; color:#60a5fa; font-weight:700; text-transform:uppercase;">${img.image_role}</div>
+                            <div style="font-size:0.68rem; color:#94a3b8;">${img.metadata?.route_status || img.mock_analysis?.metadata?.route_status || 'analysis'}</div>
                             <div style="font-size:0.7rem; color:rgba(255,255,255,0.5);">${formatDate(img.created_at)}</div>
                         </div>
                     `).join('')}

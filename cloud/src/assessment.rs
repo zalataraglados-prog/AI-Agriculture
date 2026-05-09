@@ -231,7 +231,10 @@ fn build_tree_assessment(tree: Value, images: Vec<Value>, history: Vec<Value>) -
 
 fn dimension_from_latest_image(images: &[Value], role: &str) -> Value {
     let latest = images.iter()
-        .filter(|img| img["image_role"].as_str() == Some(role))
+        .filter(|img| {
+            img["image_role"].as_str() == Some(role)
+                && img["metadata"]["downstream_status"].as_str() != Some("pending_user_confirmation")
+        })
         .max_by_key(|img| img["created_at"].as_str().unwrap_or("").to_string());
     let Some(img) = latest else {
         return json!({"evidence_status":"missing","status":"unknown","label":null,"confidence":null});

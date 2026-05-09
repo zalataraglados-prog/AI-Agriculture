@@ -705,6 +705,10 @@ fn handle_api(
             } else if method == Method::Post && p.starts_with("/api/v1/trees/") && p.ends_with("/sessions") {
                 let tree_id = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::session::handle_create_session(request, &tree_id, db);
+            } else if method == Method::Post && p.starts_with("/api/v1/sessions/") && p.ends_with("/confirm") {
+                let session_id = extract_path_segment(p, "/sessions/").unwrap_or_default();
+                let image_id = extract_path_segment(p, "/images/").unwrap_or_default();
+                crate::session::handle_confirm_session_image(request, &session_id, &image_id, image_store_path, db);
             } else if p.starts_with("/api/v1/sessions/") && p.ends_with("/images") {
                 let session_id = extract_path_segment(p, "/sessions/").unwrap_or_default();
                 if method == Method::Post {

@@ -1534,6 +1534,60 @@ impl DbManager {
         Ok(out)
     }
 
+    pub(crate) fn get_session_image(&mut self, session_id: i32, image_id: i32) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, session_id, image_url, image_role, upload_id, mock_analysis_json, metadata_json, created_at \
+             FROM session_images WHERE session_id = $1 AND id = $2 LIMIT 1",
+            &[&session_id, &image_id],
+        ).map_err(|e| format!("get_session_image error: {}", e))?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let r = &rows[0];
+        let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+        Ok(Some(serde_json::json!({
+            "id": r.get::<_, i32>("id"),
+            "session_id": r.get::<_, i32>("session_id"),
+            "image_url": r.get::<_, String>("image_url"),
+            "image_role": r.get::<_, String>("image_role"),
+            "upload_id": r.get::<_, Option<String>>("upload_id"),
+            "mock_analysis": r.get::<_, serde_json::Value>("mock_analysis_json"),
+            "metadata": r.get::<_, serde_json::Value>("metadata_json"),
+            "created_at": created_at.to_rfc3339()
+        })))
+    }
+
+    pub(crate) fn update_session_image_analysis(
+        &mut self,
+        session_id: i32,
+        image_id: i32,
+        mock_analysis_json: serde_json::Value,
+        metadata_json: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        let rows = self.client.query(
+            "UPDATE session_images \
+             SET mock_analysis_json = $3, metadata_json = $4 \
+             WHERE session_id = $1 AND id = $2 \
+             RETURNING id, session_id, image_url, image_role, upload_id, mock_analysis_json, metadata_json, created_at",
+            &[&session_id, &image_id, &mock_analysis_json, &metadata_json],
+        ).map_err(|e| format!("update_session_image_analysis error: {}", e))?;
+        if rows.is_empty() {
+            return Err("session image not found".to_string());
+        }
+        let r = &rows[0];
+        let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+        Ok(serde_json::json!({
+            "id": r.get::<_, i32>("id"),
+            "session_id": r.get::<_, i32>("session_id"),
+            "image_url": r.get::<_, String>("image_url"),
+            "image_role": r.get::<_, String>("image_role"),
+            "upload_id": r.get::<_, Option<String>>("upload_id"),
+            "mock_analysis": r.get::<_, serde_json::Value>("mock_analysis_json"),
+            "metadata": r.get::<_, serde_json::Value>("metadata_json"),
+            "created_at": created_at.to_rfc3339()
+        }))
+    }
+
     pub(crate) fn get_session_images_by_tree_id(&mut self, tree_id: i32) -> Result<Vec<serde_json::Value>, String> {
         let rows = self.client.query(
             "SELECT si.id, si.session_id, si.image_url, si.image_role, si.upload_id, \
