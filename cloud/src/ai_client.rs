@@ -160,7 +160,7 @@ fn parse_ai_response(text: &str, elapsed_ms: i32) -> Result<AiInferenceOutput, S
 
 
 
-    let first = json
+    let first = if let Some(item) = json
 
         .get("results")
 
@@ -168,7 +168,25 @@ fn parse_ai_response(text: &str, elapsed_ms: i32) -> Result<AiInferenceOutput, S
 
         .and_then(|arr| arr.first())
 
-        .ok_or_else(|| "AI response missing results[0]".to_string())?;
+    {
+
+        item
+
+    } else if json.get("predicted_class").is_some()
+
+        || json.get("confidence").is_some()
+
+        || json.get("topk").is_some()
+
+    {
+
+        &json
+
+    } else {
+
+        return Err("AI response missing results[0] or top-level fields".to_string());
+
+    };
 
 
 
@@ -282,7 +300,7 @@ fn enrich_disease_metrics(
 
         match (predicted_class.as_deref(), confidence) {
 
-            (Some("HealthyLeaf"), Some(c)) => Some(c.clamp(0.0, 1.0)),
+            (Some("HealthyLeaf"), Some(c)) | (Some("Healthy"), Some(c)) => Some(c.clamp(0.0, 1.0)),
 
             _ => None,
 
@@ -308,7 +326,7 @@ fn enrich_disease_metrics(
 
         .or_else(|| match (predicted_class.as_deref(), confidence) {
 
-            (Some("HealthyLeaf"), Some(c)) => Some((1.0 - c).clamp(0.0, 1.0)),
+            (Some("HealthyLeaf"), Some(c)) | (Some("Healthy"), Some(c)) => Some((1.0 - c).clamp(0.0, 1.0)),
 
             (Some(_), Some(c)) => Some(c.clamp(0.0, 1.0)),
 
@@ -336,15 +354,27 @@ fn extract_healthy_prob_from_topk(topk_json: &Value) -> Option<f64> {
 
             items.iter().find_map(|item| {
 
-                let label = item.get("label").and_then(|v| v.as_str())?;
+                let label = item
 
-                if label != "HealthyLeaf" {
+                    .get("label")
+
+                    .or_else(|| item.get("predicted_class"))
+
+                    .and_then(|v| v.as_str())?;
+
+                if label != "HealthyLeaf" && label != "Healthy" {
 
                     return None;
 
                 }
 
-                item.get("score").and_then(|v| v.as_f64())
+                item
+
+                    .get("score")
+
+                    .or_else(|| item.get("confidence"))
+
+                    .and_then(|v| v.as_f64())
 
             })
 
