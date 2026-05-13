@@ -53,7 +53,7 @@ pub(crate) fn validate_current_hour_token(path: &str, candidate: &str) -> Result
         return Ok(false);
     };
 
-    Ok(hash_secret(candidate) == *expected_hash)
+    Ok(hash_secret(candidate) == expected_hash)
 }
 
 fn load_store(path: &str) -> Result<TokenStore, String> {
