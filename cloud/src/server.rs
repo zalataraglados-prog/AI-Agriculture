@@ -339,6 +339,25 @@ fn handle_register(json_text: &str, cfg: &RuntimeConfig, registry: &mut DeviceRe
         }
     }
 
+    if registry.is_registered(&request.device_id) {
+        let fixed_token = request.token.as_deref().map(str::trim).unwrap_or("");
+        if fixed_token.is_empty() {
+            return DEFAULT_ACK_TOKEN_INVALID.to_string();
+        }
+        match registry.validate_device_fixed_token(&request.device_id, fixed_token) {
+            CredentialValidation::Valid => {
+                return match registry.register_device_with_fixed_token(request, &allowed_sensor_ids)
+                {
+                    Ok(RegisterOutcome::Ok) => DEFAULT_ACK_REGISTER_OK.to_string(),
+                    Ok(RegisterOutcome::Conflict) => DEFAULT_ACK_REGISTER_CONFLICT.to_string(),
+                    Err(_) => cfg.ack_mismatch.clone(),
+                };
+            }
+            CredentialValidation::Revoked => return DEFAULT_ACK_CREDENTIAL_REVOKED.to_string(),
+            CredentialValidation::Invalid => return DEFAULT_ACK_TOKEN_INVALID.to_string(),
+        }
+    }
+
     let candidate_token = request.token.as_deref().map(str::trim).unwrap_or("");
     if candidate_token.is_empty() {
         return DEFAULT_ACK_TOKEN_INVALID.to_string();

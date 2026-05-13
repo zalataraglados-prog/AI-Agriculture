@@ -110,6 +110,17 @@ impl DeviceRegistry {
 
             normalize_and_validate_contract(&request, allowed_sensor_ids)?;
 
+        let device_token = request
+            .token
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .ok_or_else(|| "register request missing token".to_string())?;
+
+        if self.inner.devices.contains_key(&request.device_id) {
+            return Err("register request references existing device_id".to_string());
+        }
+
 
 
         if self.has_conflict(
@@ -151,6 +162,8 @@ impl DeviceRegistry {
             registered_at_epoch_sec: now,
 
             device_key_hash: hash_device_key(&device_key),
+
+            device_token_hash: hash_secret(device_token),
 
             credential_revoked: false,
 
@@ -242,6 +255,41 @@ impl DeviceRegistry {
 
 
 
+    pub(crate) fn register_device_with_fixed_token(
+        &mut self,
+        request: RegisterRequest,
+        allowed_sensor_ids: &HashSet<String>,
+    ) -> Result<RegisterOutcome, String> {
+        if request.device_id.trim().is_empty() {
+            return Err("register request missing device_id".to_string());
+        }
+
+        let (normalized_sensors, normalized_mapping) =
+            normalize_and_validate_contract(&request, allowed_sensor_ids)?;
+
+        if self.has_conflict(
+            &request.device_id,
+            &request.location,
+            &request.crop_type,
+            &normalized_sensors,
+        ) {
+            return Ok(RegisterOutcome::Conflict);
+        }
+
+        let Some(device) = self.inner.devices.get_mut(&request.device_id) else {
+            return Err("register request references unknown device_id".to_string());
+        };
+
+        device.location = request.location;
+        device.crop_type = request.crop_type;
+        device.farm_note = request.farm_note;
+        device.sensors = normalized_sensors;
+        device.feature_mapping = normalized_mapping;
+
+        self.save()?;
+        Ok(RegisterOutcome::Ok)
+    }
+
     pub(crate) fn validate_device_credential(
 
         &self,
@@ -289,6 +337,30 @@ impl DeviceRegistry {
     }
 
 
+
+    pub(crate) fn validate_device_fixed_token(
+        &self,
+        device_id: &str,
+        device_token: &str,
+    ) -> CredentialValidation {
+        let Some(device) = self.inner.devices.get(device_id) else {
+            return CredentialValidation::Invalid;
+        };
+
+        if device.credential_revoked {
+            return CredentialValidation::Revoked;
+        }
+
+        if device.device_token_hash.is_empty() {
+            return CredentialValidation::Invalid;
+        }
+
+        if device.device_token_hash == hash_secret(device_token) {
+            CredentialValidation::Valid
+        } else {
+            CredentialValidation::Invalid
+        }
+    }
 
     pub(crate) fn is_registered(&self, device_id: &str) -> bool {
 
@@ -503,13 +575,14 @@ fn dedup_sensors(sensors: &[String]) -> Vec<String> {
 
 
 fn hash_device_key(device_key: &str) -> String {
+    hash_secret(device_key)
 
+}
+
+fn hash_secret(secret: &str) -> String {
     let mut hasher = Sha256::new();
-
-    hasher.update(device_key.as_bytes());
-
+    hasher.update(secret.as_bytes());
     format!("{:x}", hasher.finalize())
-
 }
 
 
@@ -734,6 +807,33 @@ mod tests {
 
         );
 
+    }
+
+    #[test]
+    fn fixed_token_is_persisted_and_validated() {
+        let path = temp_registry_path();
+        let mut registry = DeviceRegistry::load(&path).expect("load registry");
+        let allowed = HashSet::from(["soil_modbus_02".to_string()]);
+
+        let mut req = sample_request();
+        req.token = Some("hourly-token-abc".to_string());
+        registry
+            .register_device_with_token(req.clone(), &allowed)
+            .expect("register should succeed");
+
+        assert_eq!(
+            registry.validate_device_fixed_token("dev_modbus_01", "hourly-token-abc"),
+            CredentialValidation::Valid
+        );
+        assert_eq!(
+            registry.validate_device_fixed_token("dev_modbus_01", "wrong-token"),
+            CredentialValidation::Invalid
+        );
+
+        req.farm_note = "updated".to_string();
+        registry
+            .register_device_with_fixed_token(req, &allowed)
+            .expect("fixed token re-register should succeed");
     }
 
 }
