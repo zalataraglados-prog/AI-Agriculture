@@ -5,18 +5,32 @@
   "internal_training_standard": {
     "format": "classification_directory",
     "annotation_type": "image_level_label",
-    "image_size": [224, 224],
+    "image_size": [
+      224,
+      224
+    ],
     "coordinate_system": null
   },
   "sources": [
     {
-      "name": "Gotani Ganoderma Dataset",
-      "url": "https://www.iradarx.com/gotani/datasets/",
+      "name": "Oil Palm Ganoderma Infected Dataset",
+      "url": "https://app.roboflow.com/ds/MnlhP66kkQ?key=wbWW92FFB3",
       "license": "check original source",
-      "format": "images + CSV labels",
-      "estimated_images": null,
-      "importer": "import_ganoderma_csv_dataset.py",
-      "notes": "May include hyperspectral or small-sample data; verify RGB availability"
+      "format": "Multi-Label Classification (filename, Ganoderma, Ganoderma Fungus)",
+      "estimated_images": 470,
+      "importer": "import_ganoderma_infected_roboflow.py",
+      "raw_dir": "datasets/oil_palm/ganoderma_risk/raw/ganoderma_infected",
+      "notes": "Root-level photography. Ganoderma=1 or Ganoderma Fungus=1 => suspected_risk. All 470 images are suspected_risk."
+    },
+    {
+      "name": "Oil Palm Healthy Dataset",
+      "url": "https://app.roboflow.com/ds/eIBAhbkcu2?key=O9ww8vzXj9",
+      "license": "check original source",
+      "format": "Multi-Label Classification (filename, healthy, unhealthy)",
+      "estimated_images": 303,
+      "importer": "import_ganoderma_healthy_roboflow.py",
+      "raw_dir": "datasets/oil_palm/ganoderma_risk/raw/ganoderma_healthy",
+      "notes": "Root-level photography. healthy=1 => healthy. Contains 6 unhealthy images mapped to suspected_risk."
     }
   ],
   "label_map": {
@@ -26,22 +40,28 @@
   },
   "label_notes": "v1 conservative labels. Without expert or lab confirmation, all risk labels are 'suspected', never 'confirmed'. Future expansion may add: suspected_early, moderate, severe, dead_or_collapsed.",
   "split_strategy": {
-    "method": "group_by_plantation_block",
-    "ratios": {"train": 0.70, "val": 0.15, "test": 0.15},
+    "method": "stratified_random",
+    "ratios": {
+      "train": 0.70,
+      "val": 0.15,
+      "test": 0.15
+    },
     "seed": 42,
-    "constraint": "Images from the same tree or plantation block must stay in the same split",
-    "notes": "Ganoderma data is often small-sample; consider stratified sampling to preserve class balance"
+    "constraint": "Stratified split per class to preserve class balance across splits",
+    "notes": "Ganoderma data is small-sample and class-imbalanced (~333 suspected_risk vs ~207 healthy in train). CrossEntropyLoss with class weights applied during training."
   },
   "expected_counts": {
-    "train": null,
-    "val": null,
-    "test": null,
-    "total": null
+    "train": 540,
+    "val": 114,
+    "test": 119,
+    "total": 773
   },
   "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
   "notes": [
-    "raw layer accepts any format including CSV, JSON, COCO, or custom",
-    "importers normalize to classification directory structure",
+    "Both datasets are root-level photography for consistency",
+    "Run import_ganoderma_infected_roboflow.py first, then import_ganoderma_healthy_roboflow.py",
+    "Both importers output to the same classification/ directory",
+    "other_stress_unknown class is reserved for future use; no images in v1",
     "Ganoderma risk is NEVER confirmed without expert evidence"
   ]
 }
