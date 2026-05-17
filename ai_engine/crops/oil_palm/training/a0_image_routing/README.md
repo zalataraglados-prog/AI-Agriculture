@@ -37,8 +37,26 @@ evidence across sets.
 ## Training Command
 
 ```bash
-# TODO: add once feature/oil-palm-a0-routing-model implements training scripts
+python -m ai_engine.crops.oil_palm.training.a0_image_routing.prepare_dataset --source-root E:\a0 --copy-raw --overwrite
+python -m ai_engine.crops.oil_palm.training.a0_image_routing.train_yolo --config models/oil_palm/a0_image_routing/training_config.example.yaml
 ```
+
+Use `--dry-run` on either command to validate paths and arguments without
+writing the dataset or starting training.
+
+The preparation command writes YOLO files under
+`datasets/oil_palm/a0_image_routing/yolo/`, which is ignored by Git. It also
+writes tracked metadata under `splits/`, `licenses/`, and
+`datasets/oil_palm/manifests/a0_image_routing.json`.
+
+The first Roboflow bootstrap adapter maps source labels as follows:
+
+- `ffb` -> `fruit_bunch`
+- `Trunk_base` -> `trunk_base`
+- `crown_region` -> `crown_region`
+
+Roboflow root categories are ignored. Slight bbox rounding overflow is clipped
+to image bounds before YOLO export.
 
 ## Design Principles
 

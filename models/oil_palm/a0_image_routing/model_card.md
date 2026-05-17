@@ -36,9 +36,10 @@ structure does not match the requested role.
 
 ## Training Data
 
-Not yet trained. Training data can be bootstrapped from existing FFB,
-Ganoderma, and UAV crown datasets by adding structure bboxes and empty-label
-negative samples.
+Not yet trained. A local Roboflow COCO bootstrap dataset can now be adapted into
+the project YOLO layout with the A0 preparation script. The first bootstrap
+version contains `fruit_bunch`, `trunk_base`, and `crown_region` positives; it
+does not include empty-label negative samples yet.
 
 ## Evaluation
 
@@ -64,3 +65,4 @@ metrics template.
 | Version | Date | Notes |
 |---------|------|-------|
 | placeholder | 2026-05 | Directory structure established. No real model, mock contract only. |
+| training_bootstrap | 2026-05 | Added Roboflow COCO adapter, YOLO dataset preparation, and training config. |
