@@ -1,0 +1,5178 @@
+{
+  "task": "a0_image_routing",
+  "dataset_version": "roboflow_a0_2026_05_17",
+  "split_strategy": {
+    "method": "grouped_by_source_dataset_and_original_media",
+    "ratios": {
+      "train": 0.7,
+      "val": 0.15,
+      "test": 0.15
+    },
+    "seed": 42,
+    "constraint": "Frames or near-duplicate images from the same source group stay in one split."
+  },
+  "counts": {
+    "images": 396,
+    "annotations": 1174,
+    "splits": {
+      "test": 59,
+      "train": 279,
+      "val": 58
+    },
+    "labels": {
+      "crown_region": 352,
+      "fruit_bunch": 708,
+      "trunk_base": 114
+    }
+  },
+  "entries": [
+    {
+      "image": "yolo/images/test/a0_000001.jpg",
+      "label": "yolo/labels/test/a0_000001.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0004_jpg.rf.jMz4k7VFKZbDVBIYLI4h.jpg",
+      "original_name": "DJI_0720_MP4-0004.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000002.jpg",
+      "label": "yolo/labels/test/a0_000002.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0015_jpg.rf.ZanBulR7HCfrL1AhKBH3.jpg",
+      "original_name": "DJI_0720_MP4-0015.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000003.jpg",
+      "label": "yolo/labels/test/a0_000003.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0024_jpg.rf.gYBoin9qXWdmeOfwLWRD.jpg",
+      "original_name": "DJI_0720_MP4-0024.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000004.jpg",
+      "label": "yolo/labels/test/a0_000004.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0048_jpg.rf.adXAqAGu3cxSOWWlQBBR.jpg",
+      "original_name": "DJI_0720_MP4-0048.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000005.jpg",
+      "label": "yolo/labels/test/a0_000005.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0054_jpg.rf.auAZksbJOppsrXcKTFg6.jpg",
+      "original_name": "DJI_0720_MP4-0054.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000006.jpg",
+      "label": "yolo/labels/test/a0_000006.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0083_jpg.rf.cslTf9paPobjxwCkSoeK.jpg",
+      "original_name": "DJI_0720_MP4-0083.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000007.jpg",
+      "label": "yolo/labels/test/a0_000007.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0084_jpg.rf.gKXfPjPLuWTZeDoBXd1n.jpg",
+      "original_name": "DJI_0720_MP4-0084.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000008.jpg",
+      "label": "yolo/labels/test/a0_000008.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0153_jpg.rf.fECd1UNqnlfgyfbPEGRD.jpg",
+      "original_name": "DJI_0720_MP4-0153.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000009.jpg",
+      "label": "yolo/labels/test/a0_000009.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0720_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0720_MP4-0182_jpg.rf.bHlp3D3nubEDfn9dZZIx.jpg",
+      "original_name": "DJI_0720_MP4-0182.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000010.jpg",
+      "label": "yolo/labels/val/a0_000010.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0009_jpg.rf.iO2C3Ib8PzbTFDrCsK9A.jpg",
+      "original_name": "DJI_0721_MP4-0009.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000011.jpg",
+      "label": "yolo/labels/val/a0_000011.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0071_jpg.rf.aH1RFhi6zzCHLKDIFvX5.jpg",
+      "original_name": "DJI_0721_MP4-0071.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000012.jpg",
+      "label": "yolo/labels/val/a0_000012.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0081_jpg.rf.g7VFT6Tm1igTceUTLKSV.jpg",
+      "original_name": "DJI_0721_MP4-0081.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000013.jpg",
+      "label": "yolo/labels/val/a0_000013.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0085_jpg.rf.SBbIWaG6fH8wPvnJK6dz.jpg",
+      "original_name": "DJI_0721_MP4-0085.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000014.jpg",
+      "label": "yolo/labels/val/a0_000014.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0100_jpg.rf.Nc4i8N4bvjzKwoyHIxvB.jpg",
+      "original_name": "DJI_0721_MP4-0100.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000015.jpg",
+      "label": "yolo/labels/val/a0_000015.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0106_jpg.rf.fXw85iLHFOPs4l8WKA2x.jpg",
+      "original_name": "DJI_0721_MP4-0106.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000016.jpg",
+      "label": "yolo/labels/val/a0_000016.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0116_jpg.rf.cHLZgUZ05h7Xsdc7CCL1.jpg",
+      "original_name": "DJI_0721_MP4-0116.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000017.jpg",
+      "label": "yolo/labels/val/a0_000017.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0147_jpg.rf.jrENpUF7Wpn96CvuauCL.jpg",
+      "original_name": "DJI_0721_MP4-0147.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000018.jpg",
+      "label": "yolo/labels/val/a0_000018.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0170_jpg.rf.a7SePjvVmPP27aUmryyF.jpg",
+      "original_name": "DJI_0721_MP4-0170.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000019.jpg",
+      "label": "yolo/labels/val/a0_000019.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0191_jpg.rf.gR1bItVXzGiinP7qZf4R.jpg",
+      "original_name": "DJI_0721_MP4-0191.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000020.jpg",
+      "label": "yolo/labels/val/a0_000020.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0192_jpg.rf.gIlWxrV0J2ERVkWknkYa.jpg",
+      "original_name": "DJI_0721_MP4-0192.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000021.jpg",
+      "label": "yolo/labels/val/a0_000021.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0205_jpg.rf.a63lrcNUJjG7s0ae6L46.jpg",
+      "original_name": "DJI_0721_MP4-0205.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000022.jpg",
+      "label": "yolo/labels/val/a0_000022.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0721_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0721_MP4-0206_jpg.rf.Pttga9TkMYBjnoWezrmT.jpg",
+      "original_name": "DJI_0721_MP4-0206.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000023.jpg",
+      "label": "yolo/labels/train/a0_000023.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0013_jpg.rf.aUbiW1VzbRKvNU9hdRRY.jpg",
+      "original_name": "DJI_0723_MP4-0013.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000024.jpg",
+      "label": "yolo/labels/train/a0_000024.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0037_jpg.rf.QGCz9398x2RgnVytZLBh.jpg",
+      "original_name": "DJI_0723_MP4-0037.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000025.jpg",
+      "label": "yolo/labels/train/a0_000025.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0064_jpg.rf.NrQFQeGUlmIapoaHvRYr.jpg",
+      "original_name": "DJI_0723_MP4-0064.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000026.jpg",
+      "label": "yolo/labels/train/a0_000026.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0141_jpg.rf.PTVE0e3FihOOnQRFLGmd.jpg",
+      "original_name": "DJI_0723_MP4-0141.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000027.jpg",
+      "label": "yolo/labels/train/a0_000027.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0172_jpg.rf.OfmxXmFuPFBCp5IrlJOA.jpg",
+      "original_name": "DJI_0723_MP4-0172.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000028.jpg",
+      "label": "yolo/labels/train/a0_000028.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0176_jpg.rf.ahcbm0odWKVpFSpcgHVv.jpg",
+      "original_name": "DJI_0723_MP4-0176.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000029.jpg",
+      "label": "yolo/labels/train/a0_000029.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0204_jpg.rf.RHRgyPVgqsKZ3iGNovqu.jpg",
+      "original_name": "DJI_0723_MP4-0204.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000030.jpg",
+      "label": "yolo/labels/train/a0_000030.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0209_jpg.rf.T8VwgFvHjc2WkN1Bxjcq.jpg",
+      "original_name": "DJI_0723_MP4-0209.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000031.jpg",
+      "label": "yolo/labels/train/a0_000031.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0212_jpg.rf.SlXymnsGKq8VTpBwgtck.jpg",
+      "original_name": "DJI_0723_MP4-0212.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000032.jpg",
+      "label": "yolo/labels/train/a0_000032.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0214_jpg.rf.hnGT2ow9Xqy2Vm3iwDyl.jpg",
+      "original_name": "DJI_0723_MP4-0214.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000033.jpg",
+      "label": "yolo/labels/train/a0_000033.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0217_jpg.rf.jupXssLdBEzNcnciaCHs.jpg",
+      "original_name": "DJI_0723_MP4-0217.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000034.jpg",
+      "label": "yolo/labels/train/a0_000034.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0220_jpg.rf.QESqBvGB8CCQ4wJBQ1em.jpg",
+      "original_name": "DJI_0723_MP4-0220.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000035.jpg",
+      "label": "yolo/labels/train/a0_000035.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0242_jpg.rf.a2c87KreEMB6nwiq1nTZ.jpg",
+      "original_name": "DJI_0723_MP4-0242.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000036.jpg",
+      "label": "yolo/labels/train/a0_000036.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0243_jpg.rf.fl9LnXcwaN5vWJphEWOw.jpg",
+      "original_name": "DJI_0723_MP4-0243.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000037.jpg",
+      "label": "yolo/labels/train/a0_000037.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0295_jpg.rf.g3YeZH264gqXxL1Vd1U2.jpg",
+      "original_name": "DJI_0723_MP4-0295.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000038.jpg",
+      "label": "yolo/labels/train/a0_000038.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0302_jpg.rf.a5sYQ2iNdS2ZSKMsnOTJ.jpg",
+      "original_name": "DJI_0723_MP4-0302.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000039.jpg",
+      "label": "yolo/labels/train/a0_000039.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0311_jpg.rf.PwZGTBpUFlnfrxBsjOAW.jpg",
+      "original_name": "DJI_0723_MP4-0311.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000040.jpg",
+      "label": "yolo/labels/train/a0_000040.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0322_jpg.rf.hxTqTDGgKXASFc6vsHVa.jpg",
+      "original_name": "DJI_0723_MP4-0322.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000041.jpg",
+      "label": "yolo/labels/train/a0_000041.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0334_jpg.rf.dJrymjfqQ076IM0iUCxw.jpg",
+      "original_name": "DJI_0723_MP4-0334.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000042.jpg",
+      "label": "yolo/labels/train/a0_000042.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0344_jpg.rf.j0nbBPVJ3vKj1uiaiAWh.jpg",
+      "original_name": "DJI_0723_MP4-0344.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000043.jpg",
+      "label": "yolo/labels/train/a0_000043.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0354_jpg.rf.RvJ13tyBFXKw07wf1Alb.jpg",
+      "original_name": "DJI_0723_MP4-0354.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000044.jpg",
+      "label": "yolo/labels/train/a0_000044.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0370_jpg.rf.bnNWXiYNpnMY4uviSPJ3.jpg",
+      "original_name": "DJI_0723_MP4-0370.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000045.jpg",
+      "label": "yolo/labels/train/a0_000045.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0380_jpg.rf.c3jLJ8c7jEn8yTAo9OEs.jpg",
+      "original_name": "DJI_0723_MP4-0380.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000046.jpg",
+      "label": "yolo/labels/train/a0_000046.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0387_jpg.rf.igKbIRGOmrrsLg4KVM9s.jpg",
+      "original_name": "DJI_0723_MP4-0387.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000047.jpg",
+      "label": "yolo/labels/train/a0_000047.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0723_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0723_MP4-0401_jpg.rf.gJqeSHPgGIaPTcaFG3Yf.jpg",
+      "original_name": "DJI_0723_MP4-0401.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000048.jpg",
+      "label": "yolo/labels/test/a0_000048.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0725_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0725_MP4-0053_jpg.rf.TccXBeWu15dDcrfddQcD.jpg",
+      "original_name": "DJI_0725_MP4-0053.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000049.jpg",
+      "label": "yolo/labels/test/a0_000049.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0725_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0725_MP4-0093_jpg.rf.RSB029MVKsj2l7YO5AO0.jpg",
+      "original_name": "DJI_0725_MP4-0093.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000050.jpg",
+      "label": "yolo/labels/test/a0_000050.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0725_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0725_MP4-0123_jpg.rf.hPVIHNcBRGtmdwoGrOBw.jpg",
+      "original_name": "DJI_0725_MP4-0123.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000051.jpg",
+      "label": "yolo/labels/test/a0_000051.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0725_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0725_MP4-0132_jpg.rf.gZlT5vaW1Ky4Ke1gAhQg.jpg",
+      "original_name": "DJI_0725_MP4-0132.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000052.jpg",
+      "label": "yolo/labels/test/a0_000052.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0725_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0725_MP4-0160_jpg.rf.h2sOjp4NZvSGY2SksZHa.jpg",
+      "original_name": "DJI_0725_MP4-0160.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000053.jpg",
+      "label": "yolo/labels/test/a0_000053.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0725_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0725_MP4-0170_jpg.rf.dYdG6GozDbCD8VB1GsqI.jpg",
+      "original_name": "DJI_0725_MP4-0170.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000054.jpg",
+      "label": "yolo/labels/test/a0_000054.txt",
+      "split": "test",
+      "group_id": "crown_region:DJI_0725_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0725_MP4-0174_jpg.rf.QRMbUTf1TtWGbI6qQZ5c.jpg",
+      "original_name": "DJI_0725_MP4-0174.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000055.jpg",
+      "label": "yolo/labels/train/a0_000055.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0013_jpg.rf.hJY5Jq4uJeodoA7wv3li.jpg",
+      "original_name": "DJI_0731_MP4-0013.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000056.jpg",
+      "label": "yolo/labels/train/a0_000056.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0043_jpg.rf.cDEUkCYiuCb5Drk2wJHf.jpg",
+      "original_name": "DJI_0731_MP4-0043.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000057.jpg",
+      "label": "yolo/labels/train/a0_000057.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0090_jpg.rf.defCkCfIewlBAgLZY825.jpg",
+      "original_name": "DJI_0731_MP4-0090.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 8
+    },
+    {
+      "image": "yolo/images/train/a0_000058.jpg",
+      "label": "yolo/labels/train/a0_000058.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0108_jpg.rf.Se7DvhveGOXoPh6o5UF1.jpg",
+      "original_name": "DJI_0731_MP4-0108.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000059.jpg",
+      "label": "yolo/labels/train/a0_000059.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0118_jpg.rf.eUZuHiWbqIBMn0rPwDrY.jpg",
+      "original_name": "DJI_0731_MP4-0118.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000060.jpg",
+      "label": "yolo/labels/train/a0_000060.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0130_jpg.rf.ZbtdGXLNrU2VHvYP5Ghi.jpg",
+      "original_name": "DJI_0731_MP4-0130.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000061.jpg",
+      "label": "yolo/labels/train/a0_000061.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0167_jpg.rf.h4zjtlD5DDqjrPtI3PmQ.jpg",
+      "original_name": "DJI_0731_MP4-0167.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000062.jpg",
+      "label": "yolo/labels/train/a0_000062.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0181_jpg.rf.i6yxJ17A4ScMgBVo0dbq.jpg",
+      "original_name": "DJI_0731_MP4-0181.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000063.jpg",
+      "label": "yolo/labels/train/a0_000063.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0186_jpg.rf.PHO2RXcvfooSO8tacTkO.jpg",
+      "original_name": "DJI_0731_MP4-0186.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000064.jpg",
+      "label": "yolo/labels/train/a0_000064.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0189_jpg.rf.i0fW9hsdIjmT59ojxmNP.jpg",
+      "original_name": "DJI_0731_MP4-0189.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000065.jpg",
+      "label": "yolo/labels/train/a0_000065.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0211_jpg.rf.TC3fJdndPv5jwCLLOvvI.jpg",
+      "original_name": "DJI_0731_MP4-0211.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000066.jpg",
+      "label": "yolo/labels/train/a0_000066.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0247_jpg.rf.e4LaTh6fhPpmRmiLGp8A.jpg",
+      "original_name": "DJI_0731_MP4-0247.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000067.jpg",
+      "label": "yolo/labels/train/a0_000067.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0284_jpg.rf.f3aEF5yyfFwf4uU0QerQ.jpg",
+      "original_name": "DJI_0731_MP4-0284.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000068.jpg",
+      "label": "yolo/labels/train/a0_000068.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0287_jpg.rf.iHdNpqSqMbkK3duUPNtc.jpg",
+      "original_name": "DJI_0731_MP4-0287.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000069.jpg",
+      "label": "yolo/labels/train/a0_000069.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0731_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0731_MP4-0345_jpg.rf.cshUBhvN43VLebEmGQEi.jpg",
+      "original_name": "DJI_0731_MP4-0345.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/val/a0_000070.jpg",
+      "label": "yolo/labels/val/a0_000070.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0734_part_2_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0734_part_2_mp4-0001_jpg.rf.QU4fjoRynIKc4ElWnZ9K.jpg",
+      "original_name": "DJI_0734_part_2_mp4-0001.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/val/a0_000071.jpg",
+      "label": "yolo/labels/val/a0_000071.txt",
+      "split": "val",
+      "group_id": "crown_region:DJI_0734_part_2_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0734_part_2_mp4-0049_jpg.rf.e3jBnBzaNxm3uUWQzIRO.jpg",
+      "original_name": "DJI_0734_part_2_mp4-0049.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000072.jpg",
+      "label": "yolo/labels/train/a0_000072.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0049_jpg.rf.cVFrlfpO4OSbTSH4xofF.jpg",
+      "original_name": "DJI_0735_MP4-0049.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000073.jpg",
+      "label": "yolo/labels/train/a0_000073.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0060_jpg.rf.b7Ke44OkXHJpeRvm0XNY.jpg",
+      "original_name": "DJI_0735_MP4-0060.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000074.jpg",
+      "label": "yolo/labels/train/a0_000074.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0105_jpg.rf.bhimSX62hrqTsTnI81tN.jpg",
+      "original_name": "DJI_0735_MP4-0105.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000075.jpg",
+      "label": "yolo/labels/train/a0_000075.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0110_jpg.rf.g9oTTZ2JfAn0vsj0m5DS.jpg",
+      "original_name": "DJI_0735_MP4-0110.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000076.jpg",
+      "label": "yolo/labels/train/a0_000076.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0118_jpg.rf.ThN1KIcjj6KCaTdg2tL6.jpg",
+      "original_name": "DJI_0735_MP4-0118.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000077.jpg",
+      "label": "yolo/labels/train/a0_000077.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0128_jpg.rf.PN1ByQyALIg9zXs3Qoto.jpg",
+      "original_name": "DJI_0735_MP4-0128.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000078.jpg",
+      "label": "yolo/labels/train/a0_000078.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0150_jpg.rf.N1Kh2yLpddnf9b2al9Dp.jpg",
+      "original_name": "DJI_0735_MP4-0150.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000079.jpg",
+      "label": "yolo/labels/train/a0_000079.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0234_jpg.rf.Q3rpkNPKeG4M9njFKqIJ.jpg",
+      "original_name": "DJI_0735_MP4-0234.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000080.jpg",
+      "label": "yolo/labels/train/a0_000080.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0244_jpg.rf.Sn5duugEISkg2pQq6a22.jpg",
+      "original_name": "DJI_0735_MP4-0244.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000081.jpg",
+      "label": "yolo/labels/train/a0_000081.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0259_jpg.rf.RO50Dj4y48ARxvIg4uMa.jpg",
+      "original_name": "DJI_0735_MP4-0259.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000082.jpg",
+      "label": "yolo/labels/train/a0_000082.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0270_jpg.rf.jswXSEUnqRaOQqhWWIjU.jpg",
+      "original_name": "DJI_0735_MP4-0270.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000083.jpg",
+      "label": "yolo/labels/train/a0_000083.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0274_jpg.rf.b9xnp9pbthB6ySqwR0vJ.jpg",
+      "original_name": "DJI_0735_MP4-0274.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000084.jpg",
+      "label": "yolo/labels/train/a0_000084.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0281_jpg.rf.iw8AnN75SCZaA5gksFnE.jpg",
+      "original_name": "DJI_0735_MP4-0281.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000085.jpg",
+      "label": "yolo/labels/train/a0_000085.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0735_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0735_MP4-0318_jpg.rf.jqNIWCAWCOUJkcAPhRYE.jpg",
+      "original_name": "DJI_0735_MP4-0318.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000086.jpg",
+      "label": "yolo/labels/train/a0_000086.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0014_jpg.rf.j9eyP4LElyAlDNx8OHG3.jpg",
+      "original_name": "DJI_0738_MP4-0014.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000087.jpg",
+      "label": "yolo/labels/train/a0_000087.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0026_jpg.rf.PdmoVGwrPFYRY5KRXyeD.jpg",
+      "original_name": "DJI_0738_MP4-0026.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000088.jpg",
+      "label": "yolo/labels/train/a0_000088.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0036_jpg.rf.Pn3n6YlEMNevYt790QjM.jpg",
+      "original_name": "DJI_0738_MP4-0036.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000089.jpg",
+      "label": "yolo/labels/train/a0_000089.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0039_jpg.rf.cs9DlLnbgBMc1AEKDiN9.jpg",
+      "original_name": "DJI_0738_MP4-0039.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000090.jpg",
+      "label": "yolo/labels/train/a0_000090.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0040_jpg.rf.RranSPkxuAFv0iIALyxt.jpg",
+      "original_name": "DJI_0738_MP4-0040.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000091.jpg",
+      "label": "yolo/labels/train/a0_000091.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0046_jpg.rf.RdOmVWHB6QJvjI0S4k63.jpg",
+      "original_name": "DJI_0738_MP4-0046.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000092.jpg",
+      "label": "yolo/labels/train/a0_000092.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0055_jpg.rf.PL0ZyzAVRnyg8GvTRO5v.jpg",
+      "original_name": "DJI_0738_MP4-0055.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000093.jpg",
+      "label": "yolo/labels/train/a0_000093.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0070_jpg.rf.TRBQ3EDEx8ydLVkf7I1A.jpg",
+      "original_name": "DJI_0738_MP4-0070.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000094.jpg",
+      "label": "yolo/labels/train/a0_000094.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0084_jpg.rf.k92OUyo0faecw4gNHO9I.jpg",
+      "original_name": "DJI_0738_MP4-0084.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000095.jpg",
+      "label": "yolo/labels/train/a0_000095.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0109_jpg.rf.P4wpBvj0z0crfh1r8Wbz.jpg",
+      "original_name": "DJI_0738_MP4-0109.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000096.jpg",
+      "label": "yolo/labels/train/a0_000096.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0127_jpg.rf.SudBjdmtQ0z6QgevwoPW.jpg",
+      "original_name": "DJI_0738_MP4-0127.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000097.jpg",
+      "label": "yolo/labels/train/a0_000097.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0131_jpg.rf.f30r0I4k2kmN6xGqaYug.jpg",
+      "original_name": "DJI_0738_MP4-0131.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000098.jpg",
+      "label": "yolo/labels/train/a0_000098.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0135_jpg.rf.g2r0sNua2LCcPINaF61D.jpg",
+      "original_name": "DJI_0738_MP4-0135.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000099.jpg",
+      "label": "yolo/labels/train/a0_000099.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0155_jpg.rf.PkplDoWq8XoXDdAdcUjR.jpg",
+      "original_name": "DJI_0738_MP4-0155.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000100.jpg",
+      "label": "yolo/labels/train/a0_000100.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0185_jpg.rf.hJkplzSNHLWUpNs2pFPr.jpg",
+      "original_name": "DJI_0738_MP4-0185.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000101.jpg",
+      "label": "yolo/labels/train/a0_000101.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0196_jpg.rf.cxQ4qq9TH1qZNlAxfaxu.jpg",
+      "original_name": "DJI_0738_MP4-0196.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 9
+    },
+    {
+      "image": "yolo/images/train/a0_000102.jpg",
+      "label": "yolo/labels/train/a0_000102.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0197_jpg.rf.hwbojtq41O3AnhiuamBM.jpg",
+      "original_name": "DJI_0738_MP4-0197.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 9
+    },
+    {
+      "image": "yolo/images/train/a0_000103.jpg",
+      "label": "yolo/labels/train/a0_000103.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0224_jpg.rf.a8QadMAWHE2xibDMgHaS.jpg",
+      "original_name": "DJI_0738_MP4-0224.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000104.jpg",
+      "label": "yolo/labels/train/a0_000104.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0228_jpg.rf.eL9z56KFQPHkhf2JTq1U.jpg",
+      "original_name": "DJI_0738_MP4-0228.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000105.jpg",
+      "label": "yolo/labels/train/a0_000105.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0293_jpg.rf.jhE9AvSWtmyTe9tEiV1Y.jpg",
+      "original_name": "DJI_0738_MP4-0293.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000106.jpg",
+      "label": "yolo/labels/train/a0_000106.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0299_jpg.rf.hKRN4AdIgW2EmgChSNBD.jpg",
+      "original_name": "DJI_0738_MP4-0299.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000107.jpg",
+      "label": "yolo/labels/train/a0_000107.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0361_jpg.rf.gpzlKjVghEQsKx7bN9WM.jpg",
+      "original_name": "DJI_0738_MP4-0361.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000108.jpg",
+      "label": "yolo/labels/train/a0_000108.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0365_jpg.rf.ZicBaR7llkjTXfidJbwl.jpg",
+      "original_name": "DJI_0738_MP4-0365.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000109.jpg",
+      "label": "yolo/labels/train/a0_000109.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0369_jpg.rf.e0yJkXLZ5zrpm8AlQcxa.jpg",
+      "original_name": "DJI_0738_MP4-0369.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000110.jpg",
+      "label": "yolo/labels/train/a0_000110.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0375_jpg.rf.eaw1yV4rYz6ADHmijl4f.jpg",
+      "original_name": "DJI_0738_MP4-0375.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000111.jpg",
+      "label": "yolo/labels/train/a0_000111.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0388_jpg.rf.gBz7sQnmYcRi6vEuEwL7.jpg",
+      "original_name": "DJI_0738_MP4-0388.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000112.jpg",
+      "label": "yolo/labels/train/a0_000112.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0402_jpg.rf.RrAfz4I8R4UmrF5aa5zE.jpg",
+      "original_name": "DJI_0738_MP4-0402.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000113.jpg",
+      "label": "yolo/labels/train/a0_000113.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0738_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0738_MP4-0406_jpg.rf.QTJE9niWIYN0KhljIfzn.jpg",
+      "original_name": "DJI_0738_MP4-0406.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000114.jpg",
+      "label": "yolo/labels/train/a0_000114.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0739_part_2_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0739_part_2_mp4-0022_jpg.rf.ZopXsK8kxETDZTaaG1MV.jpg",
+      "original_name": "DJI_0739_part_2_mp4-0022.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000115.jpg",
+      "label": "yolo/labels/train/a0_000115.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0739_part_2_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0739_part_2_mp4-0038_jpg.rf.MwyDa4VgEaUXSxPwTCqE.jpg",
+      "original_name": "DJI_0739_part_2_mp4-0038.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000116.jpg",
+      "label": "yolo/labels/train/a0_000116.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0740_part_1_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0740_part_1_mp4-0056_jpg.rf.atxPqqEwmq2d8bqZx65D.jpg",
+      "original_name": "DJI_0740_part_1_mp4-0056.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000117.jpg",
+      "label": "yolo/labels/train/a0_000117.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0740_part_1_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0740_part_1_mp4-0088_jpg.rf.PJXd4046AVZK011ilOau.jpg",
+      "original_name": "DJI_0740_part_1_mp4-0088.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000118.jpg",
+      "label": "yolo/labels/train/a0_000118.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0740_part_1_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0740_part_1_mp4-0107_jpg.rf.SgWhmDcTadPof0iWtW6d.jpg",
+      "original_name": "DJI_0740_part_1_mp4-0107.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000119.jpg",
+      "label": "yolo/labels/train/a0_000119.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0010_jpg.rf.e7H6nQC9OTY78BSE6eq0.jpg",
+      "original_name": "DJI_0741_MP4-0010.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000120.jpg",
+      "label": "yolo/labels/train/a0_000120.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0023_jpg.rf.hck5kPmqbLppRPXEKVZ7.jpg",
+      "original_name": "DJI_0741_MP4-0023.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000121.jpg",
+      "label": "yolo/labels/train/a0_000121.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0031_jpg.rf.hp0lJJam4dnVeNKNh3Vj.jpg",
+      "original_name": "DJI_0741_MP4-0031.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000122.jpg",
+      "label": "yolo/labels/train/a0_000122.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0056_jpg.rf.S9rYCjTwFbhqfFWWLFM8.jpg",
+      "original_name": "DJI_0741_MP4-0056.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000123.jpg",
+      "label": "yolo/labels/train/a0_000123.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0068_jpg.rf.gCCzA07r1swUTDEWwche.jpg",
+      "original_name": "DJI_0741_MP4-0068.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000124.jpg",
+      "label": "yolo/labels/train/a0_000124.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0152_jpg.rf.dVQhxL9MYUiYjY2kHUIO.jpg",
+      "original_name": "DJI_0741_MP4-0152.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000125.jpg",
+      "label": "yolo/labels/train/a0_000125.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0185_jpg.rf.djRx5IltraKybpEoAtHH.jpg",
+      "original_name": "DJI_0741_MP4-0185.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000126.jpg",
+      "label": "yolo/labels/train/a0_000126.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0189_jpg.rf.hrk5qDoDKfDR1ne0uMEE.jpg",
+      "original_name": "DJI_0741_MP4-0189.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000127.jpg",
+      "label": "yolo/labels/train/a0_000127.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0190_jpg.rf.PeLAzkVhNdyRhprLndtr.jpg",
+      "original_name": "DJI_0741_MP4-0190.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000128.jpg",
+      "label": "yolo/labels/train/a0_000128.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0219_jpg.rf.Sfi1IQQub0HXSeISdbA7.jpg",
+      "original_name": "DJI_0741_MP4-0219.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000129.jpg",
+      "label": "yolo/labels/train/a0_000129.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0233_jpg.rf.guyq317s8t9Q0iaAfnpj.jpg",
+      "original_name": "DJI_0741_MP4-0233.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000130.jpg",
+      "label": "yolo/labels/train/a0_000130.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0281_jpg.rf.errm8xOrMOeORrocjxMl.jpg",
+      "original_name": "DJI_0741_MP4-0281.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000131.jpg",
+      "label": "yolo/labels/train/a0_000131.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0296_jpg.rf.OXeIUlEeORKgpnmoJbqc.jpg",
+      "original_name": "DJI_0741_MP4-0296.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000132.jpg",
+      "label": "yolo/labels/train/a0_000132.txt",
+      "split": "train",
+      "group_id": "crown_region:DJI_0741_MP4",
+      "source_dataset": "crown_region",
+      "source_file_name": "DJI_0741_MP4-0334_jpg.rf.bc8zm94oXdhQ6P43QGp0.jpg",
+      "original_name": "DJI_0741_MP4-0334.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000133.jpg",
+      "label": "yolo/labels/train/a0_000133.txt",
+      "split": "train",
+      "group_id": "crown_region:location3_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location3_testing video_mp4-0014_jpg.rf.iujp7z2mi3VmwvFIe3fZ.jpg",
+      "original_name": "location3_testing video_mp4-0014.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000134.jpg",
+      "label": "yolo/labels/train/a0_000134.txt",
+      "split": "train",
+      "group_id": "crown_region:location3_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location3_testing video_mp4-0025_jpg.rf.cp79Z3D0l20RaRKr1PrA.jpg",
+      "original_name": "location3_testing video_mp4-0025.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000135.jpg",
+      "label": "yolo/labels/train/a0_000135.txt",
+      "split": "train",
+      "group_id": "crown_region:location3_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location3_testing video_mp4-0039_jpg.rf.dRbw8stNYtE9SaOijwRY.jpg",
+      "original_name": "location3_testing video_mp4-0039.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000136.jpg",
+      "label": "yolo/labels/train/a0_000136.txt",
+      "split": "train",
+      "group_id": "crown_region:location3_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location3_testing video_mp4-0045_jpg.rf.crsIHyC4ViVPiz9BApCC.jpg",
+      "original_name": "location3_testing video_mp4-0045.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000137.jpg",
+      "label": "yolo/labels/train/a0_000137.txt",
+      "split": "train",
+      "group_id": "crown_region:location3_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location3_testing video_mp4-0066_jpg.rf.QGo4rF9EezY7tEwDz96P.jpg",
+      "original_name": "location3_testing video_mp4-0066.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000138.jpg",
+      "label": "yolo/labels/train/a0_000138.txt",
+      "split": "train",
+      "group_id": "crown_region:location3_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location3_testing video_mp4-0087_jpg.rf.gQEQzYwadcayohk0ofu4.jpg",
+      "original_name": "location3_testing video_mp4-0087.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/val/a0_000139.jpg",
+      "label": "yolo/labels/val/a0_000139.txt",
+      "split": "val",
+      "group_id": "crown_region:location5_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location5_testing video_mp4-0021_jpg.rf.eVMNva7CiOKkM3zWw6zM.jpg",
+      "original_name": "location5_testing video_mp4-0021.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000140.jpg",
+      "label": "yolo/labels/val/a0_000140.txt",
+      "split": "val",
+      "group_id": "crown_region:location5_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location5_testing video_mp4-0023_jpg.rf.hZgMwXIgUGiSuC9kTfN8.jpg",
+      "original_name": "location5_testing video_mp4-0023.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000141.jpg",
+      "label": "yolo/labels/val/a0_000141.txt",
+      "split": "val",
+      "group_id": "crown_region:location5_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location5_testing video_mp4-0029_jpg.rf.O3C7JMwsNxd3RpHMuuRN.jpg",
+      "original_name": "location5_testing video_mp4-0029.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/val/a0_000142.jpg",
+      "label": "yolo/labels/val/a0_000142.txt",
+      "split": "val",
+      "group_id": "crown_region:location5_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location5_testing video_mp4-0044_jpg.rf.N8qE0q0imMw4jpnvQKbX.jpg",
+      "original_name": "location5_testing video_mp4-0044.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/val/a0_000143.jpg",
+      "label": "yolo/labels/val/a0_000143.txt",
+      "split": "val",
+      "group_id": "crown_region:location5_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location5_testing video_mp4-0045_jpg.rf.e8sy04iAV5sfH2wraH5x.jpg",
+      "original_name": "location5_testing video_mp4-0045.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/val/a0_000144.jpg",
+      "label": "yolo/labels/val/a0_000144.txt",
+      "split": "val",
+      "group_id": "crown_region:location5_testing video_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "location5_testing video_mp4-0058_jpg.rf.eAtd4LH7vzZAECwILiPT.jpg",
+      "original_name": "location5_testing video_mp4-0058.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000145.jpg",
+      "label": "yolo/labels/test/a0_000145.txt",
+      "split": "test",
+      "group_id": "crown_region:testing_model_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "testing_model_mp4-0009_jpg.rf.N9ex0vocmxGBUo4cuQhv.jpg",
+      "original_name": "testing_model_mp4-0009.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000146.jpg",
+      "label": "yolo/labels/test/a0_000146.txt",
+      "split": "test",
+      "group_id": "crown_region:testing_model_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "testing_model_mp4-0013_jpg.rf.homGEpR5KLtYLXrFMgNQ.jpg",
+      "original_name": "testing_model_mp4-0013.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000147.jpg",
+      "label": "yolo/labels/test/a0_000147.txt",
+      "split": "test",
+      "group_id": "crown_region:testing_model_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "testing_model_mp4-0018_jpg.rf.SnPz08P1qpNA4vnQAUQV.jpg",
+      "original_name": "testing_model_mp4-0018.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000148.jpg",
+      "label": "yolo/labels/test/a0_000148.txt",
+      "split": "test",
+      "group_id": "crown_region:testing_model_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "testing_model_mp4-0073_jpg.rf.Ssibi5otR77sjcpnkKaU.jpg",
+      "original_name": "testing_model_mp4-0073.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000149.jpg",
+      "label": "yolo/labels/test/a0_000149.txt",
+      "split": "test",
+      "group_id": "crown_region:testing_model_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "testing_model_mp4-0091_jpg.rf.hLHXYoDarz1mgjVwl54E.jpg",
+      "original_name": "testing_model_mp4-0091.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000150.jpg",
+      "label": "yolo/labels/test/a0_000150.txt",
+      "split": "test",
+      "group_id": "crown_region:testing_model_mp4",
+      "source_dataset": "crown_region",
+      "source_file_name": "testing_model_mp4-0134_jpg.rf.hchURPzTym8u0O0BlxSx.jpg",
+      "original_name": "testing_model_mp4-0134.jpg",
+      "labels": [
+        "crown_region"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000151.jpg",
+      "label": "yolo/labels/train/a0_000151.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:0220_palmoel2_z",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "0220_palmoel2_z_jpg.rf.BlyKPYpwEbQRiQMz6nb1.jpg",
+      "original_name": "0220_palmoel2_z.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000152.jpg",
+      "label": "yolo/labels/train/a0_000152.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:0258936f179dab1e7d212fa8aba84c17",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "0258936f179dab1e7d212fa8aba84c17_jpg.rf.1I6NRN3fAWAiR77lKm5f.jpg",
+      "original_name": "0258936f179dab1e7d212fa8aba84c17.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000153.jpg",
+      "label": "yolo/labels/train/a0_000153.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:10",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "10_jpg.rf.rXidOo2fcIGrYqwEJx1K.jpg",
+      "original_name": "10.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000154.jpg",
+      "label": "yolo/labels/train/a0_000154.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:1137167_palm_tree_jpga7e91f97be809c78a759a0fbd3fe2d9a (2)",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "1137167_palm_tree_jpga7e91f97be809c78a759a0fbd3fe2d9a (2)_jpg.rf.4wmpywe1137eDJOFzG5b.jpg",
+      "original_name": "1137167_palm_tree_jpga7e91f97be809c78a759a0fbd3fe2d9a (2).jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000155.jpg",
+      "label": "yolo/labels/train/a0_000155.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:1200px-Elaeis_guineensis_oil_palm_fruit_Portoviejo_Ecuador",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "1200px-Elaeis_guineensis_oil_palm_fruit_Portoviejo_Ecuador_jpg.rf.0AC5QSr3uWiKzNxm7dX8.jpg",
+      "original_name": "1200px-Elaeis_guineensis_oil_palm_fruit_Portoviejo_Ecuador.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000156.jpg",
+      "label": "yolo/labels/train/a0_000156.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:127200024-close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-t",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "127200024-close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-t_jpg.rf.6RRduukvlHc0ZFDLlm12.jpg",
+      "original_name": "127200024-close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-t.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000157.jpg",
+      "label": "yolo/labels/train/a0_000157.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:13186774_images5_jpeg_jpeg1e52807b9931d5cfcf296bb78d4e5f7e",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "13186774_images5_jpeg_jpeg1e52807b9931d5cfcf296bb78d4e5f7e_jpg.rf.eIdqnfWXb5fm3Jux6NuR.jpg",
+      "original_name": "13186774_images5_jpeg_jpeg1e52807b9931d5cfcf296bb78d4e5f7e.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 9
+    },
+    {
+      "image": "yolo/images/train/a0_000158.jpg",
+      "label": "yolo/labels/train/a0_000158.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:15",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "15_jpg.rf.iG66S1X1hbCgh9DIqLLP.jpg",
+      "original_name": "15.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 13
+    },
+    {
+      "image": "yolo/images/train/a0_000159.jpg",
+      "label": "yolo/labels/train/a0_000159.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:1580812172",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "1580812172-9665_jpg.rf.n8HP35wwU03OUos8ksca.jpg",
+      "original_name": "1580812172-9665.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000160.jpg",
+      "label": "yolo/labels/train/a0_000160.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:15885208_403",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "15885208_403_jpg.rf.x3ldNIJWbZyn21d5EJRq.jpg",
+      "original_name": "15885208_403.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000161.jpg",
+      "label": "yolo/labels/train/a0_000161.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:1595320982_5",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "1595320982_5_jpg.rf.YhaPTqO20toM5ydjeDcf.jpg",
+      "original_name": "1595320982_5.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000162.jpg",
+      "label": "yolo/labels/train/a0_000162.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:16",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "16_jpg.rf.wHJFvZYxYL3OhkwIu7MJ.jpg",
+      "original_name": "16.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000163.jpg",
+      "label": "yolo/labels/train/a0_000163.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:160229020132281_qoj1c9Ng6ri4Wc7up6l0",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "160229020132281_qoj1c9Ng6ri4Wc7up6l0_jpg.rf.pqNVQdD7E4GMdcoPzBuP.jpg",
+      "original_name": "160229020132281_qoj1c9Ng6ri4Wc7up6l0.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000164.jpg",
+      "label": "yolo/labels/train/a0_000164.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:1621029829_66-p-maslichnaya-palma-foto",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "1621029829_66-p-maslichnaya-palma-foto-84_jpg.rf.cxQ28BHwjKiS9Ja5Ylvy.jpg",
+      "original_name": "1621029829_66-p-maslichnaya-palma-foto-84.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000165.jpg",
+      "label": "yolo/labels/train/a0_000165.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:18",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "18_jpg.rf.zcV5DdsICyPSrciuGsvA.jpg",
+      "original_name": "18.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000166.jpg",
+      "label": "yolo/labels/train/a0_000166.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:18-4",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "18-4-4_jpg.rf.uESJkypDKhndFCJgPuY7.jpg",
+      "original_name": "18-4-4.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000167.jpg",
+      "label": "yolo/labels/train/a0_000167.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:188300501_2525577097737303_1322862127904726711_n",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "188300501_2525577097737303_1322862127904726711_n_jpg.rf.a3Ev18hRkRaFA72JajbO.jpg",
+      "original_name": "188300501_2525577097737303_1322862127904726711_n.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 10
+    },
+    {
+      "image": "yolo/images/train/a0_000168.jpg",
+      "label": "yolo/labels/train/a0_000168.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:1_cvP_yovSv0zvPi87tTGcTw",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "1_cvP_yovSv0zvPi87tTGcTw_jpg.rf.7mQzA3f2eh4M7CToAdfv.jpg",
+      "original_name": "1_cvP_yovSv0zvPi87tTGcTw.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000169.jpg",
+      "label": "yolo/labels/train/a0_000169.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:2",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "2_jpg.rf.3ZvGJpCKFoXmn3rx86RB.jpg",
+      "original_name": "2.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000170.jpg",
+      "label": "yolo/labels/train/a0_000170.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:2016-OIL-PALM-SLIDE-1- (2)",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "2016-OIL-PALM-SLIDE-1- (2)_jpg.rf.56glL7lPsg7Afy20VJLW.jpg",
+      "original_name": "2016-OIL-PALM-SLIDE-1- (2).jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000171.jpg",
+      "label": "yolo/labels/train/a0_000171.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:22",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "22_jpg.rf.mNbWcvijUoTKOvg5Mbya.jpg",
+      "original_name": "22.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000172.jpg",
+      "label": "yolo/labels/train/a0_000172.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:2365226",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "2365226-1035687454_jpg.rf.byaDq0DLpAbquGUCCPHt.jpg",
+      "original_name": "2365226-1035687454.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000173.jpg",
+      "label": "yolo/labels/train/a0_000173.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:26",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "26_jpg.rf.nxg1tRJaxVyY5rB41HKK.jpg",
+      "original_name": "26.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000174.jpg",
+      "label": "yolo/labels/train/a0_000174.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:26853793846_f442ca9bfd_o",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "26853793846_f442ca9bfd_o_jpg.rf.3E9co6tehmD4mae9k6hz.jpg",
+      "original_name": "26853793846_f442ca9bfd_o.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000175.jpg",
+      "label": "yolo/labels/train/a0_000175.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:26feb,harvesting",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "26feb,harvesting_jpg.rf.10RkJdAeM0vnd6XIiNat.jpg",
+      "original_name": "26feb,harvesting.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000176.jpg",
+      "label": "yolo/labels/train/a0_000176.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:27",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "27_jpg.rf.gqZ87yTFQwXsRcXE1yDq.jpg",
+      "original_name": "27.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000177.jpg",
+      "label": "yolo/labels/train/a0_000177.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:29",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "29_jpg.rf.87bQ3KinHktzjfye7PYN.jpg",
+      "original_name": "29.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000178.jpg",
+      "label": "yolo/labels/train/a0_000178.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:312285688",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "312285688_jpg.rf.7HUAy9I4KRk3XCEOIljF.jpg",
+      "original_name": "312285688.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000179.jpg",
+      "label": "yolo/labels/train/a0_000179.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:33",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "33_jpg.rf.CeJbS4mucmiCralOfcPQ.jpg",
+      "original_name": "33.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000180.jpg",
+      "label": "yolo/labels/train/a0_000180.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:35",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "35_jpg.rf.nnVCxlZuwT7IUyBzn2o1.jpg",
+      "original_name": "35.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000181.jpg",
+      "label": "yolo/labels/train/a0_000181.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:3c15f8d3bab31fc7bb614b0056e955e0",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "3c15f8d3bab31fc7bb614b0056e955e0_jpg.rf.gHMtusyXiBqhINggFjuV.jpg",
+      "original_name": "3c15f8d3bab31fc7bb614b0056e955e0.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000182.jpg",
+      "label": "yolo/labels/train/a0_000182.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:40",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "40_jpg.rf.tiH5wtwlLx2cEOOJG15A.jpg",
+      "original_name": "40.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 10
+    },
+    {
+      "image": "yolo/images/train/a0_000183.jpg",
+      "label": "yolo/labels/train/a0_000183.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:41d1c6dcebe91a10fd03fc9ea232a7ea--palm-oil-tropical-fruits",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "41d1c6dcebe91a10fd03fc9ea232a7ea--palm-oil-tropical-fruits_jpg.rf.30LSpu7x3QbDmovu5PBj.jpg",
+      "original_name": "41d1c6dcebe91a10fd03fc9ea232a7ea--palm-oil-tropical-fruits.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 9
+    },
+    {
+      "image": "yolo/images/train/a0_000184.jpg",
+      "label": "yolo/labels/train/a0_000184.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:42040499-close-up-of-palm-oil-tree-",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "42040499-close-up-of-palm-oil-tree-_jpg.rf.u5QkT2XJiyX1iizGrAtK.jpg",
+      "original_name": "42040499-close-up-of-palm-oil-tree-.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000185.jpg",
+      "label": "yolo/labels/train/a0_000185.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:44",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "44_jpg.rf.6m9i4ifeMpPQlZCm0ONG.jpg",
+      "original_name": "44.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000186.jpg",
+      "label": "yolo/labels/train/a0_000186.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:4445f44367bcfb05c4a65754476ea290",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "4445f44367bcfb05c4a65754476ea290_jpg.rf.bGM4LhnsVAEkyAi6TUBu.jpg",
+      "original_name": "4445f44367bcfb05c4a65754476ea290.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000187.jpg",
+      "label": "yolo/labels/train/a0_000187.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:48",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "48_jpg.rf.tBy0WRyT07LiH0o9ZwUt.jpg",
+      "original_name": "48.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000188.jpg",
+      "label": "yolo/labels/train/a0_000188.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:4fd9750a0ccad3320c7798bf60c69b233bf1f2a1",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "4fd9750a0ccad3320c7798bf60c69b233bf1f2a1_jpg.rf.k6S7p8gTI7pLxI1iMOUd.jpg",
+      "original_name": "4fd9750a0ccad3320c7798bf60c69b233bf1f2a1.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000189.jpg",
+      "label": "yolo/labels/train/a0_000189.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:5",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "5_jpg.rf.a2xFrNUAKdxwFjPMtIsk.jpg",
+      "original_name": "5.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000190.jpg",
+      "label": "yolo/labels/train/a0_000190.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:51",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "51_jpg.rf.AuNCDxHomiG8urXHCX7A.jpg",
+      "original_name": "51.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000191.jpg",
+      "label": "yolo/labels/train/a0_000191.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:52",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "52_jpg.rf.y5BEMuyRAwPaeGf7haiH.jpg",
+      "original_name": "52.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000192.jpg",
+      "label": "yolo/labels/train/a0_000192.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:54",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "54_jpg.rf.bYKVDoyXxxIG9POkk7Sx.jpg",
+      "original_name": "54.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000193.jpg",
+      "label": "yolo/labels/train/a0_000193.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:6",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "6-1_jpg.rf.40BQlH8gzpxOoFk1rSNh.jpg",
+      "original_name": "6-1.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000194.jpg",
+      "label": "yolo/labels/train/a0_000194.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:66e0c0b54c131dac6c1939e98f1c21c7",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "66e0c0b54c131dac6c1939e98f1c21c7_jpg.rf.n5WELr4iTTQOZyPXSdpG.jpg",
+      "original_name": "66e0c0b54c131dac6c1939e98f1c21c7.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 8
+    },
+    {
+      "image": "yolo/images/train/a0_000195.jpg",
+      "label": "yolo/labels/train/a0_000195.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:66ef2aaf28bf8bda287b57d8e0433da8",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "66ef2aaf28bf8bda287b57d8e0433da8_jpg.rf.avl8EUdX194G94wdLv6t.jpg",
+      "original_name": "66ef2aaf28bf8bda287b57d8e0433da8.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000196.jpg",
+      "label": "yolo/labels/train/a0_000196.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:7-11-png",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "7-11-png_jpg.rf.82S6IcYZivmN4tk8MSHf.jpg",
+      "original_name": "7-11-png.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000197.jpg",
+      "label": "yolo/labels/train/a0_000197.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:7D8hnxvTcurHsRWJKi2Q_Monzon et al Cover pic 5",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "7D8hnxvTcurHsRWJKi2Q_Monzon et al Cover pic 5_jpg.rf.4Aik1TaOeRbofMlwFMWA.jpg",
+      "original_name": "7D8hnxvTcurHsRWJKi2Q_Monzon et al Cover pic 5.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000198.jpg",
+      "label": "yolo/labels/train/a0_000198.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:8",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "8_jpg.rf.ig75KGoUNwdUoQE4BjiN.jpg",
+      "original_name": "8.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000199.jpg",
+      "label": "yolo/labels/train/a0_000199.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:87-Figure41",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "87-Figure41-1_jpg.rf.vWfBgeGcEkHkdYybopoo.jpg",
+      "original_name": "87-Figure41-1.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000200.jpg",
+      "label": "yolo/labels/train/a0_000200.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:9",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "9_jpg.rf.7pHpPC6Ei734iWzcHwqU.jpg",
+      "original_name": "9.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 8
+    },
+    {
+      "image": "yolo/images/train/a0_000201.jpg",
+      "label": "yolo/labels/train/a0_000201.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:A_palm_nut_bunch_on_a_tree",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "A_palm_nut_bunch_on_a_tree_jpg.rf.6ryH64dPMKVGquG9IfX4.jpg",
+      "original_name": "A_palm_nut_bunch_on_a_tree.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000202.jpg",
+      "label": "yolo/labels/train/a0_000202.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:Avalanche_6_anos",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "Avalanche_6_anos_jpg.rf.o4S9NRWzwglV808X9vEv.jpg",
+      "original_name": "Avalanche_6_anos.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 10
+    },
+    {
+      "image": "yolo/images/train/a0_000203.jpg",
+      "label": "yolo/labels/train/a0_000203.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:DB670B4C-D48A-4B97-8843-C6EEE82D520C",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "DB670B4C-D48A-4B97-8843-C6EEE82D520C_jpg.rf.m1T8fU6BJFWPvk9MvBeC.jpg",
+      "original_name": "DB670B4C-D48A-4B97-8843-C6EEE82D520C.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000204.jpg",
+      "label": "yolo/labels/train/a0_000204.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:DSC_0673-Small",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "DSC_0673-Small_jpg.rf.hEyfaXUQ2UHyvcM7tRs9.jpg",
+      "original_name": "DSC_0673-Small.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000205.jpg",
+      "label": "yolo/labels/train/a0_000205.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:GSM-0-04644-unripe-palm-fruit-bunches-stock-photo (1)",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "GSM-0-04644-unripe-palm-fruit-bunches-stock-photo (1)_jpg.rf.CEdHFlwmXQwxXtXWYpFn.jpg",
+      "original_name": "GSM-0-04644-unripe-palm-fruit-bunches-stock-photo (1).jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000206.jpg",
+      "label": "yolo/labels/train/a0_000206.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822112548",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822112548_jpg.rf.0efGqejTjKqwcoSD5N5a.jpg",
+      "original_name": "IMG20200822112548.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000207.jpg",
+      "label": "yolo/labels/train/a0_000207.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822112655",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822112655_jpg.rf.tBa1jXJvWXkgEYpLy6E6.jpg",
+      "original_name": "IMG20200822112655.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000208.jpg",
+      "label": "yolo/labels/train/a0_000208.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822113121",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822113121_jpg.rf.BGXVWWFJC2jfGAJF04iq.jpg",
+      "original_name": "IMG20200822113121.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000209.jpg",
+      "label": "yolo/labels/train/a0_000209.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822113205",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822113205_jpg.rf.8q8nN0mujMyWurfBwE17.jpg",
+      "original_name": "IMG20200822113205.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000210.jpg",
+      "label": "yolo/labels/train/a0_000210.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822113454",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822113454_jpg.rf.ne8Epbd280zn0G1RvleJ.jpg",
+      "original_name": "IMG20200822113454.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000211.jpg",
+      "label": "yolo/labels/train/a0_000211.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822113547",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822113547_jpg.rf.v6MkOqW5FsH8DJdpZZHI.jpg",
+      "original_name": "IMG20200822113547.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000212.jpg",
+      "label": "yolo/labels/train/a0_000212.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822113734",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822113734_jpg.rf.mPSHta5DqVknTWsfHNkv.jpg",
+      "original_name": "IMG20200822113734.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000213.jpg",
+      "label": "yolo/labels/train/a0_000213.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822113814",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822113814_jpg.rf.ig5wYr5J70fG3WgM0npu.jpg",
+      "original_name": "IMG20200822113814.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000214.jpg",
+      "label": "yolo/labels/train/a0_000214.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822114503",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822114503_jpg.rf.ugqztSqtqsPfzLTG8wq0.jpg",
+      "original_name": "IMG20200822114503.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000215.jpg",
+      "label": "yolo/labels/train/a0_000215.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822114540",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822114540_jpg.rf.rre6mrza5UHaFhyREtSo.jpg",
+      "original_name": "IMG20200822114540.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000216.jpg",
+      "label": "yolo/labels/train/a0_000216.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822115511",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822115511_jpg.rf.me53KkswCY6itEsJviwu.jpg",
+      "original_name": "IMG20200822115511.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000217.jpg",
+      "label": "yolo/labels/train/a0_000217.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822115556",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822115556_jpg.rf.kaBv99wS37MIPZhgMyoP.jpg",
+      "original_name": "IMG20200822115556.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000218.jpg",
+      "label": "yolo/labels/train/a0_000218.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822115826",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822115826_jpg.rf.dlZU2xAGQnEJu9usAVrn.jpg",
+      "original_name": "IMG20200822115826.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000219.jpg",
+      "label": "yolo/labels/train/a0_000219.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822115905",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822115905_jpg.rf.8Qaiy2ALy2pI5gv69JGY.jpg",
+      "original_name": "IMG20200822115905.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000220.jpg",
+      "label": "yolo/labels/train/a0_000220.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822115952",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822115952_jpg.rf.8cVuvgtxRlGLwDBJsgzw.jpg",
+      "original_name": "IMG20200822115952.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000221.jpg",
+      "label": "yolo/labels/train/a0_000221.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822120146",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822120146_jpg.rf.uXl4ocML0fSIFxq8Jn0v.jpg",
+      "original_name": "IMG20200822120146.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000222.jpg",
+      "label": "yolo/labels/train/a0_000222.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822120228",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822120228_jpg.rf.5mFv8X5FQ7xKOf6j8OXA.jpg",
+      "original_name": "IMG20200822120228.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000223.jpg",
+      "label": "yolo/labels/train/a0_000223.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822120334",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822120334_jpg.rf.obpi8GFNjwlZVGtk19Py.jpg",
+      "original_name": "IMG20200822120334.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000224.jpg",
+      "label": "yolo/labels/train/a0_000224.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822120641",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822120641_jpg.rf.yP0SgHSjS73x4M9rK87u.jpg",
+      "original_name": "IMG20200822120641.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000225.jpg",
+      "label": "yolo/labels/train/a0_000225.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822120811",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822120811_jpg.rf.jbKAK4rvuSwRjGe1X3s5.jpg",
+      "original_name": "IMG20200822120811.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000226.jpg",
+      "label": "yolo/labels/train/a0_000226.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822120852",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822120852_jpg.rf.cCAkMbW3ZSFEkngq80jy.jpg",
+      "original_name": "IMG20200822120852.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000227.jpg",
+      "label": "yolo/labels/train/a0_000227.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822120937",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822120937_jpg.rf.76adD8CaAQNLrbr01XxT.jpg",
+      "original_name": "IMG20200822120937.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000228.jpg",
+      "label": "yolo/labels/val/a0_000228.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:IMG20200822121042",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822121042_jpg.rf.jkWj1q9GzV0HsM3Q0JmL.jpg",
+      "original_name": "IMG20200822121042.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000229.jpg",
+      "label": "yolo/labels/test/a0_000229.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:IMG20200822121120",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822121120_jpg.rf.akdvLqSvANXhfD4jBjxP.jpg",
+      "original_name": "IMG20200822121120.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000230.jpg",
+      "label": "yolo/labels/train/a0_000230.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822121222",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822121222_jpg.rf.fflTFUNzowq5ppRuv0s0.jpg",
+      "original_name": "IMG20200822121222.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000231.jpg",
+      "label": "yolo/labels/val/a0_000231.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:IMG20200822121534",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822121534_jpg.rf.v2LLCeyrasdY3PAZvh0i.jpg",
+      "original_name": "IMG20200822121534.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/test/a0_000232.jpg",
+      "label": "yolo/labels/test/a0_000232.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:IMG20200822122100",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822122100_jpg.rf.6xShr0LXUGxQopzn7HTy.jpg",
+      "original_name": "IMG20200822122100.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000233.jpg",
+      "label": "yolo/labels/train/a0_000233.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822122338",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822122338_jpg.rf.rNzrLkhAIWc30ckdUgd7.jpg",
+      "original_name": "IMG20200822122338.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/val/a0_000234.jpg",
+      "label": "yolo/labels/val/a0_000234.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:IMG20200822122426",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822122426_jpg.rf.45oazAy4TEivuxI1XlsA.jpg",
+      "original_name": "IMG20200822122426.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/test/a0_000235.jpg",
+      "label": "yolo/labels/test/a0_000235.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:IMG20200822122509",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822122509_jpg.rf.kz69Zkl0azHLT5FkEgwr.jpg",
+      "original_name": "IMG20200822122509.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000236.jpg",
+      "label": "yolo/labels/train/a0_000236.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822122954",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822122954_jpg.rf.puF0vBdWpAUUpF8TYk3A.jpg",
+      "original_name": "IMG20200822122954.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/val/a0_000237.jpg",
+      "label": "yolo/labels/val/a0_000237.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:IMG20200822145234",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822145234_jpg.rf.uVHD8yM7nuZ80QUki6eT.jpg",
+      "original_name": "IMG20200822145234.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/test/a0_000238.jpg",
+      "label": "yolo/labels/test/a0_000238.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:IMG20200822150614",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822150614_jpg.rf.hatz9KMAVN0YBXSBXlVL.jpg",
+      "original_name": "IMG20200822150614.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000239.jpg",
+      "label": "yolo/labels/train/a0_000239.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:IMG20200822150949",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20200822150949_jpg.rf.jJ8P8Jr12pph8gUkZV0y.jpg",
+      "original_name": "IMG20200822150949.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/val/a0_000240.jpg",
+      "label": "yolo/labels/val/a0_000240.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:IMG20230310103059",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "IMG20230310103059_jpg.rf.ck0O68oHuMsNLbj04Bh7.jpg",
+      "original_name": "IMG20230310103059.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000241.jpg",
+      "label": "yolo/labels/test/a0_000241.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:Imagen7",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "Imagen7_jpg.rf.rSBfw3EWWRefRctz1144.jpg",
+      "original_name": "Imagen7.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 8
+    },
+    {
+      "image": "yolo/images/train/a0_000242.jpg",
+      "label": "yolo/labels/train/a0_000242.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:Malaysia-to-roll-out-pic-Biofuels-11-9-768x512",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "Malaysia-to-roll-out-pic-Biofuels-11-9-768x512_jpg.rf.Yanunnkcv0iDPwBYwE3O.jpg",
+      "original_name": "Malaysia-to-roll-out-pic-Biofuels-11-9-768x512.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/val/a0_000243.jpg",
+      "label": "yolo/labels/val/a0_000243.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:Maybe Hard Label",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "Maybe Hard Label_jpg.rf.A0iZlGnNtgiFE7SYSQl4.jpg",
+      "original_name": "Maybe Hard Label.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/test/a0_000244.jpg",
+      "label": "yolo/labels/test/a0_000244.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:OIPHxofoII76WPBTty7GhV1gwHaLH",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "OIPHxofoII76WPBTty7GhV1gwHaLH_jpg.rf.7go0n6Tr7Z04pNzEVMOC.jpg",
+      "original_name": "OIPHxofoII76WPBTty7GhV1gwHaLH.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000245.jpg",
+      "label": "yolo/labels/train/a0_000245.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:Palm-Oil_20191115101607_theedgemarkets",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "Palm-Oil_20191115101607_theedgemarkets_jpg.rf.leJ3ftA3BFNffcQ4VNWa.jpg",
+      "original_name": "Palm-Oil_20191115101607_theedgemarkets.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000246.jpg",
+      "label": "yolo/labels/val/a0_000246.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:PalmOilFruit_5552528Medium2529",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "PalmOilFruit_5552528Medium2529_jpg.rf.oEPLoDr9bM1m7AyIrXjq.jpg",
+      "original_name": "PalmOilFruit_5552528Medium2529.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000247.jpg",
+      "label": "yolo/labels/test/a0_000247.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:Sb54e4bdf381742ba990c5d426219f20cA",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "Sb54e4bdf381742ba990c5d426219f20cA_jpg.rf.rT9yfrfkjX85gXR61G9m.jpg",
+      "original_name": "Sb54e4bdf381742ba990c5d426219f20cA.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000248.jpg",
+      "label": "yolo/labels/train/a0_000248.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:Split",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "Split_jpg.rf.exjVSfYWNDzx1Fqdfm4h.jpg",
+      "original_name": "Split.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000249.jpg",
+      "label": "yolo/labels/val/a0_000249.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:WhatsApp Image 2021-08-24 at 17-19",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "WhatsApp Image 2021-08-24 at 17-19-45_jpeg.rf.0wqfSAElx9qsTRGLBzsw.jpeg",
+      "original_name": "WhatsApp Image 2021-08-24 at 17-19-45.jpeg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/test/a0_000250.jpg",
+      "label": "yolo/labels/test/a0_000250.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:WhatsApp-Image-2021-08-24-at-17-19-45_jpeg",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "WhatsApp-Image-2021-08-24-at-17-19-45_jpeg_jpg.rf.iNYld9Orvr21KGs7ZQ2z.jpg",
+      "original_name": "WhatsApp-Image-2021-08-24-at-17-19-45_jpeg.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000251.jpg",
+      "label": "yolo/labels/train/a0_000251.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:a85b442212ce3d1f090db465602c86d9b973e172",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "a85b442212ce3d1f090db465602c86d9b973e172_jpg.rf.1X0DisgTB94E1hXxpv0o.jpg",
+      "original_name": "a85b442212ce3d1f090db465602c86d9b973e172.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000252.jpg",
+      "label": "yolo/labels/val/a0_000252.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:african-oil-palm-elaeis-guineensis-fruit-in-tree-labuk-bay-sabah-borneo-CNMCW8",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "african-oil-palm-elaeis-guineensis-fruit-in-tree-labuk-bay-sabah-borneo-CNMCW8_jpg.rf.3WEe0hfD5Zi1dKkUVX0z.jpg",
+      "original_name": "african-oil-palm-elaeis-guineensis-fruit-in-tree-labuk-bay-sabah-borneo-CNMCW8.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000253.jpg",
+      "label": "yolo/labels/train/a0_000253.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:belle-couronne-algp26-obj17-po4003dxpo4736p-lm2txsi10t-aek-loba-07-2006-2_medium",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "belle-couronne-algp26-obj17-po4003dxpo4736p-lm2txsi10t-aek-loba-07-2006-2_medium_jpg.rf.f1hWIIChRVqRBiMwkUj2.jpg",
+      "original_name": "belle-couronne-algp26-obj17-po4003dxpo4736p-lm2txsi10t-aek-loba-07-2006-2_medium.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000254.jpg",
+      "label": "yolo/labels/train/a0_000254.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:belle-couronne-algp26-obj17-po4003dxpo4736p-lm2txsi10t-aek-loba-07-2006-2_medium",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "belle-couronne-algp26-obj17-po4003dxpo4736p-lm2txsi10t-aek-loba-07-2006-2_medium_jpg.rf.qKYITbNsDFFj4Si788wA.jpg",
+      "original_name": "belle-couronne-algp26-obj17-po4003dxpo4736p-lm2txsi10t-aek-loba-07-2006-2_medium.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/test/a0_000255.jpg",
+      "label": "yolo/labels/test/a0_000255.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:benih3",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "benih3_jpg.rf.A9MX2JtehjJdIl5LIoes.jpg",
+      "original_name": "benih3.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/train/a0_000256.jpg",
+      "label": "yolo/labels/train/a0_000256.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:c633c0cfd8bb33d293b2ddcf379d36ee",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "c633c0cfd8bb33d293b2ddcf379d36ee_jpg.rf.6SlL13Usr3E9n8QSu3QO.jpg",
+      "original_name": "c633c0cfd8bb33d293b2ddcf379d36ee.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/val/a0_000257.jpg",
+      "label": "yolo/labels/val/a0_000257.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-the-natural-environment-including-deforestation-a-2A3X2AE",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-the-natural-environment-including-deforestation-a-2A3X2AE_jpg.rf.fwhQfraseI84q4HwMcTn.jpg",
+      "original_name": "close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-the-natural-environment-including-deforestation-a-2A3X2AE.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/test/a0_000258.jpg",
+      "label": "yolo/labels/test/a0_000258.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-the-natural-environment-including-deforestation-a-2A3X324",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-the-natural-environment-including-deforestation-a-2A3X324_jpg.rf.ZHMwo3kwHrufYKH8unWD.jpg",
+      "original_name": "close-view-of-oil-palm-tree-top-with-fruit-palm-oil-cultivation-has-been-criticized-for-impacts-on-the-natural-environment-including-deforestation-a-2A3X324.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000259.jpg",
+      "label": "yolo/labels/train/a0_000259.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:close-view-oil-palm-tree-top-fruit-cultivation-has-been-criticized-impacts-natural-environment-including",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "close-view-oil-palm-tree-top-fruit-cultivation-has-been-criticized-impacts-natural-environment-including-151464576_jpg.rf.kSCMSWPvaEO0g0ZLBi9B.jpg",
+      "original_name": "close-view-oil-palm-tree-top-fruit-cultivation-has-been-criticized-impacts-natural-environment-including-151464576.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000260.jpg",
+      "label": "yolo/labels/train/a0_000260.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:close-view-oil-palm-tree-top-fruit-cultivation-has-been-criticized-impacts-natural-environment-including",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "close-view-oil-palm-tree-top-fruit-cultivation-has-been-criticized-impacts-natural-environment-including-151464884_jpg.rf.07keTUlHtPy3SpDbDK7k.jpg",
+      "original_name": "close-view-oil-palm-tree-top-fruit-cultivation-has-been-criticized-impacts-natural-environment-including-151464884.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000261.jpg",
+      "label": "yolo/labels/train/a0_000261.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:depositphotos_277983056-stock-photo-close-view-of-oil-palm",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "depositphotos_277983056-stock-photo-close-view-of-oil-palm_jpg.rf.qf2J2YltJyQ5kR2TaGhc.jpg",
+      "original_name": "depositphotos_277983056-stock-photo-close-view-of-oil-palm.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000262.jpg",
+      "label": "yolo/labels/val/a0_000262.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:depositphotos_277983744-stock-photo-close-view-of-oil-palm",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "depositphotos_277983744-stock-photo-close-view-of-oil-palm_jpg.rf.gE0QP7BbmiMJmMzOcClk.jpg",
+      "original_name": "depositphotos_277983744-stock-photo-close-view-of-oil-palm.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000263.jpg",
+      "label": "yolo/labels/test/a0_000263.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:depositphotos_277984002-stock-photo-close-view-of-oil-palm",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "depositphotos_277984002-stock-photo-close-view-of-oil-palm_jpg.rf.ZGvSWDDe2MY1ROGz1Jjz.jpg",
+      "original_name": "depositphotos_277984002-stock-photo-close-view-of-oil-palm.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000264.jpg",
+      "label": "yolo/labels/train/a0_000264.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:depositphotos_87813760-close-up-of-palm-oil-tree",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "depositphotos_87813760-close-up-of-palm-oil-tree_jpg.rf.i2FqUKt90RNghlj8aGeA.jpg",
+      "original_name": "depositphotos_87813760-close-up-of-palm-oil-tree.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/val/a0_000265.jpg",
+      "label": "yolo/labels/val/a0_000265.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:download",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "download_jpg.rf.aNrM2lP4iNgaqsnQCqSD.jpg",
+      "original_name": "download.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/test/a0_000266.jpg",
+      "label": "yolo/labels/test/a0_000266.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:esta",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "esta_jpg.rf.BIpcIzoAxoujhqVN1362.jpg",
+      "original_name": "esta.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000267.jpg",
+      "label": "yolo/labels/train/a0_000267.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:file",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "file_jpg.rf.jwaFJkyLEPejfxFptat2.jpg",
+      "original_name": "file.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/val/a0_000268.jpg",
+      "label": "yolo/labels/val/a0_000268.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:fresh-fruit-oil-palm-on-260nw",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "fresh-fruit-oil-palm-on-260nw-626209787_jpg.rf.rznmnizyL7Bp0Syn7jCI.jpg",
+      "original_name": "fresh-fruit-oil-palm-on-260nw-626209787.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/test/a0_000269.jpg",
+      "label": "yolo/labels/test/a0_000269.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:fresh-fruit-seeds-oil-palm-fresh-fruit-seeds-oil-palm-plantation",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "fresh-fruit-seeds-oil-palm-fresh-fruit-seeds-oil-palm-plantation-101366787_jpg.rf.aTxKZdmYXotv5AWQSAbD.jpg",
+      "original_name": "fresh-fruit-seeds-oil-palm-fresh-fruit-seeds-oil-palm-plantation-101366787.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000270.jpg",
+      "label": "yolo/labels/train/a0_000270.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:frisches-obst-trauben-auf-einem-ol-palm-tree-in-einem-orang-asli-reservierung-umgebung-plantage-in-perak-malaysia-juli-2018-reifung-prg4xn",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "frisches-obst-trauben-auf-einem-ol-palm-tree-in-einem-orang-asli-reservierung-umgebung-plantage-in-perak-malaysia-juli-2018-reifung-prg4xn_jpg.rf.rxvWZv5qWyzqEjVrJZwf.jpg",
+      "original_name": "frisches-obst-trauben-auf-einem-ol-palm-tree-in-einem-orang-asli-reservierung-umgebung-plantage-in-perak-malaysia-juli-2018-reifung-prg4xn.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000271.jpg",
+      "label": "yolo/labels/train/a0_000271.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:fruit-oil-palm-tree-elaeis-guineensis-fresh",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "fruit-oil-palm-tree-elaeis-guineensis-fresh-90743378_jpg.rf.ysNTenHyPqWya98hjb4F.jpg",
+      "original_name": "fruit-oil-palm-tree-elaeis-guineensis-fresh-90743378.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000272.jpg",
+      "label": "yolo/labels/train/a0_000272.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:fruit-oil-palm-tree-elaeis-guineensis-fresh",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "fruit-oil-palm-tree-elaeis-guineensis-fresh-91044231_jpg.rf.iTckUgrbVrWe7cXSwuFQ.jpg",
+      "original_name": "fruit-oil-palm-tree-elaeis-guineensis-fresh-91044231.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 9
+    },
+    {
+      "image": "yolo/images/val/a0_000273.jpg",
+      "label": "yolo/labels/val/a0_000273.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:fruits_of_oilpalm_3",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "fruits_of_oilpalm_3_jpg.rf.9w0ojmbpDcACRVVPYDIc.jpg",
+      "original_name": "fruits_of_oilpalm_3.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/test/a0_000274.jpg",
+      "label": "yolo/labels/test/a0_000274.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:full",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "full_jpg.rf.ZozqqGfdWMDaXys5NuBC.jpg",
+      "original_name": "full.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000275.jpg",
+      "label": "yolo/labels/train/a0_000275.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:g34g4",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "g34g4_jpg.rf.qGewFUlLVntEqKA2Oetb.jpg",
+      "original_name": "g34g4.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/val/a0_000276.jpg",
+      "label": "yolo/labels/val/a0_000276.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:gettyimages-528284034-170667a",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "gettyimages-528284034-170667a_jpg.rf.BgUjIIpJTriksrRD0keB.jpg",
+      "original_name": "gettyimages-528284034-170667a.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000277.jpg",
+      "label": "yolo/labels/test/a0_000277.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:hrthrthrt",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "hrthrthrt_jpg.rf.aJkCt5aIm2XaFSV7E7zX.jpg",
+      "original_name": "hrthrthrt.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000278.jpg",
+      "label": "yolo/labels/train/a0_000278.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:images174",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "images174_jpg.rf.nnROyAUrbUNeupQgnqBC.jpg",
+      "original_name": "images174.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 9
+    },
+    {
+      "image": "yolo/images/val/a0_000279.jpg",
+      "label": "yolo/labels/val/a0_000279.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:images280",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "images280_jpg.rf.aSOZRkbugWWFAKZPXslD.jpg",
+      "original_name": "images280.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/test/a0_000280.jpg",
+      "label": "yolo/labels/test/a0_000280.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:images408 (2)",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "images408 (2)_jpg.rf.7ZqRkzOArUbh8EbrAm2B.jpg",
+      "original_name": "images408 (2).jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 10
+    },
+    {
+      "image": "yolo/images/train/a0_000281.jpg",
+      "label": "yolo/labels/train/a0_000281.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:in-der-nahe-von-ol-palm-tree-top-mit-obst-palmol-anbau-wurde-kritisiert-fur-auswirkungen-auf-die-naturliche-umwelt-einschliesslich-der-entwaldung-ein-2a3x1p8",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "in-der-nahe-von-ol-palm-tree-top-mit-obst-palmol-anbau-wurde-kritisiert-fur-auswirkungen-auf-die-naturliche-umwelt-einschliesslich-der-entwaldung-ein-2a3x1p8_jpg.rf.0YMRnLuXjheTy886a8xt.jpg",
+      "original_name": "in-der-nahe-von-ol-palm-tree-top-mit-obst-palmol-anbau-wurde-kritisiert-fur-auswirkungen-auf-die-naturliche-umwelt-einschliesslich-der-entwaldung-ein-2a3x1p8.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/val/a0_000282.jpg",
+      "label": "yolo/labels/val/a0_000282.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:istockphoto-670079910-170667a",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "istockphoto-670079910-170667a_jpg.rf.5hUJBhtwrjCscpAUQ5Yh.jpg",
+      "original_name": "istockphoto-670079910-170667a.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/test/a0_000283.jpg",
+      "label": "yolo/labels/test/a0_000283.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:istockphoto-687951722-170667a",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "istockphoto-687951722-170667a_jpg.rf.9oplo0yI8lzb3MkBFxDY.jpg",
+      "original_name": "istockphoto-687951722-170667a.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000284.jpg",
+      "label": "yolo/labels/train/a0_000284.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:jyy5fef1ol",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "jyy5fef1ol_jpg.rf.vVp1mBVtgFLts6YZqwit.jpg",
+      "original_name": "jyy5fef1ol.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 8
+    },
+    {
+      "image": "yolo/images/val/a0_000285.jpg",
+      "label": "yolo/labels/val/a0_000285.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:kumbang",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "kumbang_jpg.rf.mr8Wjrq1GoJgYLQgtMrB.jpg",
+      "original_name": "kumbang.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/test/a0_000286.jpg",
+      "label": "yolo/labels/test/a0_000286.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:maxresdefault",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "maxresdefault_jpg.rf.j04aQw466DJ3zjHLJAjA.jpg",
+      "original_name": "maxresdefault.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000287.jpg",
+      "label": "yolo/labels/train/a0_000287.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:oil-palm-287888_960_720",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oil-palm-287888_960_720_jpg.rf.AxWrqEhzoGk0lirJ2Uby.jpg",
+      "original_name": "oil-palm-287888_960_720.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/val/a0_000288.jpg",
+      "label": "yolo/labels/val/a0_000288.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:oil-palm-fruit-bunch-tree-vegetable-oil",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oil-palm-fruit-bunch-tree-vegetable-oil_jpg.rf.jyxzFRiu9yRC1hUBAxG5.jpg",
+      "original_name": "oil-palm-fruit-bunch-tree-vegetable-oil.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000289.jpg",
+      "label": "yolo/labels/test/a0_000289.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:oil-palm-fruit-bunches-on-600w",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oil-palm-fruit-bunches-on-600w-94919797_jpg.rf.yuJnZoxxyl9fDXhDzmow.jpg",
+      "original_name": "oil-palm-fruit-bunches-on-600w-94919797.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000290.jpg",
+      "label": "yolo/labels/train/a0_000290.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:oil-palm-fruits",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oil-palm-fruits_jpg.rf.oMBuaNPvOf3x07vF0CRi.jpg",
+      "original_name": "oil-palm-fruits.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/val/a0_000291.jpg",
+      "label": "yolo/labels/val/a0_000291.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:oil-palm-tree-fruit-ripen",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oil-palm-tree-fruit-ripen-39796175_jpg.rf.hBTG3vo8ayAt0sCVlvTd.jpg",
+      "original_name": "oil-palm-tree-fruit-ripen-39796175.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/test/a0_000292.jpg",
+      "label": "yolo/labels/test/a0_000292.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:oil20palmJPG",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oil20palmJPG_jpg.rf.ybFHyjobaGZEtCIc80Vb.jpg",
+      "original_name": "oil20palmJPG.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/train/a0_000293.jpg",
+      "label": "yolo/labels/train/a0_000293.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:oil_palm_dura_nigeria",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oil_palm_dura_nigeria_jpg.rf.23ZOr4PbjwIhSlaFSYXX.jpg",
+      "original_name": "oil_palm_dura_nigeria.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 6
+    },
+    {
+      "image": "yolo/images/val/a0_000294.jpg",
+      "label": "yolo/labels/val/a0_000294.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:oilpalm2 (2)",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "oilpalm2 (2)_jpg.rf.ZCdaJJUzYqiFx54ieGuF.jpg",
+      "original_name": "oilpalm2 (2).jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 11
+    },
+    {
+      "image": "yolo/images/test/a0_000295.jpg",
+      "label": "yolo/labels/test/a0_000295.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:ojon-nuts-in-tree1",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "ojon-nuts-in-tree1_jpg.rf.454qg6H2LDrqThghJZ2Y.jpg",
+      "original_name": "ojon-nuts-in-tree1.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000296.jpg",
+      "label": "yolo/labels/train/a0_000296.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:olaj-tető-fa-gyümölcs-pálma-becsuk-képek_csp70785282",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "olaj-tető-fa-gyümölcs-pálma-becsuk-képek_csp70785282_jpg.rf.boW7QtcuIDe3I4GTOjg7.jpg",
+      "original_name": "olaj-tető-fa-gyümölcs-pálma-becsuk-képek_csp70785282.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000297.jpg",
+      "label": "yolo/labels/train/a0_000297.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:palmoil",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "palmoil_jpg.rf.dGeYCQUIr0WWqpxRzIkB.jpg",
+      "original_name": "palmoil.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000298.jpg",
+      "label": "yolo/labels/train/a0_000298.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:palmoil",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "palmoil_jpg.rf.q9zKj8xgsViWrClYjAE5.jpg",
+      "original_name": "palmoil.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/val/a0_000299.jpg",
+      "label": "yolo/labels/val/a0_000299.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:prg4xn",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "prg4xn_jpg.rf.zoW6O0bv8IvJZ0IOKMld.jpg",
+      "original_name": "prg4xn.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000300.jpg",
+      "label": "yolo/labels/test/a0_000300.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:sprzedam_oil plants-oil plants-other-_agromarket_giełda rolna-240642",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "sprzedam_oil plants-oil plants-other-_agromarket_giełda rolna-240642-66657_jpg.rf.YjnCQj7tQp5Ra3kE5cXO.jpg",
+      "original_name": "sprzedam_oil plants-oil plants-other-_agromarket_giełda rolna-240642-66657.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 11
+    },
+    {
+      "image": "yolo/images/train/a0_000301.jpg",
+      "label": "yolo/labels/train/a0_000301.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:tree-palm-oil-grow-well-mineral-soil-oilgrow",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "tree-palm-oil-grow-well-mineral-soil-oilgrow-181781668_jpg.rf.gg95ODxczES2Z3FHYoh4.jpg",
+      "original_name": "tree-palm-oil-grow-well-mineral-soil-oilgrow-181781668.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000302.jpg",
+      "label": "yolo/labels/train/a0_000302.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:tree-palm-oil-grow-well-mineral-soil-oilgrow",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "tree-palm-oil-grow-well-mineral-soil-oilgrow-181781668_jpg.rf.xWYt2or2oIYdKLvv3clN.jpg",
+      "original_name": "tree-palm-oil-grow-well-mineral-soil-oilgrow-181781668.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 7
+    },
+    {
+      "image": "yolo/images/train/a0_000303.jpg",
+      "label": "yolo/labels/train/a0_000303.txt",
+      "split": "train",
+      "group_id": "fruit_bunch:unnamed",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "unnamed_jpg.rf.4cGP7GA6BRqb72QCIk5t.jpg",
+      "original_name": "unnamed.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 5
+    },
+    {
+      "image": "yolo/images/val/a0_000304.jpg",
+      "label": "yolo/labels/val/a0_000304.txt",
+      "split": "val",
+      "group_id": "fruit_bunch:zx1smd",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "zx1smd_jpg.rf.amczM5HAwuBS6FxMSB5K.jpg",
+      "original_name": "zx1smd.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/test/a0_000305.jpg",
+      "label": "yolo/labels/test/a0_000305.txt",
+      "split": "test",
+      "group_id": "fruit_bunch:棕榈果树栽培在树",
+      "source_dataset": "fruit_bunch",
+      "source_file_name": "棕榈果树栽培在树-60250741_jpg.rf.rBJq3Mb2PvtcK18zconw.jpg",
+      "original_name": "棕榈果树栽培在树-60250741.jpg",
+      "labels": [
+        "fruit_bunch"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000306.jpg",
+      "label": "yolo/labels/train/a0_000306.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0003",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0003_jpg.rf.eFUQ1v8n1BgqBLIHHGS0.jpg",
+      "original_name": "IMG-20241010-WA0003.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000307.jpg",
+      "label": "yolo/labels/train/a0_000307.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0004",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0004_jpg.rf.zB2KOPxxUlI5hlvndHtn.jpg",
+      "original_name": "IMG-20241010-WA0004.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000308.jpg",
+      "label": "yolo/labels/train/a0_000308.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0011",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0011_jpg.rf.nEAlqRTHECHikU0xfkq6.jpg",
+      "original_name": "IMG-20241010-WA0011.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000309.jpg",
+      "label": "yolo/labels/train/a0_000309.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0013",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0013_jpg.rf.y4QPD4Pq59BBb5RWBq7r.jpg",
+      "original_name": "IMG-20241010-WA0013.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000310.jpg",
+      "label": "yolo/labels/train/a0_000310.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0015",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0015_jpg.rf.ajHC8Gr4GvtuhrjleA3o.jpg",
+      "original_name": "IMG-20241010-WA0015.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000311.jpg",
+      "label": "yolo/labels/train/a0_000311.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0016",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0016_jpg.rf.7ApIha3mfhFjdp1i9xDT.jpg",
+      "original_name": "IMG-20241010-WA0016.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000312.jpg",
+      "label": "yolo/labels/train/a0_000312.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0017",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0017_jpg.rf.Ub0pCDLFeMjT0ePOGHca.jpg",
+      "original_name": "IMG-20241010-WA0017.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000313.jpg",
+      "label": "yolo/labels/train/a0_000313.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0018",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0018_jpg.rf.RETo4Mchp6HvSIZSOOew.jpg",
+      "original_name": "IMG-20241010-WA0018.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000314.jpg",
+      "label": "yolo/labels/train/a0_000314.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0023",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0023_jpg.rf.Ua71fL0C18ImJsSSfyEQ.jpg",
+      "original_name": "IMG-20241010-WA0023.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000315.jpg",
+      "label": "yolo/labels/train/a0_000315.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0024",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0024_jpg.rf.Qgxt2uZnXiDeZjIeZp7Z.jpg",
+      "original_name": "IMG-20241010-WA0024.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/train/a0_000316.jpg",
+      "label": "yolo/labels/train/a0_000316.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0039",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0039_jpg.rf.hmNNFpRnIQMkHKnJsEI5.jpg",
+      "original_name": "IMG-20241010-WA0039.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000317.jpg",
+      "label": "yolo/labels/train/a0_000317.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0042",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0042_jpg.rf.7XJsPbk0VhhkNLskG5hA.jpg",
+      "original_name": "IMG-20241010-WA0042.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000318.jpg",
+      "label": "yolo/labels/train/a0_000318.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0043",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0043_jpg.rf.J5IDGPmO0jm3rzOcScEW.jpg",
+      "original_name": "IMG-20241010-WA0043.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000319.jpg",
+      "label": "yolo/labels/train/a0_000319.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0048",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0048_jpg.rf.ddFOdBOUVsh6WWuIc3Ys.jpg",
+      "original_name": "IMG-20241010-WA0048.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000320.jpg",
+      "label": "yolo/labels/train/a0_000320.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0049",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0049_jpg.rf.IRqf1fmhKfSSH5iLcjJM.jpg",
+      "original_name": "IMG-20241010-WA0049.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000321.jpg",
+      "label": "yolo/labels/train/a0_000321.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0060",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0060_jpg.rf.YseFa4y9VN6ER55UHxPv.jpg",
+      "original_name": "IMG-20241010-WA0060.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000322.jpg",
+      "label": "yolo/labels/train/a0_000322.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0063",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0063_jpg.rf.RStey0SyRBy6l7qXstbO.jpg",
+      "original_name": "IMG-20241010-WA0063.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000323.jpg",
+      "label": "yolo/labels/train/a0_000323.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0065",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0065_jpg.rf.qRK963Sq5WsTOVAOBDEr.jpg",
+      "original_name": "IMG-20241010-WA0065.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000324.jpg",
+      "label": "yolo/labels/train/a0_000324.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0067",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0067_jpg.rf.0pd2DnFn8rxH6SABgmkk.jpg",
+      "original_name": "IMG-20241010-WA0067.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000325.jpg",
+      "label": "yolo/labels/train/a0_000325.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0076",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0076_jpg.rf.hgFBBXydJHVcZZGEV5Sv.jpg",
+      "original_name": "IMG-20241010-WA0076.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000326.jpg",
+      "label": "yolo/labels/train/a0_000326.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0078",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0078_jpg.rf.69plwQFJxWKp41EfRLUV.jpg",
+      "original_name": "IMG-20241010-WA0078.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000327.jpg",
+      "label": "yolo/labels/train/a0_000327.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0079",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0079_jpg.rf.d28inrcbPExnzNhTLlmB.jpg",
+      "original_name": "IMG-20241010-WA0079.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000328.jpg",
+      "label": "yolo/labels/train/a0_000328.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0083",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0083_jpg.rf.7eu4IAsWZms3Jf9YHMcl.jpg",
+      "original_name": "IMG-20241010-WA0083.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000329.jpg",
+      "label": "yolo/labels/train/a0_000329.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0086",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0086_jpg.rf.89Z71Jzj6JQJF3qYUNY9.jpg",
+      "original_name": "IMG-20241010-WA0086.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000330.jpg",
+      "label": "yolo/labels/train/a0_000330.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0088",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0088_jpg.rf.BYXGHFgZS1OpQ3DDWiHb.jpg",
+      "original_name": "IMG-20241010-WA0088.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000331.jpg",
+      "label": "yolo/labels/train/a0_000331.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0092",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0092_jpg.rf.QNeo9gMvze1vZXup1JzZ.jpg",
+      "original_name": "IMG-20241010-WA0092.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000332.jpg",
+      "label": "yolo/labels/train/a0_000332.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0116",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0116_jpg.rf.H2AUgph4LTwPHOf9LzvO.jpg",
+      "original_name": "IMG-20241010-WA0116.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000333.jpg",
+      "label": "yolo/labels/train/a0_000333.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0120",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0120_jpg.rf.1MFdeXVhGb9CYDiV7mGY.jpg",
+      "original_name": "IMG-20241010-WA0120.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000334.jpg",
+      "label": "yolo/labels/train/a0_000334.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0122",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0122_jpg.rf.MefmDq24l6qGXTC4csXg.jpg",
+      "original_name": "IMG-20241010-WA0122.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 4
+    },
+    {
+      "image": "yolo/images/train/a0_000335.jpg",
+      "label": "yolo/labels/train/a0_000335.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0128",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0128_jpg.rf.ZSJECB0EuuIZ9IHJ7tNQ.jpg",
+      "original_name": "IMG-20241010-WA0128.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000336.jpg",
+      "label": "yolo/labels/train/a0_000336.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0138",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0138_jpg.rf.Y55nL6k9ndVixr9Bmu0h.jpg",
+      "original_name": "IMG-20241010-WA0138.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000337.jpg",
+      "label": "yolo/labels/train/a0_000337.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0139",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0139_jpg.rf.NYWrDGReFwqAXDthlTZ6.jpg",
+      "original_name": "IMG-20241010-WA0139.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000338.jpg",
+      "label": "yolo/labels/train/a0_000338.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0142",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0142_jpg.rf.GCPbIaU8DNl3NmRH6tkE.jpg",
+      "original_name": "IMG-20241010-WA0142.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000339.jpg",
+      "label": "yolo/labels/train/a0_000339.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0143",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0143_jpg.rf.ij6bm0LO39JYoKSeEoV4.jpg",
+      "original_name": "IMG-20241010-WA0143.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000340.jpg",
+      "label": "yolo/labels/train/a0_000340.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0144",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0144_jpg.rf.yhRJorZtQRP1Ml6QBiTs.jpg",
+      "original_name": "IMG-20241010-WA0144.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000341.jpg",
+      "label": "yolo/labels/train/a0_000341.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0145",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0145_jpg.rf.qFDSeRJY65Vdyoo8Irva.jpg",
+      "original_name": "IMG-20241010-WA0145.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000342.jpg",
+      "label": "yolo/labels/train/a0_000342.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0146",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0146_jpg.rf.k2ynywj0PBPjoH5WWIOr.jpg",
+      "original_name": "IMG-20241010-WA0146.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000343.jpg",
+      "label": "yolo/labels/train/a0_000343.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0150",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0150_jpg.rf.eDPQuY49B7HuXD9auKlY.jpg",
+      "original_name": "IMG-20241010-WA0150.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000344.jpg",
+      "label": "yolo/labels/train/a0_000344.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0152",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0152_jpg.rf.eM6O71Upk1cOQ3DSfMce.jpg",
+      "original_name": "IMG-20241010-WA0152.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000345.jpg",
+      "label": "yolo/labels/train/a0_000345.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0153",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0153_jpg.rf.KP41rq4bkzDYM08ceDBQ.jpg",
+      "original_name": "IMG-20241010-WA0153.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000346.jpg",
+      "label": "yolo/labels/train/a0_000346.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0172",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0172_jpg.rf.yhRvTxyjYM5gkEsdxjMc.jpg",
+      "original_name": "IMG-20241010-WA0172.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000347.jpg",
+      "label": "yolo/labels/train/a0_000347.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0190",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0190_jpg.rf.P3lTmDR0TA5F7Fwh4NdW.jpg",
+      "original_name": "IMG-20241010-WA0190.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000348.jpg",
+      "label": "yolo/labels/train/a0_000348.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0194",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0194_jpg.rf.Io6j9INu1DqhKVHYMMBo.jpg",
+      "original_name": "IMG-20241010-WA0194.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000349.jpg",
+      "label": "yolo/labels/train/a0_000349.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0198",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0198_jpg.rf.gBoAbvKr4fIP0OR93RPF.jpg",
+      "original_name": "IMG-20241010-WA0198.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000350.jpg",
+      "label": "yolo/labels/train/a0_000350.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0199",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0199_jpg.rf.3LHvI6BJzXH1KeQuKn34.jpg",
+      "original_name": "IMG-20241010-WA0199.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000351.jpg",
+      "label": "yolo/labels/train/a0_000351.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0200",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0200_jpg.rf.tLgqbVy5q0ipZLIX25Tt.jpg",
+      "original_name": "IMG-20241010-WA0200.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000352.jpg",
+      "label": "yolo/labels/train/a0_000352.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0201",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0201_jpg.rf.EKmwxhvqg8rWFY5u44Pn.jpg",
+      "original_name": "IMG-20241010-WA0201.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000353.jpg",
+      "label": "yolo/labels/train/a0_000353.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0214",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0214_jpg.rf.EJI1Z9FQqy0YAzAoFt2s.jpg",
+      "original_name": "IMG-20241010-WA0214.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000354.jpg",
+      "label": "yolo/labels/train/a0_000354.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0216",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0216_jpg.rf.Zk5zTNwek03hQnruCyZV.jpg",
+      "original_name": "IMG-20241010-WA0216.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000355.jpg",
+      "label": "yolo/labels/train/a0_000355.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0217",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0217_jpg.rf.KENjDntIJOdHRUw8bKOx.jpg",
+      "original_name": "IMG-20241010-WA0217.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000356.jpg",
+      "label": "yolo/labels/val/a0_000356.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0218",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0218_jpg.rf.fHQI7n5gFk8ZxBUGup9E.jpg",
+      "original_name": "IMG-20241010-WA0218.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000357.jpg",
+      "label": "yolo/labels/test/a0_000357.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0219",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0219_jpg.rf.100UKPz4Zzk5p2KipTsf.jpg",
+      "original_name": "IMG-20241010-WA0219.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000358.jpg",
+      "label": "yolo/labels/train/a0_000358.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0220",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0220_jpg.rf.hrORswRf8DjRqDttewGB.jpg",
+      "original_name": "IMG-20241010-WA0220.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000359.jpg",
+      "label": "yolo/labels/val/a0_000359.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0237",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0237_jpg.rf.GYQMph3ZH9M622ubBuRA.jpg",
+      "original_name": "IMG-20241010-WA0237.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000360.jpg",
+      "label": "yolo/labels/test/a0_000360.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0239",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0239_jpg.rf.T0qYWMQn3R8N5CDnLpYg.jpg",
+      "original_name": "IMG-20241010-WA0239.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000361.jpg",
+      "label": "yolo/labels/train/a0_000361.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0254",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0254_jpg.rf.jofIEfari1wR8YTnB0B5.jpg",
+      "original_name": "IMG-20241010-WA0254.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 3
+    },
+    {
+      "image": "yolo/images/val/a0_000362.jpg",
+      "label": "yolo/labels/val/a0_000362.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0284",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0284_jpg.rf.kWiaTVo1ZzTLhd9JbaU2.jpg",
+      "original_name": "IMG-20241010-WA0284.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000363.jpg",
+      "label": "yolo/labels/test/a0_000363.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0285",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0285_jpg.rf.Qgqc1DSELsqsriMhgX7H.jpg",
+      "original_name": "IMG-20241010-WA0285.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000364.jpg",
+      "label": "yolo/labels/train/a0_000364.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0293",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0293_jpg.rf.b0hgpL372YGbkL3l1LK6.jpg",
+      "original_name": "IMG-20241010-WA0293.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000365.jpg",
+      "label": "yolo/labels/val/a0_000365.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0303",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0303_jpg.rf.ApzJuKxPFoaluBgmO74G.jpg",
+      "original_name": "IMG-20241010-WA0303.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000366.jpg",
+      "label": "yolo/labels/test/a0_000366.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0311",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0311_jpg.rf.tadLJr18xEVnK8CCozqS.jpg",
+      "original_name": "IMG-20241010-WA0311.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000367.jpg",
+      "label": "yolo/labels/train/a0_000367.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0316",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0316_jpg.rf.1UabK1dE3TYbTzqUi6TH.jpg",
+      "original_name": "IMG-20241010-WA0316.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000368.jpg",
+      "label": "yolo/labels/val/a0_000368.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0322",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0322_jpg.rf.BuRljbAgOnBJBskyo3OP.jpg",
+      "original_name": "IMG-20241010-WA0322.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000369.jpg",
+      "label": "yolo/labels/test/a0_000369.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0327",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0327_jpg.rf.4YTd0DGHfklefRsppp0f.jpg",
+      "original_name": "IMG-20241010-WA0327.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000370.jpg",
+      "label": "yolo/labels/train/a0_000370.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0331",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0331_jpg.rf.7AdOJoz5Q19L7XRyCUfM.jpg",
+      "original_name": "IMG-20241010-WA0331.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000371.jpg",
+      "label": "yolo/labels/val/a0_000371.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0343",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0343_jpg.rf.ex52qDigXlvAvcQKOqRU.jpg",
+      "original_name": "IMG-20241010-WA0343.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000372.jpg",
+      "label": "yolo/labels/test/a0_000372.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0354",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0354_jpg.rf.hnO1WxVCEmmv72uhcOQZ.jpg",
+      "original_name": "IMG-20241010-WA0354.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000373.jpg",
+      "label": "yolo/labels/train/a0_000373.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0357",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0357_jpg.rf.x6kCvVmQhB1nnXWKQw5M.jpg",
+      "original_name": "IMG-20241010-WA0357.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000374.jpg",
+      "label": "yolo/labels/val/a0_000374.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0362",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0362_jpg.rf.U2DAfMJdnibdW9JBFt0u.jpg",
+      "original_name": "IMG-20241010-WA0362.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000375.jpg",
+      "label": "yolo/labels/test/a0_000375.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0363",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0363_jpg.rf.aekXNMATDh60GuIgJ9tA.jpg",
+      "original_name": "IMG-20241010-WA0363.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000376.jpg",
+      "label": "yolo/labels/train/a0_000376.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0364",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0364_jpg.rf.GsiqL0nWbHhZhW3d6oRa.jpg",
+      "original_name": "IMG-20241010-WA0364.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000377.jpg",
+      "label": "yolo/labels/val/a0_000377.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0378",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0378_jpg.rf.OORG4tJBjq19wjp6QvM5.jpg",
+      "original_name": "IMG-20241010-WA0378.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000378.jpg",
+      "label": "yolo/labels/test/a0_000378.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0393",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0393_jpg.rf.FAYggDfTQYZQUO04jknQ.jpg",
+      "original_name": "IMG-20241010-WA0393.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000379.jpg",
+      "label": "yolo/labels/train/a0_000379.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0403",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0403_jpg.rf.FIFrKdruGCIBCQZXhFOp.jpg",
+      "original_name": "IMG-20241010-WA0403.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000380.jpg",
+      "label": "yolo/labels/val/a0_000380.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0404",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0404_jpg.rf.lqHDd5p5UCmqe5DOGcA7.jpg",
+      "original_name": "IMG-20241010-WA0404.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000381.jpg",
+      "label": "yolo/labels/test/a0_000381.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0406",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0406_jpg.rf.118WtW2WIGtMmZs1dR4i.jpg",
+      "original_name": "IMG-20241010-WA0406.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000382.jpg",
+      "label": "yolo/labels/train/a0_000382.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0408",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0408_jpg.rf.dZHugKZYuTPiPdBoiVtk.jpg",
+      "original_name": "IMG-20241010-WA0408.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000383.jpg",
+      "label": "yolo/labels/val/a0_000383.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0414",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0414_jpg.rf.pQywlvETioCWoZtewp8m.jpg",
+      "original_name": "IMG-20241010-WA0414.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000384.jpg",
+      "label": "yolo/labels/test/a0_000384.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0416",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0416_jpg.rf.qe1VkWYL9aH62ZOekchY.jpg",
+      "original_name": "IMG-20241010-WA0416.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000385.jpg",
+      "label": "yolo/labels/train/a0_000385.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0423",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0423_jpg.rf.i0d7mJ4VBqKL8aYXfA8z.jpg",
+      "original_name": "IMG-20241010-WA0423.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000386.jpg",
+      "label": "yolo/labels/val/a0_000386.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0425",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0425_jpg.rf.zgn6UUtj8jdPKXl3XiZ9.jpg",
+      "original_name": "IMG-20241010-WA0425.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000387.jpg",
+      "label": "yolo/labels/test/a0_000387.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0431",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0431_jpg.rf.6Og3IdRaBzeAnGTnsz7n.jpg",
+      "original_name": "IMG-20241010-WA0431.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000388.jpg",
+      "label": "yolo/labels/train/a0_000388.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0433",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0433_jpg.rf.0mxMinsHhhUPo2Pwd5Ku.jpg",
+      "original_name": "IMG-20241010-WA0433.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000389.jpg",
+      "label": "yolo/labels/val/a0_000389.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0434",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0434_jpg.rf.pZ2TaELuLAycKXcHfMHI.jpg",
+      "original_name": "IMG-20241010-WA0434.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/test/a0_000390.jpg",
+      "label": "yolo/labels/test/a0_000390.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0435",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0435_jpg.rf.80oHtOCotPCj8cKI6mjE.jpg",
+      "original_name": "IMG-20241010-WA0435.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 2
+    },
+    {
+      "image": "yolo/images/train/a0_000391.jpg",
+      "label": "yolo/labels/train/a0_000391.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241010-WA0436",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0436_jpg.rf.GgmWzz5J4CYaTjdPHpy2.jpg",
+      "original_name": "IMG-20241010-WA0436.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000392.jpg",
+      "label": "yolo/labels/val/a0_000392.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241010-WA0442",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0442_jpg.rf.H6ljxTFLyX5lpht5oqgR.jpg",
+      "original_name": "IMG-20241010-WA0442.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000393.jpg",
+      "label": "yolo/labels/test/a0_000393.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241010-WA0443",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241010-WA0443_jpg.rf.Qt2l5xhIekIRx771ub7L.jpg",
+      "original_name": "IMG-20241010-WA0443.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/train/a0_000394.jpg",
+      "label": "yolo/labels/train/a0_000394.txt",
+      "split": "train",
+      "group_id": "trunk_base:IMG-20241011-WA0015",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241011-WA0015_jpg.rf.zh54MSU8KKhqMIboc7FB.jpg",
+      "original_name": "IMG-20241011-WA0015.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/val/a0_000395.jpg",
+      "label": "yolo/labels/val/a0_000395.txt",
+      "split": "val",
+      "group_id": "trunk_base:IMG-20241011-WA0017",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241011-WA0017_jpg.rf.CzQ0dsTXLht6DUNRofuS.jpg",
+      "original_name": "IMG-20241011-WA0017.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    },
+    {
+      "image": "yolo/images/test/a0_000396.jpg",
+      "label": "yolo/labels/test/a0_000396.txt",
+      "split": "test",
+      "group_id": "trunk_base:IMG-20241011-WA0018",
+      "source_dataset": "trunk_base",
+      "source_file_name": "IMG-20241011-WA0018_jpg.rf.eY8EM8ev4bUqTiZURjqa.jpg",
+      "original_name": "IMG-20241011-WA0018.jpg",
+      "labels": [
+        "trunk_base"
+      ],
+      "annotation_count": 1
+    }
+  ]
+}

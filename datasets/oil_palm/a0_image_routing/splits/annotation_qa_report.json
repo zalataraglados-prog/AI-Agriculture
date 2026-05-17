@@ -1,0 +1,18 @@
+{
+  "task": "a0_image_routing",
+  "dataset_version": "roboflow_a0_2026_05_17",
+  "checks": {
+    "labels_match_project_standard": true,
+    "contains_unknown_label": false,
+    "negative_empty_label_images": 0,
+    "duplicate_images_skipped": 1,
+    "clipped_bboxes": 95,
+    "skipped_annotations_after_clipping": 0,
+    "license_status": "Unknown"
+  },
+  "notes": [
+    "Generated from Roboflow COCO exports.",
+    "No empty-label negative samples are included in this baseline export.",
+    "License is recorded as Unknown until source-specific permissions are documented."
+  ]
+}
