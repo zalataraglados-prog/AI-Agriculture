@@ -1,0 +1,43 @@
+task: a0_image_routing
+model: yolov8n.pt
+
+train:
+  data: datasets/oil_palm/a0_image_routing/yolo/data.yaml
+  project: models/oil_palm/a0_image_routing/runs
+  name: a0_yolo_structure_detector_v1
+  epochs: 100
+  imgsz: 960
+  batch: 8
+  device: null
+  workers: 4
+  patience: 25
+  seed: 42
+  optimizer: auto
+  cache: false
+  exist_ok: true
+  pretrained: true
+
+augment:
+  degrees: 10
+  translate: 0.1
+  scale: 0.4
+  shear: 2
+  perspective: 0.0005
+  fliplr: 0.5
+  flipud: 0.0
+  hsv_h: 0.015
+  hsv_s: 0.5
+  hsv_v: 0.4
+  mosaic: 0.5
+  mixup: 0.05
+  copy_paste: 0.0
+
+outputs:
+  runs_dir: models/oil_palm/a0_image_routing/runs
+  trained_run: models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1
+  tracked_metrics_file: models/oil_palm/a0_image_routing/metrics.json
+
+notes:
+  - A0 detects oil palm structure candidates only.
+  - unknown is a route status, not a YOLO class.
+  - Add empty-label negative samples in a later dataset version.
