@@ -49,7 +49,8 @@ cargo test
 
 ### 部署相关
 
-- `cloud/deploy.sh`：Linux 服务器一键部署脚本
+- `scripts/deploy_cloud.sh`：推荐的 Linux 服务器一键部署脚本
+- `cloud/deploy.sh`：旧版 cloud 目录内部署脚本
 - systemd（可选，脚本会优先使用）
 
 ## 目录结构（核心）
