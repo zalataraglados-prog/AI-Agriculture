@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from ai_engine.crops.oil_palm.training.data_importers.import_a0_roboflow_coco import (
@@ -12,6 +13,7 @@ from ai_engine.crops.oil_palm.training.data_importers.import_a0_roboflow_coco im
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "datasets" / "oil_palm" / "a0_image_routing"
+DEFAULT_SOURCE_ROOT = PROJECT_ROOT / "datasets" / "oil_palm" / "a0_image_routing" / "raw"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--source-root",
-        default=r"E:\a0",
+        default=os.environ.get("OIL_PALM_A0_SOURCE_ROOT", str(DEFAULT_SOURCE_ROOT)),
         help="Directory containing crown_region, fruit_bunch, and trunk_base COCO exports.",
     )
     parser.add_argument(

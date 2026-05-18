@@ -2,8 +2,9 @@
 
 ## Current A0 Dataset Baseline
 
-`a0_image_routing` has a generated YOLO baseline dataset derived from the local
-Roboflow COCO exports under `E:\a0`.
+`a0_image_routing` has a generated YOLO baseline dataset derived from local
+Roboflow COCO exports. The source root is supplied with `--source-root` or
+`OIL_PALM_A0_SOURCE_ROOT`; raw exports are not committed.
 
 - Dataset version: `roboflow_a0_2026_05_17`
 - Labels: `fruit_bunch`, `trunk_base`, `crown_region`

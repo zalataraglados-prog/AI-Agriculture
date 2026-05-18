@@ -37,12 +37,14 @@ evidence across sets.
 ## Training Command
 
 ```bash
-python -m ai_engine.crops.oil_palm.training.a0_image_routing.prepare_dataset --source-root E:\a0 --copy-raw --overwrite
+python -m ai_engine.crops.oil_palm.training.a0_image_routing.prepare_dataset --source-root <roboflow-export-root> --copy-raw --overwrite
 python -m ai_engine.crops.oil_palm.training.a0_image_routing.train_yolo --config models/oil_palm/a0_image_routing/training_config.example.yaml
 ```
 
 Use `--dry-run` on either command to validate paths and arguments without
 writing the dataset or starting training.
+If `--source-root` is omitted, the script reads `OIL_PALM_A0_SOURCE_ROOT` or
+falls back to the project-local ignored raw-data directory.
 
 The preparation command writes YOLO files under
 `datasets/oil_palm/a0_image_routing/yolo/`, which is ignored by Git. It also
