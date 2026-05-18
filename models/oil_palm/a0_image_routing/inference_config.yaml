@@ -1,0 +1,18 @@
+model_version: oil_palm_a0_yolo_structure_detector_v1
+task: a0_image_routing
+framework: YOLOv8
+labels_file: models/oil_palm/a0_image_routing/labels.json
+weights: models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/weights/best.pt
+input_size: 960
+confidence_threshold: 0.5
+iou_threshold: 0.7
+max_detections: 300
+route_statuses:
+  matched: matched
+  role_mismatch: role_mismatch
+  no_supported_structure_detected: no_supported_structure_detected
+  uncertain: uncertain
+notes:
+  - A0 detects structure candidates only.
+  - unknown is a route status, not a YOLO class.
+  - Runtime integration still needs a real predictor implementation.
