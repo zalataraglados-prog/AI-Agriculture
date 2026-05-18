@@ -33,8 +33,9 @@ augment:
   copy_paste: 0.0
 
 outputs:
-  weights_dir: models/oil_palm/a0_image_routing/weights
-  metrics_template: models/oil_palm/a0_image_routing/metrics.example.json
+  runs_dir: models/oil_palm/a0_image_routing/runs
+  trained_run: models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1
+  tracked_metrics_file: models/oil_palm/a0_image_routing/metrics.json
 
 notes:
   - A0 detects oil palm structure candidates only.
