@@ -1,5 +1,14 @@
 # tests
 
+## Oil Palm A0 Checks
+
+- `test_oil_palm_foundation.py` validates oil palm manifests, labels, metrics
+  templates, and model-mode safety.
+- `test_oil_palm_routing.py` validates the A0 mock routing contract.
+- `test_oil_palm_a0_dataset.py` validates the A0 Roboflow COCO adapter,
+  grouped split output, YOLO label ranges, duplicate skipping, and training
+  dry-run argument construction.
+
 用于存放 AI 模块测试代码。
 
 ## 测试范围

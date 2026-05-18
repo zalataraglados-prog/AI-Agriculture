@@ -155,6 +155,34 @@ class TestMetrics:
             data = json.load(f)
         assert data["task"] == task
 
+    def test_a0_trained_metrics_are_recorded(self) -> None:
+        metrics_path = MODELS_OIL_PALM / "a0_image_routing" / "metrics.json"
+        assert metrics_path.exists(), "Trained A0 metrics.json should be recorded"
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["model_version"] == "oil_palm_a0_yolo_structure_detector_v1"
+        assert data["task"] == "a0_image_routing"
+        assert data["dataset_version"] == "roboflow_a0_2026_05_17"
+        assert data["labels"] == ["fruit_bunch", "trunk_base", "crown_region"]
+        assert data["metrics"]["best_epoch"] == 76
+        assert data["metrics"]["mAP50"] > 0
+        assert "unknown" not in data["labels"]
+
+    def test_a0_inference_config_points_to_ignored_run_artifact(self) -> None:
+        import yaml
+
+        config_path = MODELS_OIL_PALM / "a0_image_routing" / "inference_config.yaml"
+        assert config_path.exists(), "A0 inference_config.yaml should exist"
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        assert data["model_version"] == "oil_palm_a0_yolo_structure_detector_v1"
+        assert data["task"] == "a0_image_routing"
+        assert data["labels_file"].endswith("labels.json")
+        assert data["weights"].endswith("runs/a0_yolo_structure_detector_v1/weights/best.pt")
+        assert data["input_size"] == 960
+
 
 # ---------------------------------------------------------------------------
 # Data utils tests

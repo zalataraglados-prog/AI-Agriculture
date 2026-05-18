@@ -69,7 +69,9 @@ CROP_PROFILE=oil_palm uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 
 | `OIL_PALM_CONFIDENCE_THRESHOLD` | Future real predictor confidence threshold | `0.5` |
 
 Future oil palm model path variables are documented in `ai_engine/.env.example`.
-They are reserved for later per-task model branches.
+`OIL_PALM_A0_MODEL_PATH` can point at the trained A0 YOLO baseline recorded in
+`models/oil_palm/a0_image_routing/inference_config.yaml` once runtime YOLO
+predictor wiring is enabled.
 
 ## API Endpoints
 
@@ -94,8 +96,9 @@ Oil palm:
 
 ## Oil Palm Model Modes
 
-`feature/oil-palm-model-data-foundation` defines the configuration surface but
-does not implement real oil palm predictors yet.
+The current service still defaults to mock predictors. A trained A0 YOLO
+baseline artifact now exists, but runtime registration of a real YOLO predictor
+is intentionally separate from the data/training branch.
 
 - `mock`: all tasks use mock predictors. This is the default and is safe for CI,
   demos, and environments without weights.
@@ -113,11 +116,20 @@ Current oil palm image role routing:
 | `crown` | `growth_vigor` |
 | `uav_tile` | `uav_tree_crown` |
 
-A0 structure detection is registered as a mock gatekeeper in this foundation
-branch. It validates the requested `image_role`, returns bbox candidates, and
-uses `route_status` values such as `needs_user_confirmation`,
-`role_mismatch`, and `no_supported_structure_detected`. Real A0 YOLO weights are
-still reserved for `feature/oil-palm-a0-routing-model`.
+A0 structure detection is registered as a mock gatekeeper at runtime until the
+real YOLO predictor is wired in. It validates the requested `image_role`,
+returns bbox candidates, and uses `route_status` values such as
+`needs_user_confirmation`, `role_mismatch`, and
+`no_supported_structure_detected`.
+
+The first trained A0 YOLO baseline is documented under
+`models/oil_palm/a0_image_routing/`:
+
+- `metrics.json` records training metrics and the local ignored artifact path.
+- `inference_config.yaml` records the intended real-model runtime settings.
+- `runs/a0_yolo_structure_detector_v1/weights/best.pt` is ignored by Git and
+  must be supplied by local storage, release artifact, object storage, or a
+  deployment volume.
 
 Current A0 YOLO labels are `fruit_bunch`, `trunk_base`, and `crown_region`.
 `unknown` is an inference status, not a trained bbox class.

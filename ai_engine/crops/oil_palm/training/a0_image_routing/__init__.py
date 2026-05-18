@@ -1,1 +1,1 @@
-"""A0 image routing training module placeholder."""
+"""A0 image routing dataset preparation and YOLO training entrypoints."""

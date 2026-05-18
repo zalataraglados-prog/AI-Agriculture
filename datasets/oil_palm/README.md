@@ -1,5 +1,30 @@
 # Oil Palm Datasets
 
+## Current A0 Dataset Baseline
+
+`a0_image_routing` has a generated YOLO baseline dataset derived from the local
+Roboflow COCO exports under `E:\a0`.
+
+- Dataset version: `roboflow_a0_2026_05_17`
+- Labels: `fruit_bunch`, `trunk_base`, `crown_region`
+- Images: 396
+- Bboxes: 1174
+- Split: train 279 / val 58 / test 59
+- Negative empty-label images: not included yet
+- License: `Unknown` until source-specific permissions are verified
+
+Tracked metadata:
+
+- `datasets/oil_palm/manifests/a0_image_routing.json`
+- `datasets/oil_palm/a0_image_routing/dataset_card.md`
+- `datasets/oil_palm/a0_image_routing/splits/`
+- `datasets/oil_palm/a0_image_routing/licenses/sources.csv`
+
+Ignored training data:
+
+- `datasets/oil_palm/a0_image_routing/yolo/`
+- `datasets/oil_palm/a0_image_routing/raw/`
+
 本目录管理油棕各 AI 任务的数据集。
 
 ## 核心原则
