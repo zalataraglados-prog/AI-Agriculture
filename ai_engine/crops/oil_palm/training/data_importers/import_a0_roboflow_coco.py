@@ -79,6 +79,7 @@ class A0ImportSummary:
     output_root: str
     labels: list[str]
     split_ratios: dict[str, float]
+    split_seed: int
     image_count: int = 0
     annotation_count: int = 0
     split_counts: dict[str, int] = field(default_factory=dict)
@@ -98,6 +99,7 @@ class A0ImportSummary:
             "output_root": self.output_root,
             "labels": self.labels,
             "split_ratios": self.split_ratios,
+            "split_seed": self.split_seed,
             "image_count": self.image_count,
             "annotation_count": self.annotation_count,
             "split_counts": self.split_counts,
@@ -313,7 +315,7 @@ class A0RoboflowCocoImporter(BaseImporter):
 
             group_items = list(groups.items())
             rng.shuffle(group_items)
-            group_items.sort(key=lambda item: (-len(item[1]), item[0]))
+            group_items.sort(key=lambda item: -len(item[1]))
 
             targets = _split_targets(len(label_samples), self.split_ratios)
             assigned_counts = {"train": 0, "val": 0, "test": 0}
@@ -368,6 +370,7 @@ class A0RoboflowCocoImporter(BaseImporter):
             output_root=_metadata_path(self.output_dir),
             labels=A0_LABELS,
             split_ratios=self.split_ratios,
+            split_seed=self.seed,
             image_count=len(samples),
             annotation_count=sum(label_counts.values()),
             split_counts=dict(sorted(split_counts.items())),
@@ -395,6 +398,9 @@ class A0RoboflowCocoImporter(BaseImporter):
                         f"{root} already contains generated data. "
                         "Use --overwrite to regenerate it."
                     )
+        else:
+            _clear_directory_files(image_root)
+            _clear_directory_files(label_root)
 
         for split in ("train", "val", "test"):
             (image_root / split).mkdir(parents=True, exist_ok=True)
@@ -653,6 +659,7 @@ def _clear_directory_files(path: Path) -> None:
         return
     for entry in sorted(path.rglob("*"), key=lambda item: len(item.parts), reverse=True):
         if entry.is_file() and entry.name not in SENTINEL_FILENAMES:
+            entry.chmod(0o666)
             entry.unlink()
 
 
@@ -678,7 +685,7 @@ def _split_manifest(summary: A0ImportSummary, samples: list[A0Sample]) -> dict[s
         "split_strategy": {
             "method": "grouped_by_source_dataset_and_original_media",
             "ratios": summary.split_ratios,
-            "seed": 42,
+            "seed": summary.split_seed,
             "constraint": "Frames or near-duplicate images from the same source group stay in one split.",
         },
         "counts": {
@@ -812,7 +819,7 @@ def _manifest(summary: A0ImportSummary) -> dict[str, Any]:
         "split_strategy": {
             "method": "grouped_by_source_dataset_and_original_media",
             "ratios": summary.split_ratios,
-            "seed": 42,
+            "seed": summary.split_seed,
             "constraint": "Images from the same source media group stay in the same split",
         },
         "expected_counts": {

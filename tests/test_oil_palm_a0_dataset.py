@@ -119,6 +119,84 @@ def test_a0_roboflow_importer_writes_project_yolo_layout() -> None:
     assert (output_root.parent / "manifests" / "a0_image_routing.json").exists()
 
 
+def test_a0_roboflow_importer_overwrite_clears_stale_yolo_files() -> None:
+    from ai_engine.crops.oil_palm.training.data_importers.import_a0_roboflow_coco import (
+        A0RoboflowCocoImporter,
+    )
+
+    run_root = _run_root("overwrite")
+    raw_root = run_root / "raw"
+    output_root = run_root / "datasets" / "oil_palm" / "a0_image_routing"
+    _write_package(
+        raw_root,
+        package_name="fruit_bunch",
+        source_label="ffb",
+        root_label="oil-palm-plantation",
+        colors=[(200, 20, 20), (210, 30, 30), (220, 40, 40)],
+    )
+
+    importer = A0RoboflowCocoImporter(
+        raw_dir=raw_root,
+        output_dir=output_root,
+        dataset_version="test_a0",
+        overwrite=True,
+    )
+    importer.convert()
+
+    stale_image = output_root / "yolo" / "images" / "train" / "stale.jpg"
+    stale_label = output_root / "yolo" / "labels" / "train" / "stale.txt"
+    stale_image.write_bytes(b"stale")
+    stale_label.write_text("0 0.5 0.5 0.1 0.1\n", encoding="utf-8")
+
+    importer.convert()
+
+    assert not stale_image.exists()
+    assert not stale_label.exists()
+    assert len(list((output_root / "yolo" / "images").rglob("*.jpg"))) == 3
+    assert len(list((output_root / "yolo" / "labels").rglob("*.txt"))) == 3
+
+
+def test_a0_roboflow_importer_seed_changes_equal_sized_group_splits() -> None:
+    from ai_engine.crops.oil_palm.training.data_importers.import_a0_roboflow_coco import (
+        A0RoboflowCocoImporter,
+    )
+
+    run_root = _run_root("seed")
+    raw_root = run_root / "raw"
+    _write_package(
+        raw_root,
+        package_name="fruit_bunch",
+        source_label="ffb",
+        root_label="oil-palm-plantation",
+        colors=[(index * 10, 20, 120) for index in range(1, 13)],
+    )
+
+    split_maps = []
+    for seed in (7, 99):
+        output_root = run_root / f"datasets_{seed}" / "oil_palm" / "a0_image_routing"
+        importer = A0RoboflowCocoImporter(
+            raw_dir=raw_root,
+            output_dir=output_root,
+            dataset_version="test_a0",
+            seed=seed,
+            overwrite=True,
+        )
+        importer.convert()
+        manifest = json.loads(
+            (output_root / "splits" / "split_manifest.json").read_text(encoding="utf-8")
+        )
+        assert manifest["split_strategy"]["seed"] == seed
+        split_maps.append(
+            {
+                entry["source_file_name"]: entry["split"]
+                for entry in manifest["entries"]
+            }
+        )
+
+    assert split_maps[0].keys() == split_maps[1].keys()
+    assert split_maps[0] != split_maps[1]
+
+
 def test_a0_train_yolo_dry_run_args_do_not_require_ultralytics() -> None:
     from ai_engine.crops.oil_palm.training.a0_image_routing.train_yolo import (
         build_train_args,

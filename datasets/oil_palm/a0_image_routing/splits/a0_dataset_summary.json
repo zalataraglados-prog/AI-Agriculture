@@ -12,6 +12,7 @@
     "val": 0.15,
     "test": 0.15
   },
+  "split_seed": 42,
   "image_count": 396,
   "annotation_count": 1174,
   "split_counts": {
