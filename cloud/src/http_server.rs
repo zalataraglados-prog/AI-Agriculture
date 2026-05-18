@@ -690,10 +690,10 @@ fn handle_api(
             } else if method == Method::Get && p.contains("/detections") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_get_detections(request, &ortho_id, db);
-            } else if method == Method::Post && p.ends_with("/confirm") {
+            } else if method == Method::Post && p.starts_with("/api/v1/uav/detections/") && p.ends_with("/confirm") {
                 let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
                 crate::uav::handle_confirm_detection(request, &det_id, db);
-            } else if method == Method::Post && p.ends_with("/reject") {
+            } else if method == Method::Post && p.starts_with("/api/v1/uav/detections/") && p.ends_with("/reject") {
                 let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
                 crate::uav::handle_reject_detection(request, &det_id, db);
             } else if method == Method::Get && p.starts_with("/api/v1/trees/by-barcode/") {
