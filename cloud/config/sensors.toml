@@ -11,6 +11,9 @@ image_index_path = "state/image_index.jsonl"
 image_db_error_store_path = "state/image_upload_errors.jsonl"
 database_url = "postgres://postgres:CHANGE_ME@db:5432/ai_agriculture"
 ai_predict_url = "http://ai-engine:8000/api/v1/predict"
+# Optional runtime A0 detector. Keep unset to use Cloud's local mock A0 fallback.
+# Set via environment in deployment:
+# AI_OIL_PALM_A0_DETECT_URL="http://ai-engine:8000/api/v1/oil-palm/a0/detect"
 openclaw_url = "http://openclaw:3000"
 
 [[exact_payloads]]
