@@ -45,3 +45,8 @@ Not yet evaluated. See [metrics.example.json](./metrics.example.json) for the me
 | Version | Date | Notes |
 |---------|------|-------|
 | mock_v1 | 2026-05 | Mock predictor established. No real weights. |
+
+### v1.0.0 训练记录 (2026-05-19)
+- **训练成果**: 本次使用 YOLOv8n 完成了 50 轮训练，最终整体 mAP50 达到了漂亮的 **0.892**。
+- **局限性说明**: 模型对成熟果（ripe）和过熟果（overripe）的识别极度精准；但在果实有严重重叠或叶片遮挡时，生果和欠熟果可能会有微小的误判风险。
+- **状态**: 首次训练完成，成果由 Max 正式移交。

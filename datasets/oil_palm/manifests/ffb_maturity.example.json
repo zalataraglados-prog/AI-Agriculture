@@ -10,6 +10,11 @@
   },
   "sources": [
     {
+      "name": "roboflow_v1",
+      "url": "https://universe.roboflow.com/fyp-oil-palm-fruit-ripeness-dataset/oil-palm-ffb-ripeness/dataset/1",
+      "importer": "import_ffb_roboflow.py"
+    },
+    {
       "name": "Scientific Data RGB-depth FFB 2025",
       "url": "https://www.nature.com/articles/s41597-025-04953-6",
       "license": "CC BY 4.0",
