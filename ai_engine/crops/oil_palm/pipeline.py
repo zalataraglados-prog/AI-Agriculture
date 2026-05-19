@@ -6,6 +6,9 @@ from typing import Any
 
 from ai_engine.common.predictors.base import BasePredictor, PredictorContext
 from ai_engine.common.registry import ModelRegistry
+from ai_engine.crops.oil_palm.inference.a0_yolo_predictor import (
+    build_a0_yolo_predictor_from_env,
+)
 from ai_engine.crops.oil_palm.inference.mock_predictors import (
     A0StructureMockPredictor,
     FFBMockPredictor,
@@ -154,31 +157,44 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
         mode = "mock"
 
     logger.info("Building OilPalmPipeline in mode=%s", mode)
-    if mode == "real":
-        raise RuntimeError(
-            "OIL_PALM_MODEL_MODE=real is not available in "
-            "feature/oil-palm-model-data-foundation. Real oil palm predictors "
-            "must be implemented and registered by per-task model branches "
-            "(feature/ffb-maturity-model, feature/uav-crown-detection-model, "
-            "feature/ganoderma-risk-model, feature/oil-palm-a0-routing-model)."
-        )
-
     if mode == "hybrid":
         logger.info(
-            "Oil palm hybrid mode is running as safe mock fallback in the "
-            "model data foundation branch; real predictors are not registered yet."
+            "Oil palm hybrid mode will use real A0 when configured and keep "
+            "other unavailable oil palm predictors on safe mock fallback."
         )
 
     registry = ModelRegistry()
 
-    # Tasks that get registered into the pipeline
+    a0_predictor: BasePredictor | None = None
+    if mode in ("real", "hybrid"):
+        try:
+            a0_predictor = build_a0_yolo_predictor_from_env()
+            logger.info("  [a0_structure_detection] registered real YOLO predictor")
+        except Exception as exc:
+            if mode == "real":
+                raise RuntimeError(
+                    "OIL_PALM_MODEL_MODE=real requires a usable A0 YOLO predictor. "
+                    "Set OIL_PALM_A0_MODEL_PATH/OIL_PALM_A0_LABELS_FILE and install "
+                    "oil palm inference dependencies."
+                ) from exc
+            logger.warning(
+                "A0 real predictor unavailable in hybrid mode; falling back to mock: %s",
+                exc,
+            )
+
+    if a0_predictor is not None:
+        registry.register(a0_predictor)
+
+    # Tasks that get registered into the pipeline. Downstream oil palm tasks
+    # remain mock until their own real model branches land.
     tasks_to_register = [
-        "a0_structure_detection",
         "ffb_maturity",
         "ganoderma_risk",
         "growth_vigor",
         "uav_tree_crown",
     ]
+    if a0_predictor is None:
+        tasks_to_register.insert(0, "a0_structure_detection")
 
     for task in tasks_to_register:
         mock_cls = _MOCK_PREDICTORS.get(task)

@@ -358,10 +358,14 @@ class TestPipelineMode:
     def test_pipeline_hybrid_mode_safely_uses_mock_predictors(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Foundation hybrid mode must not register unavailable real predictors."""
+        """Hybrid mode falls back safely when A0 real assets are unavailable."""
         monkeypatch.setenv(
             "OIL_PALM_FFB_MODEL_PATH",
             str(MODELS_OIL_PALM / "ffb_maturity" / "labels.json"),
+        )
+        monkeypatch.setenv(
+            "OIL_PALM_A0_MODEL_PATH",
+            str(MODELS_OIL_PALM / "a0_image_routing" / "missing_best.pt"),
         )
         pipeline_mod = self._reload_pipeline(monkeypatch, "hybrid")
 
@@ -386,10 +390,14 @@ class TestPipelineMode:
         assert result["model_version"].endswith("_mock_v1")
 
     def test_pipeline_real_mode_fails_fast(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Real mode is intentionally unavailable until per-task model branches."""
+        """Real mode requires configured A0 runtime assets."""
+        monkeypatch.setenv(
+            "OIL_PALM_A0_MODEL_PATH",
+            str(MODELS_OIL_PALM / "a0_image_routing" / "missing_best.pt"),
+        )
         pipeline_mod = self._reload_pipeline(monkeypatch, "real")
 
-        with pytest.raises(RuntimeError, match="Real oil palm predictors"):
+        with pytest.raises(RuntimeError, match="A0 YOLO predictor"):
             pipeline_mod.build_default_oil_palm_pipeline()
 
     def test_a0_structure_detector_is_registered_as_mock(

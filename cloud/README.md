@@ -57,6 +57,10 @@ image_index_path = "state/image_index.jsonl"
 image_db_error_store_path = "state/image_upload_errors.jsonl"
 database_url = "postgres://postgres@127.0.0.1/ai_agriculture"
 ai_predict_url = "http://127.0.0.1:8000/api/v1/predict"
+# Optional: when set, observation sessions call AI Engine A0 detection before
+# bbox review. If unset or unavailable, Cloud falls back to the local mock A0
+# contract so tree-profile collection remains usable.
+# AI_OIL_PALM_A0_DETECT_URL=http://127.0.0.1:8000/api/v1/oil-palm/a0/detect
 openclaw_url = "http://127.0.0.1:3000"
 
 [[exact_payloads]]
@@ -156,8 +160,10 @@ These APIs aggregate existing structured facts. They do not run real models.
 Observation session image upload now uses an A0 confirmation step:
 
 - `POST /api/v1/sessions/{session_id}/images`
-  - saves the original image and returns mock A0 `a0_candidates`
-  - response includes `requires_confirmation: true`
+  - saves the original image and returns A0 `a0_candidates`
+  - calls `${AI_OIL_PALM_A0_DETECT_URL}` when configured
+  - falls back to the local mock A0 contract when the URL is unset or unavailable
+  - response includes `requires_confirmation` based on A0 `route_status`
 - `POST /api/v1/sessions/{session_id}/images/{image_id}/confirm`
   - body: `{"selected_candidate_ids":["a0_fruit_001"]}`
   - rejected bbox candidates are masked in a derived PNG image

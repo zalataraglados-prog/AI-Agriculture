@@ -66,7 +66,10 @@ CROP_PROFILE=oil_palm uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 
 | `MODEL_ADVICE_FILE` | Rice advice map path | `models/rice/rice_leaf_classifier/advice_map.yaml` |
 | `CORS_ORIGINS` | Allowed dashboard/backend origins | `http://localhost:8088,http://127.0.0.1:8088` |
 | `OIL_PALM_MODEL_MODE` | Oil palm mode: `mock`, `real`, or `hybrid` | `mock` |
-| `OIL_PALM_CONFIDENCE_THRESHOLD` | Future real predictor confidence threshold | `0.5` |
+| `OIL_PALM_A0_MODEL_PATH` | A0 YOLO weights path | `models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/weights/best.pt` |
+| `OIL_PALM_A0_LABELS_FILE` | A0 YOLO labels file | `models/oil_palm/a0_image_routing/labels.json` |
+| `OIL_PALM_A0_CONFIG_FILE` | A0 inference config file | `models/oil_palm/a0_image_routing/inference_config.yaml` |
+| `OIL_PALM_CONFIDENCE_THRESHOLD` | A0 confidence threshold override | `0.5` |
 
 Future oil palm model path variables are documented in `ai_engine/.env.example`.
 `OIL_PALM_A0_MODEL_PATH` can point at the trained A0 YOLO baseline recorded in
@@ -96,16 +99,16 @@ Oil palm:
 
 ## Oil Palm Model Modes
 
-The current service still defaults to mock predictors. A trained A0 YOLO
-baseline artifact now exists, but runtime registration of a real YOLO predictor
-is intentionally separate from the data/training branch.
+The service still defaults to mock predictors. A trained A0 YOLO baseline
+artifact exists, and runtime registration is now available for A0 only.
 
 - `mock`: all tasks use mock predictors. This is the default and is safe for CI,
   demos, and environments without weights.
-- `hybrid`: safe fallback mode in this foundation branch. It still uses mock
-  predictors until a later per-task branch registers real predictors.
-- `real`: fail-fast in this foundation branch. Use it only after per-task model
-  branches implement and register real predictors.
+- `hybrid`: registers the real A0 YOLO structure detector when weights and
+  dependencies are available, then keeps downstream FFB/Ganoderma/Growth/UAV
+  predictors on safe mock fallback until their own model branches land.
+- `real`: requires the A0 YOLO predictor to load successfully. Downstream oil
+  palm predictors still advertise `mode=mock` until they are implemented.
 
 Current oil palm image role routing:
 
@@ -116,20 +119,16 @@ Current oil palm image role routing:
 | `crown` | `growth_vigor` |
 | `uav_tile` | `uav_tree_crown` |
 
-A0 structure detection is registered as a mock gatekeeper at runtime until the
-real YOLO predictor is wired in. It validates the requested `image_role`,
-returns bbox candidates, and uses `route_status` values such as
-`needs_user_confirmation`, `role_mismatch`, and
-`no_supported_structure_detected`.
+A0 structure detection can now run as a real YOLOv8 gatekeeper in `hybrid` or
+`real` mode. It validates the requested `image_role`, returns bbox candidates,
+and uses `route_status` values such as `needs_user_confirmation`,
+`role_mismatch`, and `no_supported_structure_detected`. The weights are not
+committed; mount them and point `OIL_PALM_A0_MODEL_PATH` at the mounted file.
 
 The first trained A0 YOLO baseline is documented under
-`models/oil_palm/a0_image_routing/`:
-
-- `metrics.json` records training metrics and the local ignored artifact path.
-- `inference_config.yaml` records the intended real-model runtime settings.
-- `runs/a0_yolo_structure_detector_v1/weights/best.pt` is ignored by Git and
-  must be supplied by local storage, release artifact, object storage, or a
-  deployment volume.
+`models/oil_palm/a0_image_routing/`: `metrics.json` records training metrics,
+`inference_config.yaml` records runtime settings, and
+`runs/a0_yolo_structure_detector_v1/weights/best.pt` is ignored by Git.
 
 Current A0 YOLO labels are `fruit_bunch`, `trunk_base`, and `crown_region`.
 `unknown` is an inference status, not a trained bbox class.
