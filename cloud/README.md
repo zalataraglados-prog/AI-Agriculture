@@ -163,7 +163,7 @@ Observation session image upload now uses an A0 confirmation step:
   - saves the original image and returns A0 `a0_candidates`
   - calls `${AI_OIL_PALM_A0_DETECT_URL}` when configured
   - falls back to the local mock A0 contract when the URL is unset or unavailable
-  - response includes `requires_confirmation: true`
+  - response includes `requires_confirmation` based on A0 `route_status`
 - `POST /api/v1/sessions/{session_id}/images/{image_id}/confirm`
   - body: `{"selected_candidate_ids":["a0_fruit_001"]}`
   - rejected bbox candidates are masked in a derived PNG image
