@@ -1,0 +1,78 @@
+{
+  "model_version": "oil_palm_a0_yolo_structure_detector_v1",
+  "framework": "YOLOv8",
+  "task": "a0_image_routing",
+  "dataset_version": "roboflow_a0_2026_05_17",
+  "dataset_manifest": "datasets/oil_palm/manifests/a0_image_routing.json",
+  "labels": ["fruit_bunch", "trunk_base", "crown_region"],
+  "artifact": {
+    "run_name": "a0_yolo_structure_detector_v1",
+    "weights": "models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/weights/best.pt",
+    "last_weights": "models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/weights/last.pt",
+    "results_csv": "models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/results.csv",
+    "training_metadata": "models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/training_metadata.json"
+  },
+  "metrics": {
+    "best_epoch": 76,
+    "mAP50": 0.8988,
+    "mAP50_95": 0.52789,
+    "precision": 0.78039,
+    "recall": 0.94318,
+    "final_epoch": 100,
+    "final_mAP50": 0.85163,
+    "final_mAP50_95": 0.51256,
+    "final_precision": 0.80997,
+    "final_recall": 0.79223,
+    "route_accuracy": null,
+    "wrong_auto_route_rate": null,
+    "no_supported_structure_recall": null,
+    "per_class": {
+      "fruit_bunch": {"precision": null, "recall": null, "ap50": null},
+      "trunk_base": {"precision": null, "recall": null, "ap50": null},
+      "crown_region": {"precision": null, "recall": null, "ap50": null}
+    },
+    "negative_sample_false_positive_rate": null
+  },
+  "losses": {
+    "final_train_box_loss": 0.87753,
+    "final_train_cls_loss": 0.48772,
+    "final_train_dfl_loss": 1.20831,
+    "final_val_box_loss": 1.47044,
+    "final_val_cls_loss": 0.79871,
+    "final_val_dfl_loss": 1.69553
+  },
+  "inference": {
+    "fps_gpu": null,
+    "fps_cpu": null,
+    "input_size": [960, 960],
+    "device": "Colab GPU",
+    "confidence_threshold": 0.5,
+    "iou_threshold": 0.7
+  },
+  "training": {
+    "epochs": 100,
+    "batch_size": 8,
+    "optimizer": "auto",
+    "base_model": "yolov8n.pt",
+    "learning_rate": 0.01,
+    "seed": 42,
+    "git_commit": "f70422adad5fc997a7489a29123b96fb83554333",
+    "created_at_utc": "2026-05-18T08:00:51.868389+00:00",
+    "augmentation": {
+      "degrees": 10,
+      "translate": 0.1,
+      "scale": 0.4,
+      "shear": 2,
+      "perspective": 0.0005,
+      "fliplr": 0.5,
+      "flipud": 0.0,
+      "hsv_h": 0.015,
+      "hsv_s": 0.5,
+      "hsv_v": 0.4,
+      "mosaic": 0.5,
+      "mixup": 0.05,
+      "copy_paste": 0.0
+    }
+  },
+  "notes": "First trained A0 YOLO structure detector. It detects structure candidates only; unknown remains a route status, not a YOLO class. This dataset version has no empty-label negative samples, so no_supported_structure and false-positive metrics are not evaluated yet."
+}

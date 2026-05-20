@@ -384,6 +384,10 @@ pub(crate) struct RegisteredDevice {
 
     #[serde(default)]
 
+    pub(crate) device_token_hash: String,
+
+    #[serde(default)]
+
     pub(crate) credential_revoked: bool,
 
     #[serde(default)]

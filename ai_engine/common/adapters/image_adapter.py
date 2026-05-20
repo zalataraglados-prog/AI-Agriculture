@@ -1,8 +1,36 @@
 from __future__ import annotations
 
+from io import BytesIO
+from pathlib import Path
+
+from PIL import Image, UnidentifiedImageError
+
 
 class ImageLoadError(ValueError):
     """Raised when image bytes cannot be decoded."""
+
+
+def load_image_from_path(image_path: str | Path) -> Image.Image:
+    path = Path(image_path)
+    if not path.exists():
+        raise ImageLoadError(f"image file not found: {path}")
+    try:
+        with path.open("rb") as f:
+            return load_image_from_bytes(f.read())
+    except ImageLoadError:
+        raise
+    except OSError as exc:
+        raise ImageLoadError(f"cannot read image file: {path}") from exc
+
+
+def load_image_from_bytes(image_bytes: bytes) -> Image.Image:
+    if not image_bytes:
+        raise ImageLoadError("empty image bytes")
+    try:
+        with Image.open(BytesIO(image_bytes)) as img:
+            return img.convert("RGB")
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ImageLoadError("cannot decode image bytes") from exc
 
 
 def validate_image_bytes(image_bytes: bytes) -> str:
