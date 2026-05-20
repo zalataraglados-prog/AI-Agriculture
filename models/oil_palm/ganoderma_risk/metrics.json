@@ -1,9 +1,16 @@
 {
-  "model_version": "oil_palm_ganoderma_resnet18_v1.0.0",
+  "model_version": "oil_palm_ganoderma_resnet18_v1.0.0_offline",
   "framework": "ResNet18",
   "task": "ganoderma_risk",
-  "dataset_version": "v1",
-  "dataset_manifest": "datasets/oil_palm/manifests/ganoderma_risk.json",
+  "dataset_version": "v1_pending_team_confirmation",
+  "dataset_manifest": "datasets/oil_palm/manifests/ganoderma_risk.example.json",
+  "labels": ["healthy", "suspected_risk", "other_stress_unknown"],
+  "active_training_labels": ["healthy", "suspected_risk"],
+  "artifact": {
+    "weights": "models/oil_palm/ganoderma_risk/best.pth",
+    "weights_sha256": null,
+    "status": "pending_team_confirmation"
+  },
   "metrics": {
     "accuracy": 0.96,
     "precision_macro": 0.97,
@@ -13,46 +20,54 @@
       "healthy": {
         "precision": 0.94,
         "recall": 1.00,
-        "f1": 0.97
+        "f1": 0.97,
+        "support": 92
       },
       "suspected_risk": {
         "precision": 1.00,
         "recall": 0.92,
-        "f1": 0.96
+        "f1": 0.96,
+        "support": 75
       },
       "other_stress_unknown": {
         "precision": null,
         "recall": null,
-        "f1": null
+        "f1": null,
+        "support": 0,
+        "status": "reserved_not_trained_in_v1"
       }
     },
     "confusion_matrix": [
-      [
-        92,
-        0
-      ],
-      [
-        6,
-        69
-      ]
+      [92, 0],
+      [6, 69]
     ]
   },
   "inference": {
     "fps_gpu": null,
     "fps_cpu": null,
-    "input_size": [
-      224,
-      224
-    ],
+    "input_size": [224, 224],
     "device": null
   },
   "training": {
     "epochs": 20,
+    "phase1_epochs": 10,
     "batch_size": 32,
     "optimizer": "Adam",
-    "learning_rate": "phase1: 1e-4 (FC only, 10 epochs), phase2: 1e-5 (all layers, 10 epochs)",
-    "augmentation": "RandomHorizontalFlip, RandomVerticalFlip, RandomRotation(15), ColorJitter(brightness=0.3, contrast=0.3)",
-    "seed": 42
+    "learning_rate": {
+      "phase1": 0.0001,
+      "phase2": 0.00001
+    },
+    "augmentation": "RandomHorizontalFlip, RandomVerticalFlip, RandomRotation(15), ColorJitter",
+    "seed": 42,
+    "train_count": null,
+    "val_count": null,
+    "test_count": 167
   },
-  "notes": "Risk labels are NEVER confirmed without expert evidence. suspected_risk recall is 0.92; 6 out of 75 infected samples were missed. other_stress_unknown class has no data in v1."
+  "notes": [
+    "Offline training metrics were provided by the teammate and are recorded for handoff review.",
+    "All positive outputs are suspected risk, never confirmed disease.",
+    "other_stress_unknown is a reserved project label and was not trained in v1.",
+    "The model is not integrated into AI Engine runtime in this branch.",
+    "Dataset license, split grouping, split counts, and weight hash require teammate confirmation."
+  ]
 }

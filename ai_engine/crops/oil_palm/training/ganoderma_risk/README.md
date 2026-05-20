@@ -1,43 +1,76 @@
 # Ganoderma Risk Training
 
-## 目标
+## Goal
 
-训练 trunk_base 图片的 Ganoderma / BSR 风险分类模型。
+Train a trunk-base RGB classifier for Ganoderma / BSR risk screening. Outputs
+must remain `suspected` risk signals, never confirmed disease labels.
 
-**重要：输出必须是 `suspected` 风险等级，绝不输出"确诊"。**
+## Labels
 
-## 推荐框架
+Project-standard labels:
 
-ResNet18 / EfficientNet (torchvision / timm)
-
-## 标签
-
-v1 保守标签: `healthy`, `suspected_risk`, `other_stress_unknown`
-
-详见 `models/oil_palm/ganoderma_risk/labels.json`
-
-若数据质量足够，未来可扩展:
-`suspected_early`, `moderate`, `severe`, `dead_or_collapsed`
-
-## 数据来源
-
-参考 `datasets/oil_palm/manifests/ganoderma_risk.example.json`
-
-## 训练命令
-
-```bash
-# TODO: 等真实训练脚本就绪后补充
+```text
+healthy
+suspected_risk
+other_stress_unknown
 ```
 
-## 评估命令
+The v1 training script uses active labels only:
 
-```bash
-# TODO: 等评估脚本就绪后补充
+```text
+healthy
+suspected_risk
 ```
 
-## 注意事项
+`other_stress_unknown` is reserved for future data and is ignored by v1
+training.
 
-- Ganoderma 公开数据稀缺，可能需要小样本/迁移学习策略
-- RGB-only 分类可能无法检测早期感染
-- 所有正向预测必须标记为 `suspected_not_confirmed`
-- 混淆矩阵中应特别关注 false negative rate
+## Import Commands
+
+Run the infected/risk source first if you want a clean output directory, then
+append the healthy source.
+
+```bash
+python ai_engine/crops/oil_palm/training/data_importers/import_ganoderma_infected_roboflow.py \
+  --raw-dir datasets/oil_palm/ganoderma_risk/raw/ganoderma_infected \
+  --output-dir datasets/oil_palm/ganoderma_risk/classification \
+  --summary-file datasets/oil_palm/ganoderma_risk/splits/ganoderma_infected_summary.json \
+  --overwrite
+
+python ai_engine/crops/oil_palm/training/data_importers/import_ganoderma_healthy_roboflow.py \
+  --raw-dir datasets/oil_palm/ganoderma_risk/raw/ganoderma_healthy \
+  --output-dir datasets/oil_palm/ganoderma_risk/classification \
+  --summary-file datasets/oil_palm/ganoderma_risk/splits/ganoderma_healthy_summary.json
+```
+
+## Training Command Template
+
+```bash
+python ai_engine/crops/oil_palm/training/ganoderma_risk/train.py \
+  --data-dir datasets/oil_palm/ganoderma_risk/classification \
+  --model-out models/oil_palm/ganoderma_risk \
+  --labels-file models/oil_palm/ganoderma_risk/labels.json \
+  --active-labels healthy,suspected_risk \
+  --epochs 20 \
+  --phase1-epochs 10 \
+  --batch-size 32 \
+  --image-size 224 \
+  --seed 42
+```
+
+## Output Contract
+
+- Weights: `models/oil_palm/ganoderma_risk/best.pth` (ignored by Git).
+- Template metrics: `models/oil_palm/ganoderma_risk/metrics.example.json`.
+- Recorded handoff metrics: `models/oil_palm/ganoderma_risk/metrics.json`.
+- Model card: `models/oil_palm/ganoderma_risk/model_card.md`.
+
+## Pending Team Confirmation
+
+- Dataset source pages, licenses, versions, and download dates.
+- Whether split leakage exists across tree, plantation, video, or source.
+- Exact train/validation/test counts; current handoff metrics report 167 test
+  samples.
+- Weight file path, size, and SHA-256 hash.
+- Whether v1 is officially a two-active-class model with
+  `other_stress_unknown` reserved for future data.

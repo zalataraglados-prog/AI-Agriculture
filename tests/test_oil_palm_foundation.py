@@ -155,6 +155,33 @@ class TestMetrics:
             data = json.load(f)
         assert data["task"] == task
 
+    @pytest.mark.parametrize("task", TASKS)
+    def test_trained_metrics_json_has_required_fields_when_present(self, task: str) -> None:
+        metrics_path = MODELS_OIL_PALM / task / "metrics.json"
+        if not metrics_path.exists():
+            pytest.skip(f"No trained metrics recorded for {task}")
+
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for field in [
+            "model_version",
+            "framework",
+            "task",
+            "dataset_version",
+            "dataset_manifest",
+            "metrics",
+            "training",
+            "inference",
+            "notes",
+        ]:
+            assert field in data, f"Trained metrics {task} missing required field: {field}"
+        assert data["task"] == task
+        assert data["dataset_manifest"].endswith(".json")
+        assert isinstance(data["metrics"], dict)
+        assert isinstance(data["training"], dict)
+        assert isinstance(data["inference"], dict)
+
     def test_a0_trained_metrics_are_recorded(self) -> None:
         metrics_path = MODELS_OIL_PALM / "a0_image_routing" / "metrics.json"
         assert metrics_path.exists(), "Trained A0 metrics.json should be recorded"
