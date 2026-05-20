@@ -263,6 +263,83 @@ class TestBaseImporter:
         assert importer.validate_raw_dir() is True
 
 
+class TestGanodermaRoboflowImporters:
+    """Test Ganoderma Roboflow importers and active-label safeguards."""
+
+    def _write_roboflow_csv(
+        self,
+        raw_dir: Path,
+        header: str,
+        rows: list[str],
+        image_names: list[str],
+    ) -> None:
+        train_dir = raw_dir / "train"
+        train_dir.mkdir(parents=True)
+        (train_dir / "_classes.csv").write_text(
+            "\n".join([header, *rows]) + "\n",
+            encoding="utf-8",
+        )
+        for image_name in image_names:
+            (train_dir / image_name).write_bytes(b"fake image bytes")
+
+    def test_importers_append_active_classes_without_reserved_directory(
+        self, tmp_path: Path
+    ) -> None:
+        from ai_engine.crops.oil_palm.training.data_importers.import_ganoderma_healthy_roboflow import (
+            GanodermaHealthyImporter,
+        )
+        from ai_engine.crops.oil_palm.training.data_importers.import_ganoderma_infected_roboflow import (
+            GanodermaInfectedImporter,
+        )
+
+        infected_raw = tmp_path / "ganoderma_infected"
+        healthy_raw = tmp_path / "ganoderma_healthy"
+        output_dir = tmp_path / "classification"
+
+        self._write_roboflow_csv(
+            infected_raw,
+            "filename,Ganoderma,Ganoderma Fungus",
+            ["infected.jpg,1,0", "control.jpg,0,0"],
+            ["infected.jpg", "control.jpg"],
+        )
+        self._write_roboflow_csv(
+            healthy_raw,
+            "filename,healthy,unhealthy",
+            ["healthy.jpg,1,0", "risk.jpg,0,1"],
+            ["healthy.jpg", "risk.jpg"],
+        )
+
+        infected_summary = GanodermaInfectedImporter(
+            raw_dir=str(infected_raw),
+            output_dir=str(output_dir),
+            summary_file=str(tmp_path / "infected_summary.json"),
+            seed=42,
+            overwrite=True,
+        ).convert()
+        healthy_summary = GanodermaHealthyImporter(
+            raw_dir=str(healthy_raw),
+            output_dir=str(output_dir),
+            summary_file=str(tmp_path / "healthy_summary.json"),
+            seed=42,
+        ).convert()
+
+        assert infected_summary["active_labels"] == ["healthy", "suspected_risk"]
+        assert healthy_summary["active_labels"] == ["healthy", "suspected_risk"]
+        assert not any(output_dir.glob("*/other_stress_unknown"))
+        copied = list(output_dir.glob("*/*/*.jpg"))
+        assert len(copied) == 4
+
+    def test_ganoderma_training_active_labels_are_project_label_subset(self) -> None:
+        from ai_engine.crops.oil_palm.training.ganoderma_risk.train import (
+            validate_active_labels,
+        )
+
+        project_labels = ["healthy", "suspected_risk", "other_stress_unknown"]
+        validate_active_labels(project_labels, ["healthy", "suspected_risk"])
+        with pytest.raises(ValueError, match="not in project labels"):
+            validate_active_labels(project_labels, ["confirmed_ganoderma"])
+
+
 # ---------------------------------------------------------------------------
 # Metrics utils tests
 # ---------------------------------------------------------------------------
