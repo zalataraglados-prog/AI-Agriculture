@@ -263,6 +263,77 @@ class TestBaseImporter:
         assert importer.validate_raw_dir() is True
 
 
+class TestFFBRoboflowImporter:
+    """Test FFB Roboflow conversion safeguards."""
+
+    def test_converts_known_labels_and_reports_dropped_annotations(
+        self, tmp_path: Path
+    ) -> None:
+        from ai_engine.crops.oil_palm.training.data_importers.import_ffb_roboflow import (
+            RoboflowYoloImporter,
+        )
+
+        raw_dir = tmp_path / "raw"
+        image_dir = raw_dir / "train" / "images"
+        label_dir = raw_dir / "train" / "labels"
+        image_dir.mkdir(parents=True)
+        label_dir.mkdir(parents=True)
+        (image_dir / "sample.jpg").write_bytes(b"fake image bytes")
+        (label_dir / "sample.txt").write_text(
+            "\n".join(
+                [
+                    "1 0.50 0.50 0.20 0.20",
+                    "2 0.40 0.40 0.10 0.10",
+                    "9 0.50 0.50 0.20 0.20",
+                    "0 1.20 0.50 0.20 0.20",
+                    "3 0.1 0.2",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        output_dir = tmp_path / "yolo"
+        summary_path = tmp_path / "summary.json"
+        summary = RoboflowYoloImporter(
+            raw_dir=raw_dir,
+            output_dir=output_dir,
+            summary_file=summary_path,
+        ).convert()
+
+        converted = (output_dir / "train" / "labels" / "sample.txt").read_text(
+            encoding="utf-8"
+        )
+        assert converted.splitlines() == [
+            "3 0.50 0.50 0.20 0.20",
+            "2 0.40 0.40 0.10 0.10",
+        ]
+        train_summary = summary["splits"]["train"]
+        assert train_summary["images_copied"] == 1
+        assert train_summary["annotations_kept"] == 2
+        assert train_summary["annotations_dropped_unknown_label"] == 1
+        assert train_summary["annotations_dropped_invalid_bbox"] == 1
+        assert train_summary["annotations_dropped_malformed"] == 1
+        assert train_summary["unknown_source_labels"] == {"9": 1}
+        assert summary_path.exists()
+        assert (output_dir / "data.yaml").exists()
+
+    def test_refuses_to_overwrite_existing_output_without_flag(self, tmp_path: Path) -> None:
+        from ai_engine.crops.oil_palm.training.data_importers.import_ffb_roboflow import (
+            RoboflowYoloImporter,
+        )
+
+        raw_dir = tmp_path / "raw"
+        (raw_dir / "train" / "images").mkdir(parents=True)
+        output_dir = tmp_path / "yolo"
+        output_dir.mkdir()
+        (output_dir / "existing.txt").write_text("keep", encoding="utf-8")
+
+        importer = RoboflowYoloImporter(raw_dir=raw_dir, output_dir=output_dir)
+        with pytest.raises(FileExistsError, match="--overwrite"):
+            importer.convert()
+
+
 # ---------------------------------------------------------------------------
 # Metrics utils tests
 # ---------------------------------------------------------------------------
