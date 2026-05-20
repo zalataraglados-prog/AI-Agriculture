@@ -1,0 +1,77 @@
+{
+  "task": "a0_image_routing",
+  "version": "roboflow_a0_2026_05_17",
+  "description": "A0 structure detection and routing dataset generated from Roboflow COCO exports",
+  "internal_training_standard": {
+    "format": "yolo_detection",
+    "annotation_type": "bbox",
+    "image_size": null,
+    "coordinate_system": "normalized_xywh"
+  },
+  "sources": [
+    {
+      "name": "crown_region",
+      "format": "roboflow_coco",
+      "annotation_path": "<external>/a0/crown_region/train/_annotations.coco.json",
+      "license": "Unknown",
+      "url": "https://app.roboflow.com/datasets/doyles-workspace/dataset",
+      "images": 150,
+      "annotations": 352,
+      "importer": "import_a0_roboflow_coco.py"
+    },
+    {
+      "name": "fruit_bunch",
+      "format": "roboflow_coco",
+      "annotation_path": "<external>/a0/fruit_bunch/train/_annotations.coco.json",
+      "license": "Unknown",
+      "url": "https://app.roboflow.com/datasets/doyles-workspace/dataset",
+      "images": 156,
+      "annotations": 714,
+      "importer": "import_a0_roboflow_coco.py"
+    },
+    {
+      "name": "trunk_base",
+      "format": "roboflow_coco",
+      "annotation_path": "<external>/a0/trunk_base/train/_annotations.coco.json",
+      "license": "Unknown",
+      "url": "https://app.roboflow.com/datasets/doyles-workspace/dataset",
+      "images": 91,
+      "annotations": 114,
+      "importer": "import_a0_roboflow_coco.py"
+    }
+  ],
+  "label_map": {
+    "0": "fruit_bunch",
+    "1": "trunk_base",
+    "2": "crown_region"
+  },
+  "label_notes": "A0 detects supported oil palm structures and proposes bbox candidates for user confirmation. unknown is not a YOLO class.",
+  "split_strategy": {
+    "method": "grouped_by_source_dataset_and_original_media",
+    "ratios": {
+      "train": 0.7,
+      "val": 0.15,
+      "test": 0.15
+    },
+    "seed": 42,
+    "constraint": "Images from the same source media group stay in the same split"
+  },
+  "expected_counts": {
+    "train": 279,
+    "val": 58,
+    "test": 59,
+    "total": 396,
+    "annotations": 1174,
+    "labels": {
+      "crown_region": 352,
+      "fruit_bunch": 708,
+      "trunk_base": 114
+    }
+  },
+  "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
+  "notes": [
+    "Generated from Roboflow COCO exports.",
+    "No empty-label negative samples are included in this baseline export.",
+    "License is recorded as Unknown until source-specific permissions are documented."
+  ]
+}

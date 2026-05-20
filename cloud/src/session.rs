@@ -2,8 +2,10 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use reqwest::blocking::Client;
 use tiny_http::{Request, Response};
 
+use crate::ai_client::detect_oil_palm_a0_from_bytes;
 use crate::db::DbManager;
 use crate::image_upload::{parse_boundary, parse_multipart_file, save_image_file, ImageUploadTag};
 use crate::time_util::now_rfc3339;
@@ -127,6 +129,8 @@ pub(crate) fn handle_add_session_image(
     session_id: &str,
     query: &str,
     image_store_path: &str,
+    ai_oil_palm_a0_detect_url: Option<&str>,
+    ai_http_client: &Client,
     db: Arc<Mutex<DbManager>>,
 ) {
     let sid = session_id.parse().unwrap_or(0);
@@ -238,18 +242,37 @@ pub(crate) fn handle_add_session_image(
         }
     };
 
-    let a0_review = a0_review_for_role(&image_role, tree_code, mock_detect_role.as_deref());
+    let a0_review = detect_a0_or_mock(
+        ai_http_client,
+        ai_oil_palm_a0_detect_url,
+        &file_part.body,
+        file_part.filename.as_deref(),
+        &persisted.image_type,
+        &image_role,
+        tree_code,
+        sid,
+        mock_detect_role.as_deref(),
+    );
     let a0_candidates = a0_review["metadata"]["a0_candidates"].clone();
-    let metadata = serde_json::json!({
-        "tree_code": tree_code,
-        "session_id": sid,
-        "session_code": session["session_code"],
-        "filename": file_part.filename,
-        "mock": true,
-        "a0_candidates": a0_candidates,
-        "route_status": a0_review["metadata"]["route_status"],
-        "downstream_status": "pending_user_confirmation"
-    });
+    let mut metadata = a0_review["metadata"].clone();
+    if !metadata.is_object() {
+        metadata = serde_json::json!({});
+    }
+    if let Some(obj) = metadata.as_object_mut() {
+        obj.insert("tree_code".to_string(), serde_json::json!(tree_code));
+        obj.insert("session_id".to_string(), serde_json::json!(sid));
+        obj.insert("session_code".to_string(), session["session_code"].clone());
+        obj.insert("filename".to_string(), serde_json::json!(file_part.filename));
+        obj.insert("a0_candidates".to_string(), a0_candidates);
+        obj.insert(
+            "route_status".to_string(),
+            a0_review["metadata"]["route_status"].clone(),
+        );
+        obj.insert(
+            "downstream_status".to_string(),
+            serde_json::json!("pending_user_confirmation"),
+        );
+    }
 
     let now = chrono::Utc::now();
     let db_record = crate::db::ImageUploadDbRecord {
@@ -292,7 +315,7 @@ pub(crate) fn handle_add_session_image(
             200,
             &serde_json::json!({
                 "status": "ok",
-                "requires_confirmation": true,
+                "requires_confirmation": a0_review["metadata"]["requires_user_confirmation"].as_bool().unwrap_or(false),
                 "image": image,
                 "analysis": a0_review
             })
@@ -624,6 +647,119 @@ fn mock_analysis_for_role(
             })),
             "model_version": "oil_palm_mock_session_v1"
         }),
+    }
+}
+
+fn detect_a0_or_mock(
+    client: &Client,
+    detect_url: Option<&str>,
+    image_bytes: &[u8],
+    filename: Option<&str>,
+    image_type: &str,
+    image_role: &str,
+    tree_code: &str,
+    session_id: i32,
+    mock_detect_role: Option<&str>,
+) -> serde_json::Value {
+    let Some(url) = detect_url else {
+        let mut review = a0_review_for_role(image_role, tree_code, mock_detect_role);
+        annotate_a0_metadata(
+            &mut review,
+            tree_code,
+            session_id,
+            "local_mock_no_ai_url",
+            None,
+            None,
+        );
+        return review;
+    };
+
+    match detect_oil_palm_a0_from_bytes(
+        client,
+        url,
+        image_bytes,
+        filename,
+        image_type,
+        image_role,
+        Some(tree_code),
+        Some(&session_id.to_string()),
+        mock_detect_role,
+    ) {
+        Ok(mut review) => {
+            annotate_a0_metadata(
+                &mut review,
+                tree_code,
+                session_id,
+                "ai_engine",
+                Some(url),
+                None,
+            );
+            review
+        }
+        Err(e) => {
+            eprintln!(
+                "[WARN] A0 AI Engine call failed for tree {} session {}: {}. Falling back to local mock A0.",
+                tree_code, session_id, e
+            );
+            let mut review = a0_review_for_role(image_role, tree_code, mock_detect_role);
+            annotate_a0_metadata(
+                &mut review,
+                tree_code,
+                session_id,
+                "local_mock_ai_error",
+                Some(url),
+                Some(&e),
+            );
+            review
+        }
+    }
+}
+
+fn annotate_a0_metadata(
+    review: &mut serde_json::Value,
+    tree_code: &str,
+    session_id: i32,
+    source: &str,
+    detect_url: Option<&str>,
+    error: Option<&str>,
+) {
+    if !review.is_object() {
+        *review = serde_json::json!({
+            "status": "success",
+            "results": [],
+            "geometry": [],
+            "metadata": {},
+            "model_version": "oil_palm_a0_detector_mock_v1"
+        });
+    }
+    if review.get("metadata").and_then(|v| v.as_object()).is_none() {
+        review["metadata"] = serde_json::json!({});
+    }
+    if let Some(obj) = review["metadata"].as_object_mut() {
+        obj.insert("crop".to_string(), serde_json::json!("oil_palm"));
+        obj.insert("tree_code".to_string(), serde_json::json!(tree_code));
+        obj.insert("session_id".to_string(), serde_json::json!(session_id));
+        obj.insert(
+            "downstream_status".to_string(),
+            serde_json::json!("pending_user_confirmation"),
+        );
+        obj.insert("a0_source".to_string(), serde_json::json!(source));
+        if let Some(url) = detect_url {
+            obj.insert("a0_detect_url".to_string(), serde_json::json!(url));
+        }
+        if let Some(message) = error {
+            obj.insert("a0_runtime_fallback".to_string(), serde_json::json!(true));
+            obj.insert("a0_runtime_error".to_string(), serde_json::json!(message));
+        }
+        let requires_confirmation = obj
+            .get("route_status")
+            .and_then(|v| v.as_str())
+            .map(|v| v == "needs_user_confirmation")
+            .unwrap_or(false);
+        obj.insert(
+            "requires_user_confirmation".to_string(),
+            serde_json::json!(requires_confirmation),
+        );
     }
 }
 

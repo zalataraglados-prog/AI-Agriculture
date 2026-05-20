@@ -1,0 +1,4 @@
+dataset_version,source_name,source_path,roboflow_url,license,images,annotations,notes
+roboflow_a0_2026_05_17,crown_region,<external>/a0/crown_region/train/_annotations.coco.json,https://app.roboflow.com/datasets/doyles-workspace/dataset,Unknown,150,352,Roboflow COCO export; license pending verification
+roboflow_a0_2026_05_17,fruit_bunch,<external>/a0/fruit_bunch/train/_annotations.coco.json,https://app.roboflow.com/datasets/doyles-workspace/dataset,Unknown,156,714,Roboflow COCO export; license pending verification
+roboflow_a0_2026_05_17,trunk_base,<external>/a0/trunk_base/train/_annotations.coco.json,https://app.roboflow.com/datasets/doyles-workspace/dataset,Unknown,91,114,Roboflow COCO export; license pending verification

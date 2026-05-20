@@ -1,9 +1,6 @@
 # Oil Palm inference dependencies
-# NOTE: ultralytics + torch will be added when the real YOLOv8 model is integrated.
-# For now, oil_palm endpoints are mock-only and don't need heavy ML deps.
 opencv-python-headless
-# --- Future (uncomment when real model is integrated) ---
-# ultralytics>=8.0
-# torch>=2.0
-# torchvision>=0.15
+ultralytics>=8.0
+torch>=2.0
+torchvision>=0.15
 # onnxruntime>=1.16

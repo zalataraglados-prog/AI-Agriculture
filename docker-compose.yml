@@ -21,6 +21,11 @@ services:
       - MODEL_LABELS_FILE=/app/models/rice/rice_leaf_classifier/labels.json
       - MODEL_CONFIG_FILE=/app/models/rice/rice_leaf_classifier/config.yaml
       - MODEL_ADVICE_FILE=/app/models/rice/rice_leaf_classifier/advice_map.yaml
+      - OIL_PALM_MODEL_MODE=${OIL_PALM_MODEL_MODE:-mock}
+      - OIL_PALM_A0_MODEL_PATH=${OIL_PALM_A0_MODEL_PATH:-/app/models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/weights/best.pt}
+      - OIL_PALM_A0_LABELS_FILE=${OIL_PALM_A0_LABELS_FILE:-/app/models/oil_palm/a0_image_routing/labels.json}
+      - OIL_PALM_A0_CONFIG_FILE=${OIL_PALM_A0_CONFIG_FILE:-/app/models/oil_palm/a0_image_routing/inference_config.yaml}
+      - OIL_PALM_CONFIDENCE_THRESHOLD=${OIL_PALM_CONFIDENCE_THRESHOLD:-0.5}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 30s

@@ -1,0 +1,81 @@
+{
+  "dataset_version": "roboflow_a0_2026_05_17",
+  "source_root": "<external>/a0",
+  "output_root": "datasets/oil_palm/a0_image_routing",
+  "labels": [
+    "fruit_bunch",
+    "trunk_base",
+    "crown_region"
+  ],
+  "split_ratios": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "split_seed": 42,
+  "image_count": 396,
+  "annotation_count": 1174,
+  "split_counts": {
+    "test": 59,
+    "train": 279,
+    "val": 58
+  },
+  "split_annotation_counts": {
+    "test": 164,
+    "train": 853,
+    "val": 157
+  },
+  "label_counts": {
+    "crown_region": 352,
+    "fruit_bunch": 708,
+    "trunk_base": 114
+  },
+  "label_image_counts": {
+    "fruit_bunch": 155,
+    "trunk_base": 91,
+    "crown_region": 150
+  },
+  "skipped_duplicate_images": [
+    {
+      "kept": "<external>/a0/fruit_bunch/train/48_jpg.rf.tBy0WRyT07LiH0o9ZwUt.jpg",
+      "skipped": "<external>/a0/fruit_bunch/train/palm-tree-oil-810x524_jpg.rf.jYHTX0P2YyJcT5Z6SEA4.jpg",
+      "hash": "4b9ff88ffc3cfd7a4cd956c38e4ed307"
+    }
+  ],
+  "clipped_bboxes": 95,
+  "skipped_annotations": 0,
+  "source_packages": [
+    {
+      "name": "crown_region",
+      "annotation_path": "<external>/a0/crown_region/train/_annotations.coco.json",
+      "images": 150,
+      "annotations": 352,
+      "license": "Unknown",
+      "roboflow_url": "https://app.roboflow.com/datasets/doyles-workspace/dataset",
+      "date_created": "2026-05-17T09:47:54+00:00"
+    },
+    {
+      "name": "fruit_bunch",
+      "annotation_path": "<external>/a0/fruit_bunch/train/_annotations.coco.json",
+      "images": 156,
+      "annotations": 714,
+      "license": "Unknown",
+      "roboflow_url": "https://app.roboflow.com/datasets/doyles-workspace/dataset",
+      "date_created": "2026-05-17T09:46:44+00:00"
+    },
+    {
+      "name": "trunk_base",
+      "annotation_path": "<external>/a0/trunk_base/train/_annotations.coco.json",
+      "images": 91,
+      "annotations": 114,
+      "license": "Unknown",
+      "roboflow_url": "https://app.roboflow.com/datasets/doyles-workspace/dataset",
+      "date_created": "2026-05-16T08:34:21+00:00"
+    }
+  ],
+  "notes": [
+    "Generated from Roboflow COCO exports.",
+    "No empty-label negative samples are included in this baseline export.",
+    "License is recorded as Unknown until source-specific permissions are documented."
+  ]
+}

@@ -1,5 +1,19 @@
 # models
 
+## Current A0 Baseline
+
+`models/oil_palm/a0_image_routing/` now contains the first trained A0 YOLO
+baseline metadata:
+
+- `metrics.json` records `oil_palm_a0_yolo_structure_detector_v1` metrics.
+- `inference_config.yaml` records the intended real-model runtime settings.
+- `training_config.example.yaml` records the reproducible training defaults.
+- `runs/a0_yolo_structure_detector_v1/` contains local training artifacts and
+  weights, but this directory is ignored by Git.
+
+The runtime still uses the mock oil palm predictor until real YOLO predictor
+wiring is implemented.
+
 用于存放模型相关文件（权重、标签、配置、Model Card、指标模板）。
 
 ## 目录结构

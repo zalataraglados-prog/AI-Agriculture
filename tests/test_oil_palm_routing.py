@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import io
+import sys
+import types
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from ai_engine.common.schemas.prediction import PredictionEnvelope
+from ai_engine.common.predictors.base import PredictorContext
+from ai_engine.crops.oil_palm.inference.a0_yolo_predictor import A0YoloPredictor
 from ai_engine.crops.oil_palm.inference.api import router
 
 
@@ -120,3 +127,130 @@ def test_oil_palm_a0_detect_reports_role_mismatch():
     payload = response.json()
     assert payload["metadata"]["route_status"] == "role_mismatch"
     assert payload["results"][0]["label"] == "trunk_base"
+
+
+def test_a0_yolo_predictor_maps_boxes_to_candidate_envelope(tmp_path, monkeypatch):
+    _install_fake_ultralytics(monkeypatch, cls_values=[0], conf_values=[0.92])
+    labels = tmp_path / "labels.json"
+    labels.write_text('["fruit_bunch", "trunk_base", "crown_region"]', encoding="utf-8")
+    config = tmp_path / "inference_config.yaml"
+    config.write_text(
+        "model_version: oil_palm_a0_test_v1\n"
+        "input_size: 128\n"
+        "confidence_threshold: 0.5\n"
+        "iou_threshold: 0.7\n"
+        "max_detections: 10\n",
+        encoding="utf-8",
+    )
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"fake weights")
+
+    predictor = A0YoloPredictor(
+        weights_path=weights,
+        labels_path=labels,
+        config_path=config,
+    )
+    payload = predictor.predict(
+        _valid_png_bytes(),
+        PredictorContext(
+            crop="oil_palm",
+            task="a0_structure_detection",
+            image_role="fruit",
+            tree_code="OP-000001",
+        ),
+    )
+
+    envelope = PredictionEnvelope.model_validate(payload)
+    assert envelope.model_version == "oil_palm_a0_test_v1"
+    assert envelope.metadata["mock"] is False
+    assert envelope.metadata["route_status"] == "needs_user_confirmation"
+    assert envelope.metadata["requires_user_confirmation"] is True
+    assert envelope.metadata["detected_roles"] == ["fruit"]
+    assert envelope.results[0].label == "fruit_bunch"
+    assert envelope.results[0].geometry == {
+        "type": "bbox",
+        "x": 0.1,
+        "y": 0.2,
+        "w": 0.4,
+        "h": 0.6,
+    }
+
+
+def test_a0_yolo_predictor_reports_role_mismatch(tmp_path, monkeypatch):
+    _install_fake_ultralytics(monkeypatch, cls_values=[1], conf_values=[0.91])
+    labels = tmp_path / "labels.json"
+    labels.write_text('["fruit_bunch", "trunk_base", "crown_region"]', encoding="utf-8")
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"fake weights")
+
+    predictor = A0YoloPredictor(weights_path=weights, labels_path=labels, config_path=None)
+    payload = predictor.predict(
+        _valid_png_bytes(),
+        PredictorContext(
+            crop="oil_palm",
+            task="a0_structure_detection",
+            image_role="fruit",
+        ),
+    )
+
+    assert payload["metadata"]["route_status"] == "role_mismatch"
+    assert payload["results"][0]["label"] == "trunk_base"
+    assert payload["metadata"]["detected_roles"] == ["trunk_base"]
+
+
+def test_oil_palm_hybrid_mode_registers_real_a0_when_available(
+    tmp_path,
+    monkeypatch,
+):
+    _install_fake_ultralytics(monkeypatch, cls_values=[0], conf_values=[0.9])
+    labels = tmp_path / "labels.json"
+    labels.write_text('["fruit_bunch", "trunk_base", "crown_region"]', encoding="utf-8")
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"fake weights")
+
+    monkeypatch.setenv("OIL_PALM_MODEL_MODE", "hybrid")
+    monkeypatch.setenv("OIL_PALM_A0_MODEL_PATH", str(weights))
+    monkeypatch.setenv("OIL_PALM_A0_LABELS_FILE", str(labels))
+    monkeypatch.delenv("OIL_PALM_A0_CONFIG_FILE", raising=False)
+
+    import importlib
+    import ai_engine.crops.oil_palm.pipeline as pipeline_mod
+
+    pipeline_mod = importlib.reload(pipeline_mod)
+    pipeline = pipeline_mod.build_default_oil_palm_pipeline()
+
+    capabilities = pipeline.registry.capabilities("oil_palm")
+    a0 = [item for item in capabilities if item["task"] == "a0_structure_detection"]
+    assert a0[0]["mode"] == "real"
+    assert {item["mode"] for item in capabilities if item["task"] != "a0_structure_detection"} == {
+        "mock"
+    }
+
+
+def _valid_png_bytes() -> bytes:
+    image = Image.new("RGB", (100, 100), color=(120, 130, 140))
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _install_fake_ultralytics(monkeypatch, *, cls_values, conf_values):
+    fake_module = types.ModuleType("ultralytics")
+
+    class FakeBoxes:
+        xyxy = [[10.0, 20.0, 50.0, 80.0]]
+        cls = cls_values
+        conf = conf_values
+
+    class FakeResult:
+        boxes = FakeBoxes()
+
+    class FakeModel:
+        def __init__(self, weights_path):
+            self.weights_path = weights_path
+
+        def predict(self, **kwargs):
+            return [FakeResult()]
+
+    fake_module.YOLO = FakeModel
+    monkeypatch.setitem(sys.modules, "ultralytics", fake_module)

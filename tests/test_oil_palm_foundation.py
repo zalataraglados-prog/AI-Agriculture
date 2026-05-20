@@ -155,6 +155,34 @@ class TestMetrics:
             data = json.load(f)
         assert data["task"] == task
 
+    def test_a0_trained_metrics_are_recorded(self) -> None:
+        metrics_path = MODELS_OIL_PALM / "a0_image_routing" / "metrics.json"
+        assert metrics_path.exists(), "Trained A0 metrics.json should be recorded"
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["model_version"] == "oil_palm_a0_yolo_structure_detector_v1"
+        assert data["task"] == "a0_image_routing"
+        assert data["dataset_version"] == "roboflow_a0_2026_05_17"
+        assert data["labels"] == ["fruit_bunch", "trunk_base", "crown_region"]
+        assert data["metrics"]["best_epoch"] == 76
+        assert data["metrics"]["mAP50"] > 0
+        assert "unknown" not in data["labels"]
+
+    def test_a0_inference_config_points_to_ignored_run_artifact(self) -> None:
+        import yaml
+
+        config_path = MODELS_OIL_PALM / "a0_image_routing" / "inference_config.yaml"
+        assert config_path.exists(), "A0 inference_config.yaml should exist"
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        assert data["model_version"] == "oil_palm_a0_yolo_structure_detector_v1"
+        assert data["task"] == "a0_image_routing"
+        assert data["labels_file"].endswith("labels.json")
+        assert data["weights"].endswith("runs/a0_yolo_structure_detector_v1/weights/best.pt")
+        assert data["input_size"] == 960
+
 
 # ---------------------------------------------------------------------------
 # Data utils tests
@@ -330,10 +358,14 @@ class TestPipelineMode:
     def test_pipeline_hybrid_mode_safely_uses_mock_predictors(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Foundation hybrid mode must not register unavailable real predictors."""
+        """Hybrid mode falls back safely when A0 real assets are unavailable."""
         monkeypatch.setenv(
             "OIL_PALM_FFB_MODEL_PATH",
             str(MODELS_OIL_PALM / "ffb_maturity" / "labels.json"),
+        )
+        monkeypatch.setenv(
+            "OIL_PALM_A0_MODEL_PATH",
+            str(MODELS_OIL_PALM / "a0_image_routing" / "missing_best.pt"),
         )
         pipeline_mod = self._reload_pipeline(monkeypatch, "hybrid")
 
@@ -358,10 +390,14 @@ class TestPipelineMode:
         assert result["model_version"].endswith("_mock_v1")
 
     def test_pipeline_real_mode_fails_fast(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Real mode is intentionally unavailable until per-task model branches."""
+        """Real mode requires configured A0 runtime assets."""
+        monkeypatch.setenv(
+            "OIL_PALM_A0_MODEL_PATH",
+            str(MODELS_OIL_PALM / "a0_image_routing" / "missing_best.pt"),
+        )
         pipeline_mod = self._reload_pipeline(monkeypatch, "real")
 
-        with pytest.raises(RuntimeError, match="Real oil palm predictors"):
+        with pytest.raises(RuntimeError, match="A0 YOLO predictor"):
             pipeline_mod.build_default_oil_palm_pipeline()
 
     def test_a0_structure_detector_is_registered_as_mock(

@@ -49,7 +49,8 @@ cargo test
 
 ### 部署相关
 
-- `cloud/deploy.sh`：Linux 服务器一键部署脚本
+- `scripts/deploy_cloud.sh`：推荐的 Linux 服务器一键部署脚本
+- `cloud/deploy.sh`：旧版 cloud 目录内部署脚本
 - systemd（可选，脚本会优先使用）
 
 ## 目录结构（核心）
@@ -98,6 +99,7 @@ Recommended variables:
 
 - `CLOUD_BIND_ADDR` (example: `0.0.0.0:9000`)
 - `AI_PREDICT_URL` (example: `http://ai-engine:8000/api/v1/predict`)
+- `AI_OIL_PALM_A0_DETECT_URL` (optional, example: `http://ai-engine:8000/api/v1/oil-palm/a0/detect`)
 - `OPENCLAW_URL` (example: `http://openclaw:3000`)
 - `TOKEN_STORE_PATH`, `REGISTRY_PATH`, `TELEMETRY_STORE_PATH`
 - `IMAGE_STORE_PATH`, `IMAGE_INDEX_PATH`, `IMAGE_DB_ERROR_STORE_PATH`

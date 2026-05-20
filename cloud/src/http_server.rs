@@ -372,6 +372,10 @@ pub fn start_http_server(
             .build()
             .expect("Failed to build AI HTTP client"),
     );
+    let ai_oil_palm_a0_detect_url = std::env::var("AI_OIL_PALM_A0_DETECT_URL")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
     let openclaw_http_client = Arc::new(
         reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(openclaw_timeout_sec))
@@ -413,6 +417,7 @@ pub fn start_http_server(
             let image_index_path = image_index_path.clone();
             let image_db_error_store_path = image_db_error_store_path.clone();
             let ai_predict_url = ai_predict_url.clone();
+            let ai_oil_palm_a0_detect_url = ai_oil_palm_a0_detect_url.clone();
             let openclaw_url = openclaw_url.clone();
             let sensor_schema_payload = sensor_schema_payload.clone();
             let registry_path = registry_path.clone();
@@ -439,6 +444,7 @@ pub fn start_http_server(
                         &image_index_path,
                         &image_db_error_store_path,
                         &ai_predict_url,
+                        ai_oil_palm_a0_detect_url.as_deref(),
                         &openclaw_url,
                         &sensor_schema_payload,
                         &registry_path,
@@ -506,6 +512,7 @@ fn handle_api(
     image_index_path: &str,
     image_db_error_store_path: &str,
     ai_predict_url: &str,
+    ai_oil_palm_a0_detect_url: Option<&str>,
     openclaw_url: &str,
     sensor_schema_payload: &str,
     registry_path: &str,
@@ -690,10 +697,10 @@ fn handle_api(
             } else if method == Method::Get && p.contains("/detections") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_get_detections(request, &ortho_id, db);
-            } else if method == Method::Post && p.ends_with("/confirm") {
+            } else if method == Method::Post && p.starts_with("/api/v1/uav/detections/") && p.ends_with("/confirm") {
                 let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
                 crate::uav::handle_confirm_detection(request, &det_id, db);
-            } else if method == Method::Post && p.ends_with("/reject") {
+            } else if method == Method::Post && p.starts_with("/api/v1/uav/detections/") && p.ends_with("/reject") {
                 let det_id = extract_path_segment(p, "/detections/").unwrap_or_default();
                 crate::uav::handle_reject_detection(request, &det_id, db);
             } else if method == Method::Get && p.starts_with("/api/v1/trees/by-barcode/") {
@@ -712,7 +719,15 @@ fn handle_api(
             } else if p.starts_with("/api/v1/sessions/") && p.ends_with("/images") {
                 let session_id = extract_path_segment(p, "/sessions/").unwrap_or_default();
                 if method == Method::Post {
-                    crate::session::handle_add_session_image(request, &session_id, query, image_store_path, db);
+                    crate::session::handle_add_session_image(
+                        request,
+                        &session_id,
+                        query,
+                        image_store_path,
+                        ai_oil_palm_a0_detect_url,
+                        ai_http_client,
+                        db,
+                    );
                 } else if method == Method::Get {
                     crate::session::handle_get_session_images(request, &session_id, db);
                 } else {

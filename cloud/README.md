@@ -57,6 +57,10 @@ image_index_path = "state/image_index.jsonl"
 image_db_error_store_path = "state/image_upload_errors.jsonl"
 database_url = "postgres://postgres@127.0.0.1/ai_agriculture"
 ai_predict_url = "http://127.0.0.1:8000/api/v1/predict"
+# Optional: when set, observation sessions call AI Engine A0 detection before
+# bbox review. If unset or unavailable, Cloud falls back to the local mock A0
+# contract so tree-profile collection remains usable.
+# AI_OIL_PALM_A0_DETECT_URL=http://127.0.0.1:8000/api/v1/oil-palm/a0/detect
 openclaw_url = "http://127.0.0.1:3000"
 
 [[exact_payloads]]
@@ -156,8 +160,10 @@ These APIs aggregate existing structured facts. They do not run real models.
 Observation session image upload now uses an A0 confirmation step:
 
 - `POST /api/v1/sessions/{session_id}/images`
-  - saves the original image and returns mock A0 `a0_candidates`
-  - response includes `requires_confirmation: true`
+  - saves the original image and returns A0 `a0_candidates`
+  - calls `${AI_OIL_PALM_A0_DETECT_URL}` when configured
+  - falls back to the local mock A0 contract when the URL is unset or unavailable
+  - response includes `requires_confirmation` based on A0 `route_status`
 - `POST /api/v1/sessions/{session_id}/images/{image_id}/confirm`
   - body: `{"selected_candidate_ids":["a0_fruit_001"]}`
   - rejected bbox candidates are masked in a derived PNG image
@@ -281,10 +287,15 @@ AI-ag help
 
 ## Database layout
 
-- Migrations run in order: `0001` + `0002` + `0003`.
+- Migrations run in order from `cloud/sql/migrations/0001_*.sql` through
+  `0005_*.sql`.
 - `0003_timescale_rewrite.sql` enables TimescaleDB and converts:
   - `sensor_telemetry(ts)` -> hypertable (`2 hours` chunks)
   - `image_uploads(captured_at)` -> hypertable (`2 hours` chunks)
+- `0004_uav_coordinate_foundation.sql` adds UAV missions, orthomosaics,
+  detections, trees, and tree-code linkage.
+- `0005_observation_sessions.sql` adds tree observation sessions and
+  session-image evidence records.
 - Image upload/inference linkage uses `(upload_id, captured_at)` to keep partition-safe uniqueness.
 
 ## Add a new sensor (no Rust code change)
@@ -294,6 +305,12 @@ AI-ag help
 3. Redeploy (`./deploy.sh`) or replace config and restart service
 
 ## One-click deploy (Linux cloud server)
+
+Repository-root deployment should prefer `scripts/deploy_cloud.sh`, which reads
+`cloud/.env`, builds the unique `ai-agri-cloud-receiver` binary name, syncs
+frontend/dashboard assets, checks ports, and starts by absolute paths.
+
+The legacy cloud-local helper remains available:
 
 ```bash
 chmod +x deploy.sh
@@ -356,7 +373,7 @@ Use custom CLI to pressure test image upload and change frequency without restar
 
 ```bash
 python3 scripts/image_stress_cli.py run \
-  --endpoint http://8.134.32.223:8088/api/v1/image/upload \
+  --endpoint http://<cloud-ip>:8088/api/v1/image/upload \
   --device-id dev_stress_01 \
   --interval-sec 5 \
   --control-file /tmp/image_stress_control.json

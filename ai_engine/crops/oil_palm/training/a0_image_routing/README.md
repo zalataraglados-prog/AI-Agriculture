@@ -37,8 +37,52 @@ evidence across sets.
 ## Training Command
 
 ```bash
-# TODO: add once feature/oil-palm-a0-routing-model implements training scripts
+python -m ai_engine.crops.oil_palm.training.a0_image_routing.prepare_dataset --source-root <roboflow-export-root> --copy-raw --overwrite
+python -m ai_engine.crops.oil_palm.training.a0_image_routing.train_yolo --config models/oil_palm/a0_image_routing/training_config.example.yaml
 ```
+
+Use `--dry-run` on either command to validate paths and arguments without
+writing the dataset or starting training.
+If `--source-root` is omitted, the script reads `OIL_PALM_A0_SOURCE_ROOT` or
+falls back to the project-local ignored raw-data directory.
+
+The preparation command writes YOLO files under
+`datasets/oil_palm/a0_image_routing/yolo/`, which is ignored by Git. It also
+writes tracked metadata under `splits/`, `licenses/`, and
+`datasets/oil_palm/manifests/a0_image_routing.json`.
+
+The first Roboflow bootstrap adapter maps source labels as follows:
+
+- `ffb` -> `fruit_bunch`
+- `Trunk_base` -> `trunk_base`
+- `crown_region` -> `crown_region`
+
+Roboflow root categories are ignored. Slight bbox rounding overflow is clipped
+to image bounds before YOLO export.
+
+## Current Baseline
+
+The first A0 YOLOv8n baseline has been trained as
+`oil_palm_a0_yolo_structure_detector_v1`.
+
+- Dataset version: `roboflow_a0_2026_05_17`
+- Images: 396
+- Bboxes: 1174
+- Best epoch: 76
+- mAP50: 0.8988
+- mAP50-95: 0.52789
+- Precision: 0.78039
+- Recall: 0.94318
+
+Tracked metadata lives in:
+
+- `models/oil_palm/a0_image_routing/metrics.json`
+- `models/oil_palm/a0_image_routing/inference_config.yaml`
+- `models/oil_palm/a0_image_routing/model_card.md`
+
+Weights and training plots live under the ignored local run directory:
+`models/oil_palm/a0_image_routing/runs/a0_yolo_structure_detector_v1/`.
+They are not committed to Git.
 
 ## Design Principles
 
