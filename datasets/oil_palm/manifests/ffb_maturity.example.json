@@ -12,7 +12,12 @@
     {
       "name": "roboflow_v1",
       "url": "https://universe.roboflow.com/fyp-oil-palm-fruit-ripeness-dataset/oil-palm-ffb-ripeness/dataset/1",
-      "importer": "import_ffb_roboflow.py"
+      "license": "pending_team_confirmation",
+      "format": "YOLO detection export",
+      "estimated_images": null,
+      "importer": "import_ffb_roboflow.py",
+      "raw_dir": "datasets/oil_palm/ffb_maturity/raw/roboflow_v1",
+      "notes": "Recorded v1 handoff metrics report four maturity classes only. Source class mapping and exact dataset version require teammate confirmation."
     },
     {
       "name": "Scientific Data RGB-depth FFB 2025",
@@ -59,6 +64,7 @@
   "notes": [
     "raw layer accepts any format from any source",
     "importers convert raw data into unified processed format",
-    "This manifest is a conversion spec, not a gate for excluding non-standard datasets"
+    "This manifest is a conversion spec, not a gate for excluding non-standard datasets",
+    "FFB offline v1 metrics are recorded but not integrated into AI Engine runtime"
   ]
 }

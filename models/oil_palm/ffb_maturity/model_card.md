@@ -7,46 +7,62 @@
 | Model Name | Oil Palm FFB Maturity Detector |
 | Task | Object detection + maturity classification |
 | Crop | Oil Palm |
-| Framework | YOLOv8 (planned) |
-| Current Status | **mock** |
-| Model Version | `oil_palm_ffb_mock_v1` |
+| Framework | YOLOv8n |
+| Current Status | **offline trained v1; not integrated into AI Engine runtime** |
+| Model Version | `oil_palm_ffb_yolov8n_v1.0.0_offline` |
 
 ## Intended Use
 
-Detect fresh fruit bunches (FFB) in oil palm field images and classify their maturity stage.
-Used for harvest readiness assessment. Inputs are typically `image_role=fruit` photos taken by field workers.
+Detect fresh fruit bunches (FFB) in oil palm field images and classify visible
+maturity stage. The output should support harvest-readiness review for a known
+tree/session, not estimate whole-tree yield from a single photo.
 
 ## Labels
 
-See [labels.json](./labels.json): `flower`, `unripe`, `underripe`, `ripe`, `overripe`, `abnormal`.
+Project-standard labels are `flower`, `unripe`, `underripe`, `ripe`,
+`overripe`, and `abnormal`.
+
+The v1 handoff metrics only report `unripe`, `underripe`, `ripe`, and
+`overripe`. The teammate must confirm whether `flower` and `abnormal` were not
+present, filtered out, or not trained.
 
 ## Training Data
 
-Not yet trained. See `datasets/oil_palm/manifests/ffb_maturity.example.json` for planned data sources.
+The recorded v1 metrics refer to the Roboflow source listed in
+`datasets/oil_palm/manifests/ffb_maturity.example.json`. Dataset version, split
+counts, exact class mapping, and license details still require teammate
+confirmation before this model is treated as merge-ready production evidence.
 
 ## Evaluation
 
-Not yet evaluated. See [metrics.example.json](./metrics.example.json) for the metrics template.
+Recorded handoff metrics:
 
-## Ethical Considerations
+| Metric | Value |
+|--------|-------|
+| Precision | 0.837 |
+| Recall | 0.837 |
+| mAP50 | 0.892 |
+| mAP50-95 | 0.666 |
 
-- Model output should be treated as a **recommendation**, not a definitive harvest decision.
-- Local agronomist expertise should be consulted for borderline maturity cases.
-- Model performance may vary across palm varieties, lighting conditions, and camera angles.
+Per-class AP50 was reported for four active classes only. See
+`metrics.json` for the normalized schema and pending fields.
+
+## Runtime Status
+
+This branch records offline training metadata only. AI Engine still uses the
+safe mock FFB predictor unless a future runtime branch adds a real predictor and
+loads weights through `OIL_PALM_FFB_MODEL_PATH`.
 
 ## Limitations
 
-- v1 will not estimate yield quantity from a single image.
+- v1 does not estimate yield quantity from a single image.
 - Occluded or partially visible bunches may be misclassified.
-- Depth information (if available in training data) is not used in v1 inference.
+- `flower` and `abnormal` coverage is unconfirmed.
+- Weight path, hash, split counts, and dataset version are not yet recorded.
 
 ## Changelog
 
 | Version | Date | Notes |
 |---------|------|-------|
-| mock_v1 | 2026-05 | Mock predictor established. No real weights. |
-
-### v1.0.0 训练记录 (2026-05-19)
-- **训练成果**: 本次使用 YOLOv8n 完成了 50 轮训练，最终整体 mAP50 达到了漂亮的 **0.892**。
-- **局限性说明**: 模型对成熟果（ripe）和过熟果（overripe）的识别极度精准；但在果实有严重重叠或叶片遮挡时，生果和欠熟果可能会有微小的误判风险。
-- **状态**: 首次训练完成，成果由 Max 正式移交。
+| `oil_palm_ffb_yolov8n_v1.0.0_offline` | 2026-05-19 | Offline YOLOv8n handoff metrics recorded; runtime integration pending. |
+| `oil_palm_ffb_mock_v1` | 2026-05 | Mock predictor established. No real weights. |

@@ -22,6 +22,7 @@ models/oil_palm/
     model_card.md
     labels.json
     metrics.example.json
+    metrics.json          # recorded offline handoff metrics when available
     best.pt              # ignored
   uav_tree_crown/
     model_card.md
@@ -44,7 +45,7 @@ models/oil_palm/
 
 | Task | Type | Suggested framework | Current status | Labels |
 | --- | --- | --- | --- | --- |
-| `ffb_maturity` | object detection + maturity class | YOLO family | mock | 6 |
+| `ffb_maturity` | object detection + maturity class | YOLOv8n | offline trained handoff; runtime mock | 6 |
 | `uav_tree_crown` | object detection | YOLO family | mock | 1 |
 | `ganoderma_risk` | image classification | ResNet / EfficientNet | mock | 3 |
 | `a0_image_routing` | structure detection + routing | YOLOv8 | trained baseline artifact; AI Engine runtime supported | 3 |
@@ -70,6 +71,11 @@ Future per-task branches will enable these path variables:
 The first trained A0 baseline records its local ignored artifact path in
 `models/oil_palm/a0_image_routing/inference_config.yaml`. Runtime code can load
 it through `OIL_PALM_A0_MODEL_PATH`; the weight file itself remains outside Git.
+
+The FFB v1 branch records offline handoff metrics in
+`models/oil_palm/ffb_maturity/metrics.json`, but it does not register a real
+FFB predictor yet. Treat the weight path, dataset version, split counts, and
+four-class training coverage as pending teammate confirmation.
 
 Mode semantics in this foundation branch:
 
