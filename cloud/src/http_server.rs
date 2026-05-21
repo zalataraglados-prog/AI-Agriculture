@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fs;
 use std::fs::File;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -9,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use tiny_http::{Header, Method, Response, Server};
+use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::ai_client::{infer_image_from_bytes, AiInferenceOutput};
 use crate::auth::{AuthManager, AuthSession};
@@ -312,6 +313,53 @@ struct ChatProxyResponse {
     reply: String,
 }
 
+struct SseReplyReader {
+    chunks: Vec<Vec<u8>>,
+    chunk_index: usize,
+    offset: usize,
+    delay: Duration,
+}
+
+impl SseReplyReader {
+    fn new(reply: &str, delay: Duration) -> Self {
+        let mut chunks = Vec::new();
+        for ch in reply.chars() {
+            let payload = serde_json::json!({ "text": ch }).to_string();
+            chunks.push(format!("data: {payload}\n\n").into_bytes());
+        }
+        chunks.push(b"data: {\"done\":true}\n\n".to_vec());
+        Self {
+            chunks,
+            chunk_index: 0,
+            offset: 0,
+            delay,
+        }
+    }
+}
+
+impl Read for SseReplyReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.chunk_index >= self.chunks.len() {
+            return Ok(0);
+        }
+        if self.offset == 0 && self.chunk_index > 0 && !self.delay.is_zero() {
+            thread::sleep(self.delay);
+        }
+
+        let chunk = &self.chunks[self.chunk_index];
+        let remaining = chunk.len().saturating_sub(self.offset);
+        let copy_len = remaining.min(buf.len());
+        buf[..copy_len].copy_from_slice(&chunk[self.offset..self.offset + copy_len]);
+        self.offset += copy_len;
+
+        if self.offset >= chunk.len() {
+            self.chunk_index += 1;
+            self.offset = 0;
+        }
+        Ok(copy_len)
+    }
+}
+
 #[derive(Debug, serde::Deserialize)]
 struct LoginRequest {
     username: String,
@@ -603,6 +651,9 @@ fn handle_api(
                 perf,
                 openclaw_http_client,
             );
+        }
+        (Method::Post, "/api/v1/chat/stream") => {
+            handle_chat_stream_proxy(request, openclaw_url, openclaw_http_client);
         }
         (Method::Get, "/api/v1/image/file") => {
             handle_image_file_request(request, query, image_store_path, db);
@@ -1285,6 +1336,130 @@ fn handle_chat_proxy(
     })
     .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream bad response\"}".to_string());
     respond_json_with_status(request, 503, &payload);
+}
+
+fn handle_chat_stream_proxy(
+    mut request: tiny_http::Request,
+    openclaw_url: &str,
+    http_client: &reqwest::blocking::Client,
+) {
+    let authorization_header = authorization_header_value(&request);
+    let mut body = Vec::new();
+    if let Err(err) = request.as_reader().read_to_end(&mut body) {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: format!("failed to read request body: {err}"),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+        respond_json_with_status(request, 400, &payload);
+        return;
+    }
+
+    let req: ChatProxyRequest = match serde_json::from_slice::<ChatProxyRequest>(&body) {
+        Ok(v) if !v.message.trim().is_empty() => v,
+        Ok(_) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: "message must not be empty".to_string(),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 400, &payload);
+            return;
+        }
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("invalid json body: {err}"),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
+            respond_json_with_status(request, 400, &payload);
+            return;
+        }
+    };
+
+    let forward_url = format!("{}/api/v1/chat", openclaw_url.trim_end_matches('/'));
+    let mut upstream_request = http_client.post(forward_url).json(&req);
+    if let Some(header_value) = authorization_header {
+        upstream_request = upstream_request.header(reqwest::header::AUTHORIZATION, header_value);
+    }
+    let upstream = match upstream_request.send() {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("openclaw request failed: {err}"),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string());
+            respond_json_with_status(request, 503, &payload);
+            return;
+        }
+    };
+
+    let status = upstream.status();
+    let text = match upstream.text() {
+        Ok(v) => v,
+        Err(err) => {
+            let payload = serde_json::to_string(&ImageUploadErrorResponse {
+                status: "error".to_string(),
+                message: format!("failed to read openclaw response: {err}"),
+            })
+            .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string());
+            respond_json_with_status(request, 503, &payload);
+            return;
+        }
+    };
+
+    if !status.is_success() {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: format!("openclaw returned {}", status.as_u16()),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string());
+        respond_json_with_status(request, 503, &payload);
+        return;
+    }
+
+    let reply = if let Ok(parsed) = serde_json::from_str::<ChatProxyResponse>(&text) {
+        parsed.reply
+    } else if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+        v.get("reply")
+            .and_then(|x| x.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| {
+                v.get("message")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    if reply.is_empty() {
+        let payload = serde_json::to_string(&ImageUploadErrorResponse {
+            status: "error".to_string(),
+            message: "openclaw response missing reply field".to_string(),
+        })
+        .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream bad response\"}".to_string());
+        respond_json_with_status(request, 503, &payload);
+        return;
+    }
+
+    let headers = vec![
+        Header::from_bytes(&b"Content-Type"[..], &b"text/event-stream; charset=utf-8"[..]).unwrap(),
+        Header::from_bytes(&b"Cache-Control"[..], &b"no-cache"[..]).unwrap(),
+        Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
+        Header::from_bytes(&b"X-Accel-Buffering"[..], &b"no"[..]).unwrap(),
+    ];
+    let response = Response::new(
+        StatusCode(200),
+        headers,
+        SseReplyReader::new(&reply, Duration::from_millis(15)),
+        None,
+        None,
+    )
+    .with_chunked_threshold(0);
+    let _ = request.respond(response);
 }
 
 fn authorization_header_value(request: &tiny_http::Request) -> Option<String> {
