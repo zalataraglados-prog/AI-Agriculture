@@ -14,6 +14,7 @@ fi
 $SUDO mkdir -p "$INSTALL_ROOT/scripts" "$INSTALL_ROOT/log"
 $SUDO cp "scripts/openclaw_chat_adapter.py" "$SCRIPT_PATH"
 $SUDO chmod +x "$SCRIPT_PATH"
+$SUDO rm -f "/etc/systemd/system/${SERVICE_NAME}.service.d/override.conf"
 
 $SUDO tee "/etc/systemd/system/${SERVICE_NAME}.service" >/dev/null <<EOF
 [Unit]
@@ -24,7 +25,12 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=${INSTALL_ROOT}
-ExecStart=/usr/bin/python3 ${SCRIPT_PATH} --host 127.0.0.1 --port 3000
+Environment=CLOUD_TOOL_BASE_URL=http://127.0.0.1:8088/api/v1/openclaw/tools
+Environment=CLOUD_TOOL_TIMEOUT_SEC=5
+Environment=CLOUD_TOOL_CONTEXT_MAX_CHARS=12000
+Environment=OPENCLAW_DEFAULT_PLANTATION_ID=
+Environment=CLOUD_TOOL_AUTH_BEARER=
+ExecStart=/usr/bin/python3 ${SCRIPT_PATH} --host 127.0.0.1 --port 3000 --workers 1 --timeout-sec 30 --no-warmup
 Restart=always
 RestartSec=2
 StandardOutput=append:${INSTALL_ROOT}/log/openclaw_chat_adapter.log

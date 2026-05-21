@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fs;
 use std::fs::File;
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -9,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use tiny_http::{Header, Method, Response, Server};
+use tiny_http::{Header, Method, Response, Server, StatusCode};
 
 use crate::ai_client::{infer_image_from_file, AiInferenceOutput};
 use crate::db::{
@@ -122,11 +123,62 @@ struct ChatProxyRequest {
     message: String,
     #[serde(default)]
     context: serde_json::Value,
+    #[serde(default)]
+    session_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Serialize)]
 struct ChatProxyResponse {
     reply: String,
+}
+
+struct SseReplyReader {
+    chunks: Vec<Vec<u8>>,
+    chunk_index: usize,
+    offset: usize,
+    delay: Duration,
+}
+
+impl SseReplyReader {
+    fn new(reply: &str, delay: Duration) -> Self {
+        let mut chunks = Vec::new();
+        for ch in reply.chars() {
+            let payload = serde_json::json!({ "text": ch }).to_string();
+            chunks.push(format!("data: {payload}\n\n").into_bytes());
+        }
+        chunks.push(b"data: {\"done\":true}\n\n".to_vec());
+        Self {
+            chunks,
+            chunk_index: 0,
+            offset: 0,
+            delay,
+        }
+    }
+}
+
+impl Read for SseReplyReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.chunk_index >= self.chunks.len() {
+            return Ok(0);
+        }
+
+        if self.offset == 0 && self.chunk_index > 0 && !self.delay.is_zero() {
+            thread::sleep(self.delay);
+        }
+
+        let chunk = &self.chunks[self.chunk_index];
+        let remaining = chunk.len().saturating_sub(self.offset);
+        let copy_len = remaining.min(buf.len());
+        buf[..copy_len].copy_from_slice(&chunk[self.offset..self.offset + copy_len]);
+        self.offset += copy_len;
+
+        if self.offset >= chunk.len() {
+            self.chunk_index += 1;
+            self.offset = 0;
+        }
+
+        Ok(copy_len)
+    }
 }
 
 pub fn start_http_server(
@@ -271,6 +323,9 @@ fn handle_api(
         (Method::Post, "/api/v1/chat") => {
             handle_chat_proxy(request, openclaw_url);
         }
+        (Method::Post, "/api/v1/chat/stream") => {
+            handle_chat_stream_proxy(request, openclaw_url);
+        }
         (Method::Get, "/api/v1/image/file") => {
             handle_image_file_request(request, query, image_store_path, db);
         }
@@ -409,7 +464,7 @@ fn handle_telemetry_query(
     }
 }
 
-fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
+fn parse_chat_proxy_request(request: &mut tiny_http::Request) -> Result<ChatProxyRequest, (u16, String)> {
     let mut body = Vec::new();
     if let Err(err) = request.as_reader().read_to_end(&mut body) {
         let payload = serde_json::to_string(&ImageUploadErrorResponse {
@@ -417,20 +472,18 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
             message: format!("failed to read request body: {err}"),
         })
         .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-        respond_json_with_status(request, 400, &payload);
-        return;
+        return Err((400, payload));
     }
 
-    let req: ChatProxyRequest = match serde_json::from_slice::<ChatProxyRequest>(&body) {
-        Ok(v) if !v.message.trim().is_empty() => v,
+    match serde_json::from_slice::<ChatProxyRequest>(&body) {
+        Ok(v) if !v.message.trim().is_empty() => Ok(v),
         Ok(_) => {
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
                 status: "error".to_string(),
                 message: "message must not be empty".to_string(),
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 400, &payload);
-            return;
+            Err((400, payload))
         }
         Err(err) => {
             let payload = serde_json::to_string(&ImageUploadErrorResponse {
@@ -438,17 +491,18 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
                 message: format!("invalid json body: {err}"),
             })
             .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"bad request\"}".to_string());
-            respond_json_with_status(request, 400, &payload);
-            return;
+            Err((400, payload))
         }
-    };
+    }
+}
 
+fn call_openclaw_chat(req: &ChatProxyRequest, openclaw_url: &str) -> Result<String, (u16, String)> {
     let forward_url = format!("{}/api/v1/chat", openclaw_url.trim_end_matches('/'));
     let upstream = reqwest::blocking::Client::builder()
         // OpenClaw local agent turn can be slower than normal HTTP calls.
         .timeout(Duration::from_secs(120))
         .build()
-        .and_then(|client| client.post(forward_url).json(&req).send());
+        .and_then(|client| client.post(forward_url).json(req).send());
 
     let upstream = match upstream {
         Ok(v) => v,
@@ -460,8 +514,7 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
             .unwrap_or_else(|_| {
                 "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string()
             });
-            respond_json_with_status(request, 503, &payload);
-            return;
+            return Err((503, payload));
         }
     };
 
@@ -476,8 +529,7 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
             .unwrap_or_else(|_| {
                 "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string()
             });
-            respond_json_with_status(request, 503, &payload);
-            return;
+            return Err((503, payload));
         }
     };
 
@@ -487,15 +539,11 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
             message: format!("openclaw returned {}", status.as_u16()),
         })
         .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream failed\"}".to_string());
-        respond_json_with_status(request, 503, &payload);
-        return;
+        return Err((503, payload));
     }
 
     if let Ok(parsed) = serde_json::from_str::<ChatProxyResponse>(&text) {
-        let payload =
-            serde_json::to_string(&parsed).unwrap_or_else(|_| "{\"reply\":\"\"}".to_string());
-        respond_json_with_status(request, 200, &payload);
-        return;
+        return Ok(parsed.reply);
     }
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
         if let Some(reply) = v
@@ -508,10 +556,7 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
                     .map(|s| s.to_string())
             })
         {
-            let payload = serde_json::to_string(&ChatProxyResponse { reply })
-                .unwrap_or_else(|_| "{\"reply\":\"\"}".to_string());
-            respond_json_with_status(request, 200, &payload);
-            return;
+            return Ok(reply);
         }
     }
 
@@ -520,7 +565,63 @@ fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
         message: "openclaw response missing reply field".to_string(),
     })
     .unwrap_or_else(|_| "{\"status\":\"error\",\"message\":\"upstream bad response\"}".to_string());
-    respond_json_with_status(request, 503, &payload);
+    Err((503, payload))
+}
+
+fn handle_chat_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
+    let req = match parse_chat_proxy_request(&mut request) {
+        Ok(v) => v,
+        Err((code, payload)) => {
+            respond_json_with_status(request, code, &payload);
+            return;
+        }
+    };
+
+    let reply = match call_openclaw_chat(&req, openclaw_url) {
+        Ok(v) => v,
+        Err((code, payload)) => {
+            respond_json_with_status(request, code, &payload);
+            return;
+        }
+    };
+
+    let payload =
+        serde_json::to_string(&ChatProxyResponse { reply }).unwrap_or_else(|_| "{\"reply\":\"\"}".to_string());
+    respond_json_with_status(request, 200, &payload);
+}
+
+fn handle_chat_stream_proxy(mut request: tiny_http::Request, openclaw_url: &str) {
+    let req = match parse_chat_proxy_request(&mut request) {
+        Ok(v) => v,
+        Err((code, payload)) => {
+            respond_json_with_status(request, code, &payload);
+            return;
+        }
+    };
+
+    let reply = match call_openclaw_chat(&req, openclaw_url) {
+        Ok(v) => v,
+        Err((code, payload)) => {
+            respond_json_with_status(request, code, &payload);
+            return;
+        }
+    };
+
+    let headers = vec![
+        Header::from_bytes(&b"Content-Type"[..], &b"text/event-stream; charset=utf-8"[..]).unwrap(),
+        Header::from_bytes(&b"Cache-Control"[..], &b"no-cache"[..]).unwrap(),
+        Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
+        Header::from_bytes(&b"X-Accel-Buffering"[..], &b"no"[..]).unwrap(),
+    ];
+    let response = Response::new(
+        StatusCode(200),
+        headers,
+        SseReplyReader::new(&reply, Duration::from_millis(15)),
+        None,
+        None,
+    )
+    .with_chunked_threshold(0);
+    let _ = request.respond(response);
 }
 
 fn handle_image_file_request(

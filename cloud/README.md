@@ -144,21 +144,45 @@ Query API:
 ## Agent chat proxy API
 
 - `POST /api/v1/chat`
+- `POST /api/v1/chat/stream`
 - request body:
   - `message` (required string)
   - `context` (optional JSON object)
-- cloud forwards the request to `${openclaw_url}/api/v1/chat` and normalizes response to:
+  - `session_id` (optional string for multi-turn context)
+- cloud forwards chat requests to `${openclaw_url}` and normalizes non-streaming responses to:
   - `{ "reply": "..." }`
+- streaming responses use SSE with:
+  - `data: {"text":"..."}`
+  - `data: {"done":true}`
 
-If your OpenClaw runtime does not expose `POST /api/v1/chat`, install and run the lightweight adapter:
+If your OpenClaw runtime does not expose the required endpoints, install and run the unified adapter:
 
 ```bash
 chmod +x scripts/install_openclaw_chat_adapter.sh
 ./scripts/install_openclaw_chat_adapter.sh
 ```
 
-It starts `openclaw-chat-adapter` on `127.0.0.1:3000` and bridges chat requests to:
-`openclaw agent --local --agent main --message ... --json`.
+It starts `openclaw-chat-adapter` on `127.0.0.1:3000` and provides:
+
+- `POST /api/v1/chat`
+- `POST /api/v1/chat/stream`
+- in-memory `session_id` history for multi-turn chat
+- OpenClaw CLI execution via a single-worker queue
+- optional tool-context enrichment from `CLOUD_TOOL_BASE_URL`
+
+Default deployment parameters are aligned with the production cloud host:
+
+- `--workers 1`
+- `--timeout-sec 30`
+- `--no-warmup`
+
+The installer keeps the existing service name, script path, and log paths:
+
+- service: `openclaw-chat-adapter`
+- script: `/opt/ai-agriculture/cloud/scripts/openclaw_chat_adapter.py`
+- logs:
+  - `/opt/ai-agriculture/cloud/log/openclaw_chat_adapter.log`
+  - `/opt/ai-agriculture/cloud/log/openclaw_chat_adapter.err.log`
 
 ## AI-ag Ops CLI
 
