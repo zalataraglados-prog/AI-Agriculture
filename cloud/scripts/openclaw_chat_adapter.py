@@ -580,6 +580,62 @@ def normalize_bearer_header(value: str) -> str:
     return f"Bearer {cleaned}"
 
 
+# Clean overrides for mojibake-prone keyword parsing.
+PLANTATION_ID_RE_CLEAN = re.compile(
+    r"(?:plantation[_\s-]*id|plantation|plantationid)\s*[=:]?\s*(\d+)",
+    re.IGNORECASE,
+)
+
+
+def extract_plantation_id(text: str, context: Any, default_plantation_id: str | None = None) -> str | None:
+    match = PLANTATION_ID_RE_CLEAN.search(text or "")
+    if match:
+        return match.group(1)
+    if isinstance(context, dict):
+        for key in ["plantation_id", "plantationId"]:
+            value = context.get(key)
+            if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
+                return str(value)
+    if default_plantation_id and default_plantation_id.isdigit():
+        return default_plantation_id
+    return None
+
+
+def select_tool_requests(message: str, context: Any, default_plantation_id: str | None = None) -> list[ToolRequest]:
+    text = message or ""
+    lowered = text.lower()
+    tree_code = extract_tree_code(text)
+    plantation_id = extract_plantation_id(text, context, default_plantation_id)
+    requests: list[ToolRequest] = []
+
+    if tree_code:
+        if has_any(lowered, ["missing", "evidence", "recheck", "verify"]):
+            requests.append(ToolRequest("query_missing_evidence", "/missing-evidence", {"tree_code": tree_code}))
+        elif has_any(lowered, ["timeline", "history", "coordinate history"]):
+            requests.append(
+                ToolRequest("query_tree_timeline", "/tree-timeline", {"tree_code": tree_code, "limit": 20})
+            )
+        else:
+            requests.append(ToolRequest("query_tree_profile", "/tree-profile", {"tree_code": tree_code, "limit": 10}))
+
+    if has_any(lowered, ["patrol", "priority", "inspection"]):
+        if plantation_id:
+            requests.append(
+                ToolRequest("generate_patrol_report", "/patrol-report", {"plantation_id": plantation_id, "limit": 50})
+            )
+    elif has_any(lowered, ["plantation", "dashboard", "report"]):
+        if plantation_id:
+            requests.append(
+                ToolRequest(
+                    "query_plantation_report",
+                    "/plantation-report",
+                    {"plantation_id": plantation_id, "limit": 50},
+                )
+            )
+
+    return dedupe_tool_requests(requests)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Unified OpenClaw /api/v1/chat adapter")
     parser.add_argument("--host", default=os.getenv("CHAT_ADAPTER_HOST", "127.0.0.1"))
