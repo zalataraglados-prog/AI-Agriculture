@@ -80,7 +80,7 @@ select {
 .app-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    z-index: 80;
+    z-index: 220;
     width: var(--sidebar-w);
     display: flex;
     flex-direction: column;
@@ -252,6 +252,26 @@ header > div,
     justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
+}
+
+.dashboard-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 84px;
+    justify-content: end;
+    align-items: center;
+    gap: 8px;
+    width: min(100%, 320px);
+}
+
+.dashboard-actions .status-pill {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+.dashboard-actions .back-link,
+.dashboard-actions .lang-switcher {
+    justify-content: center;
+    width: 100%;
 }
 
 .viewer-title-lockup {
