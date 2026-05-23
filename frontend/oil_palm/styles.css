@@ -393,6 +393,7 @@ main {
 
 .input-group,
 .filter-group {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -523,6 +524,19 @@ main {
     border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.045);
+}
+
+.match-candidate {
+    display: block;
+    margin-top: 6px;
+    padding: 8px 10px;
+    color: #bfdbfe;
+    cursor: pointer;
+}
+
+.match-candidate:hover {
+    border-color: rgba(96, 165, 250, 0.34);
+    background: rgba(96, 165, 250, 0.12);
 }
 
 .status-row,

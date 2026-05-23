@@ -157,14 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMatchReviews(reviews) {
         matchReviewList.innerHTML = '';
         if (reviews.length === 0) {
-            matchReviewList.innerHTML = '<div class="status-box">No ambiguous matches</div>';
+            matchReviewList.innerHTML = '<div class="empty-state">No ambiguous matches</div>';
             return;
         }
         reviews.forEach(r => {
             const div = document.createElement('div');
             div.className = 'detection-item';
             let candidatesHtml = r.candidates.map(c =>
-                `<div class="match-candidate" style="cursor:pointer;padding:4px 8px;border-radius:4px;background:rgba(59,130,246,0.2);margin-top:2px;" onclick="matchToTree(${r.detection_id}, ${c.tree_id}, this.parentElement.parentElement)">
+                `<div class="match-candidate" onclick="matchToTree(${r.detection_id}, ${c.tree_id}, this.parentElement.parentElement)">
                     Tree ${c.tree_code} (dist: ${(c.distance_pixels * 0.05).toFixed(2)}m)
                 </div>`
             ).join('');
@@ -208,8 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderDetections(detections) {
         detectionList.innerHTML = '';
+        let pendingCount = 0;
         detections.forEach(d => {
             if (d.review_status !== 'pending') return;
+            pendingCount += 1;
             const div = document.createElement('div');
             div.className = 'detection-item';
             div.innerHTML = `
@@ -221,6 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             detectionList.appendChild(div);
         });
+        if (pendingCount === 0) {
+            detectionList.innerHTML = '<div class="empty-state">No pending detections for review.</div>';
+        }
     }
 
     window.confirmDetection = async (id, element) => {
@@ -231,7 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const treeDiv = document.createElement('div');
             treeDiv.className = 'tree-item';
-            treeDiv.innerHTML = `<span>🌳 Tree: <a href="tree_profile.html?code=${data.tree_code}" style="color:#60a5fa;text-decoration:none;font-weight:700;">${data.tree_code}</a></span>`;
+            treeList.querySelector('.empty-state')?.remove();
+            treeDiv.innerHTML = `<span>Tree asset: <a href="tree_profile.html?code=${data.tree_code}">${data.tree_code}</a></span><span class="status-pill status-ok">confirmed</span>`;
             treeList.appendChild(treeDiv);
         } catch (e) {
             alert('Confirm failed');

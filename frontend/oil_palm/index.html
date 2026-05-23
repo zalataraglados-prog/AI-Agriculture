@@ -3,65 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oil Palm Detection Review</title>
+    <title>Oil Palm Asset Review</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Oil Palm UAV Mapping & Review</h1>
-            <a href="tree_list.html" class="back-link">Tree Registry</a>
-            <a href="/" class="back-link" style="margin-left:12px;">Back to Portal</a>
-        </header>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
+                <span class="brand-mark">OP</span>
+                <span class="brand-copy">
+                    <strong>Oil Palm Nexus</strong>
+                    <span>Tree asset AI</span>
+                </span>
+            </a>
+            <nav class="app-nav" aria-label="Oil palm navigation">
+                <a class="nav-item active" href="index.html"><span class="nav-icon">01</span><span class="nav-label">UAV Review</span></a>
+                <a class="nav-item" href="tree_list.html"><span class="nav-icon">02</span><span class="nav-label">Tree Registry</span></a>
+                <a class="nav-item" href="plantation_dashboard.html"><span class="nav-icon">03</span><span class="nav-label">Dashboard</span></a>
+                <a class="nav-item" href="/"><span class="nav-icon">00</span><span class="nav-label">Portal</span></a>
+            </nav>
+            <div class="app-nav-bottom">
+                <a class="nav-item" href="index.html"><span class="nav-icon">R</span><span class="nav-label">Refresh</span></a>
+            </div>
+        </aside>
 
-        <main>
-            <section class="panel">
-                <h2>1. UAV Mission</h2>
-                <div class="input-group">
-                    <label for="plantation-name">Plantation Name:</label>
-                    <input type="text" id="plantation-name" placeholder="e.g. North Block A">
+        <main class="app-main">
+            <header class="topbar">
+                <div class="page-title">
+                    <h1>Oil Palm UAV Mapping & Review</h1>
+                    <p>Mission intake, orthomosaic registration, tree-crown review, and registry linkage.</p>
                 </div>
-                <div class="input-group">
-                    <label for="mission-name">Mission Name:</label>
-                    <input type="text" id="mission-name" placeholder="e.g. 2024-05-01 Survey">
+                <div class="topbar-actions">
+                    <span class="status-pill status-ok">A0 ready</span>
+                    <a href="tree_list.html" class="back-link">Tree Registry</a>
+                    <a href="/" class="back-link">Portal</a>
                 </div>
-                <button id="btn-create-mission" class="btn">Create Mission</button>
-                <div id="mission-status" class="status-box">Status: Not started</div>
-            </section>
+            </header>
 
-            <section class="panel">
-                <h2>2. Orthomosaic</h2>
-                <div class="input-group">
-                    <label for="ortho-url">Image URL:</label>
-                    <input type="text" id="ortho-url" placeholder="/static/your_image.png" value="/static/ortho_test.png">
+            <section class="hero-strip">
+                <div class="hero-panel">
+                    <span class="kicker">Tree-first workflow</span>
+                    <h2>Turn UAV detections into stable, reviewable oil palm assets.</h2>
+                    <p>Use this workspace to create a mission, attach an orthomosaic, generate candidate crowns, and confirm only the trees that should become long-lived Tree Profiles.</p>
                 </div>
-                <button id="btn-register-ortho" class="btn" disabled>Register Orthomosaic</button>
-                <div id="ortho-status" class="status-box">Status: Waiting for mission</div>
+                <div class="panel">
+                    <span class="step-label">Operational sequence</span>
+                    <div class="status-row"><span>Mission</span><span class="status-pill status-info">create</span></div>
+                    <div class="status-row"><span>Orthomosaic</span><span class="status-pill status-warning">register</span></div>
+                    <div class="status-row"><span>Detections</span><span class="status-pill status-ok">review</span></div>
+                </div>
             </section>
 
-            <section class="panel">
-                <h2>3. Mock Detections</h2>
-                <button id="btn-mock-detections" class="btn" disabled>Run Mock Detection</button>
-                <a id="btn-view-ortho" class="btn" style="display:none;text-align:center;text-decoration:none;" href="#">Open Ortho Viewer</a>
-                <div id="detection-status" class="status-box">Status: Waiting for orthomosaic</div>
-                <div class="detection-list" id="detection-list"></div>
-            </section>
+            <section class="workflow-grid" aria-label="Oil palm workflow">
+                <article class="panel workflow-step">
+                    <span class="step-label">Step 01</span>
+                    <h2>UAV Mission</h2>
+                    <p class="panel-subtitle">Create the field context that future detections and tree codes will belong to.</p>
+                    <div class="input-group">
+                        <label for="plantation-name">Plantation Name</label>
+                        <input type="text" id="plantation-name" placeholder="e.g. North Block A">
+                    </div>
+                    <div class="input-group">
+                        <label for="mission-name">Mission Name</label>
+                        <input type="text" id="mission-name" placeholder="e.g. 2026-05 survey">
+                    </div>
+                    <button id="btn-create-mission" class="btn">Create Mission</button>
+                    <div id="mission-status" class="status-box">Status: Not started</div>
+                </article>
 
-            <section class="panel">
-                <h2>4. Tree Registry</h2>
-                <div class="tree-list" id="tree-list"></div>
-            </section>
+                <article class="panel workflow-step">
+                    <span class="step-label">Step 02</span>
+                    <h2>Orthomosaic</h2>
+                    <p class="panel-subtitle">Register the map image that candidate tree crowns will be placed on.</p>
+                    <div class="input-group">
+                        <label for="ortho-url">Image URL</label>
+                        <input type="text" id="ortho-url" placeholder="/static/your_image.png" value="/static/ortho_test.png">
+                    </div>
+                    <button id="btn-register-ortho" class="btn" disabled>Register Orthomosaic</button>
+                    <div id="ortho-status" class="status-box">Status: Waiting for mission</div>
+                </article>
 
-            <section class="panel">
-                <h2>5. Match to Existing Trees</h2>
-                <button id="btn-auto-match" class="btn" disabled>Auto-Match Detections</button>
-                <div id="match-status" class="status-box">Status: Need detections first</div>
-                <div class="match-review-list" id="match-review-list"></div>
+                <article class="panel workflow-step">
+                    <span class="step-label">Step 03</span>
+                    <h2>Candidate Detections</h2>
+                    <p class="panel-subtitle">Generate or reload pending crowns, then send confirmed candidates into the registry.</p>
+                    <button id="btn-mock-detections" class="btn" disabled>Run Mock Detection</button>
+                    <a id="btn-view-ortho" class="btn btn-outline" style="display:none;" href="#">Open Ortho Viewer</a>
+                    <div id="detection-status" class="status-box">Status: Waiting for orthomosaic</div>
+                    <div class="detection-list" id="detection-list"></div>
+                </article>
+
+                <article class="panel workflow-step">
+                    <span class="step-label">Step 04</span>
+                    <h2>Tree Registry Output</h2>
+                    <p class="panel-subtitle">Confirmed detections become stable tree codes that future farmer images can attach to.</p>
+                    <div class="tree-list" id="tree-list">
+                        <div class="empty-state">Confirmed tree assets will appear here.</div>
+                    </div>
+                </article>
+
+                <article class="panel workflow-step">
+                    <span class="step-label">Step 05</span>
+                    <h2>Match Existing Trees</h2>
+                    <p class="panel-subtitle">When a new mission overlaps with known assets, review ambiguous matches before linking.</p>
+                    <button id="btn-auto-match" class="btn" disabled>Auto-Match Detections</button>
+                    <div id="match-status" class="status-box">Status: Need detections first</div>
+                    <div class="match-review-list" id="match-review-list"></div>
+                </article>
             </section>
         </main>
+
+        <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
+            <a class="nav-item active" href="index.html"><span class="nav-icon">01</span><span class="nav-label">UAV</span></a>
+            <a class="nav-item" href="tree_list.html"><span class="nav-icon">02</span><span class="nav-label">Trees</span></a>
+            <a class="nav-item" href="plantation_dashboard.html"><span class="nav-icon">03</span><span class="nav-label">Dash</span></a>
+            <a class="nav-item" href="/"><span class="nav-icon">00</span><span class="nav-label">Portal</span></a>
+        </nav>
     </div>
     <script src="app.js"></script>
 </body>
