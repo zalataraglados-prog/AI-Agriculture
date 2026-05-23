@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    document.getElementById('profile-title').textContent = `\u{1F334} Tree Profile: ${code}`;
+    document.getElementById('profile-title').textContent = `Tree Profile: ${code}`;
 
     try {
         const res = await fetch(`/api/v1/trees/${code}`);
@@ -122,7 +122,7 @@ function renderBasicInfo(tree) {
         <div class="info-row"><span class="info-label">Species</span><span class="info-value">${tree.species}</span></div>
         <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge ${statusClass}">${tree.current_status}</span></span></div>
         <div class="info-row"><span class="info-label">Barcode</span><span class="info-value">${tree.barcode_value || '-'}</span></div>
-        <div class="info-row"><span class="info-label">Verified</span><span class="info-value">${tree.manual_verified ? '\u2705 Yes' : '\u274C No'}</span></div>
+        <div class="info-row"><span class="info-label">Verified</span><span class="info-value">${tree.manual_verified ? 'Yes' : 'No'}</span></div>
         <div class="info-row"><span class="info-label">Plantation</span><span class="info-value">${tree.plantation_name || '-'}</span></div>
         <div class="info-row"><span class="info-label">Created</span><span class="info-value">${formatDate(tree.created_at)}</span></div>
     `;
@@ -142,7 +142,7 @@ function renderLocationInfo(tree) {
 function renderTimeline(timeline) {
     const el = document.getElementById('timeline-content');
     if (timeline.length === 0) {
-        el.innerHTML = '<div class="timeline-empty">\u{1F4ED} No history records yet. Timeline will be populated when future UAV missions match this tree.</div>';
+        el.innerHTML = '<div class="timeline-empty">No history records yet. Timeline will be populated when future UAV missions match this tree.</div>';
         return;
     }
     el.innerHTML = timeline.map(t => `
@@ -340,19 +340,19 @@ async function loadSessionImages(sessionId) {
         const data = await res.json();
         if (data.status === 'ok' && data.images.length > 0) {
             el.innerHTML = `
-                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;">
+                <div class="session-image-grid">
                     ${data.images.map(img => `
-                        <div class="info-card" style="padding:8px; border:1px solid rgba(255,255,255,0.1);">
-                            <img src="${fixImageUrl(img.image_url, img.upload_id)}" style="width:100%; border-radius:4px; aspect-ratio:1; object-fit:cover;">
-                            <div style="font-size:0.75rem; margin-top:5px; color:#60a5fa; font-weight:700; text-transform:uppercase;">${img.image_role}</div>
-                            <div style="font-size:0.68rem; color:#94a3b8;">${img.metadata?.route_status || img.mock_analysis?.metadata?.route_status || 'analysis'}</div>
-                            <div style="font-size:0.7rem; color:rgba(255,255,255,0.5);">${formatDate(img.created_at)}</div>
+                        <div class="session-image-card">
+                            <img src="${fixImageUrl(img.image_url, img.upload_id)}" alt="${img.image_role} evidence">
+                            <div class="session-image-role">${img.image_role}</div>
+                            <div class="session-image-meta">${img.metadata?.route_status || img.mock_analysis?.metadata?.route_status || 'analysis'}</div>
+                            <div class="session-image-meta">${formatDate(img.created_at)}</div>
                         </div>
                     `).join('')}
                 </div>
-                <div style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
-                    <h4 style="font-size:0.8rem; margin-bottom:5px; color:rgba(255,255,255,0.6);">Latest Analysis Detail</h4>
-                    <pre style="font-size:0.75rem; color:#94a3b8; overflow-x:auto;">${JSON.stringify(data.images[data.images.length-1].mock_analysis, null, 2)}</pre>
+                <div class="analysis-detail">
+                    <h4>Latest Analysis Detail</h4>
+                    <pre>${JSON.stringify(data.images[data.images.length-1].mock_analysis, null, 2)}</pre>
                 </div>
             `;
         }

@@ -346,6 +346,11 @@ main {
     padding: 22px;
 }
 
+.sidebar-section {
+    border-radius: var(--radius);
+    padding: 18px;
+}
+
 .panel {
     display: flex;
     flex-direction: column;
@@ -846,6 +851,62 @@ main {
     color: var(--text-dim);
     font-size: 0.84rem;
     white-space: pre-wrap;
+}
+
+.session-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.session-image-card {
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 9px;
+}
+
+.session-image-card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.session-image-role {
+    margin-top: 7px;
+    color: #93c5fd;
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.session-image-meta {
+    margin-top: 4px;
+    color: var(--text-dim);
+    font-size: 0.7rem;
+}
+
+.analysis-detail {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.analysis-detail h4 {
+    margin: 0 0 8px;
+    color: var(--text-dim);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.analysis-detail pre {
+    max-height: 280px;
+    overflow: auto;
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 0.75rem;
 }
 
 .a0-review {
