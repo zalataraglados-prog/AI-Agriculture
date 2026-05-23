@@ -3,262 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tree Profile</title>
+    <title>Oil Palm Tree Profile</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <style>
-        .profile-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.2rem;
-        }
-        @media (max-width: 640px) {
-            .profile-grid { grid-template-columns: 1fr; }
-        }
-        .info-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            padding: 1.2rem;
-        }
-        .info-card h3 {
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.8rem;
-        }
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.4rem 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            font-size: 0.92rem;
-        }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { color: rgba(255,255,255,0.5); }
-        .info-value { color: #e0e0e0; font-weight: 500; }
-        .badge {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .badge-active { background: rgba(34,197,94,0.15); color: #22c55e; }
-        .badge-dead { background: rgba(239,68,68,0.15); color: #ef4444; }
-        .badge-removed { background: rgba(156,163,175,0.15); color: #9ca3af; }
-        .badge-replanted { background: rgba(59,130,246,0.15); color: #3b82f6; }
-        .timeline-empty {
-            text-align: center;
-            padding: 2rem;
-            color: rgba(255,255,255,0.35);
-            font-style: italic;
-        }
-        .timeline-item {
-            background: rgba(255,255,255,0.03);
-            border-left: 3px solid rgba(59,130,246,0.5);
-            padding: 0.8rem 1rem;
-            margin-bottom: 0.6rem;
-            border-radius: 0 8px 8px 0;
-        }
-        .action-bar {
-            display: flex;
-            gap: 0.8rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-        .btn-status {
-            padding: 8px 16px;
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.05);
-            color: #d1d5db;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-        }
-        .btn-status:hover { background: rgba(255,255,255,0.1); }
-        .btn-status.danger { border-color: rgba(239,68,68,0.3); color: #ef4444; }
-        .btn-status.danger:hover { background: rgba(239,68,68,0.1); }
-        .session-controls {
-            display: grid;
-            grid-template-columns: 160px 1fr auto;
-            gap: 0.75rem;
-            align-items: end;
-            margin-top: 1rem;
-        }
-        .session-controls select,
-        .session-controls input {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 8px;
-            color: #e5e7eb;
-            padding: 0.7rem;
-        }
-        .session-result {
-            margin-top: 1rem;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-            padding: 0.8rem;
-            color: #cbd5e1;
-            font-size: 0.9rem;
-            white-space: pre-wrap;
-        }
-        @media (max-width: 760px) {
-            .session-controls { grid-template-columns: 1fr; }
-        }
-        .assessment-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-            gap: 0.75rem;
-        }
-        .assessment-tile {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
-            padding: 0.85rem;
-        }
-        .assessment-tile strong {
-            display: block;
-            font-size: 0.78rem;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-            margin-bottom: 0.35rem;
-        }
-        .assessment-main { font-size: 1rem; color: #e5e7eb; font-weight: 700; }
-        .assessment-sub { margin-top: 0.35rem; color: #94a3b8; font-size: 0.78rem; }
-        .a0-review {
-            margin-top: 1rem;
-            display: none;
-            grid-template-columns: minmax(0, 1fr) 220px;
-            gap: 1rem;
-        }
-        .a0-stage {
-            position: relative;
-            width: 100%;
-            overflow: hidden;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.24);
-        }
-        .a0-stage img {
-            display: block;
-            width: 100%;
-            max-height: 58vh;
-            object-fit: contain;
-        }
-        .a0-box {
-            position: absolute;
-            border: 2px solid #22c55e;
-            background: rgba(34,197,94,0.12);
-            cursor: pointer;
-            box-sizing: border-box;
-        }
-        .a0-box.rejected {
-            border-color: #ef4444;
-            background: rgba(15,23,42,0.55);
-            opacity: 0.55;
-        }
-        .a0-box span {
-            position: absolute;
-            left: 0;
-            top: -1.45rem;
-            background: rgba(15,23,42,0.88);
-            color: #e5e7eb;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.68rem;
-            white-space: nowrap;
-        }
-        .a0-side {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
-            padding: 0.8rem;
-        }
-        .a0-side p {
-            color: #94a3b8;
-            font-size: 0.8rem;
-            margin: 0.35rem 0;
-        }
-        @media (max-width: 760px) {
-            .a0-review { grid-template-columns: 1fr; }
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1 id="profile-title">Tree Profile</h1>
-            <div>
-                <a href="tree_list.html" class="back-link">Tree Registry</a>
-                <a href="plantation_dashboard.html" class="back-link" style="margin-left:12px;">Dashboard</a>
-                <a href="index.html" class="back-link" style="margin-left:12px;">UAV Review</a>
-                <a href="/" class="back-link" style="margin-left:12px;">Portal</a>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
+                <img class="brand-mark" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
+                <span class="brand-copy">
+                    <strong data-i18n="brand_name">Oil Palm Nexus</strong>
+                    <span data-i18n="brand_subtitle">Tree asset AI</span>
+                </span>
+            </a>
+            <nav class="app-nav" aria-label="Oil palm navigation">
+                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_uav_review">UAV Review</span></a>
+                <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_tree_registry">Tree Registry</span></a>
+                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span></a>
+                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
+            </nav>
+            <div class="app-nav-bottom">
+                <a class="nav-item" href="tree_list.html"><i class="fa fa-arrow-left nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_back_trees">Back to trees</span></a>
             </div>
-        </header>
-        <main>
-            <div id="loading" class="status-box">Loading tree data...</div>
-            <div id="profile-content" style="display:none;">
-                <div class="profile-grid">
-                    <div class="info-card">
-                        <h3>Basic Info</h3>
-                        <div id="basic-info"></div>
-                    </div>
-                    <div class="info-card">
-                        <h3>Location</h3>
-                        <div id="location-info"></div>
-                    </div>
+        </aside>
+
+        <main class="app-main">
+            <header class="topbar">
+                <div class="page-title">
+                    <h1 id="profile-title" data-i18n="profile_title">Tree Profile</h1>
+                    <p data-i18n="profile_subtitle">Long-lived tree asset, location history, evidence collection, and A0 candidate review.</p>
                 </div>
-                <section class="panel" style="margin-top:1.5rem;">
-                    <h2>Tree Assessment</h2>
-                    <div id="assessment-summary" class="status-box">Loading assessment...</div>
+                <div class="topbar-actions">
+                    <span class="status-pill status-ok" data-i18n="top_tree_profile">Tree profile</span>
+                    <a href="tree_list.html" class="back-link" data-i18n="nav_tree_registry">Tree Registry</a>
+                    <a href="plantation_dashboard.html" class="back-link" data-i18n="nav_dashboard">Dashboard</a>
+                    <a href="index.html" class="back-link" data-i18n="nav_uav_review">UAV Review</a>
+                    <a href="/" class="back-link" data-i18n="nav_portal">Portal</a>
+                    <label class="lang-switcher">
+                        <i class="fa fa-globe lang-select-icon" aria-hidden="true"></i>
+                        <select class="lang-select" data-lang-select data-i18n-aria="language">
+                            <option value="zh">ZH</option>
+                            <option value="en">EN</option>
+                            <option value="ms">MS</option>
+                        </select>
+                    </label>
+                </div>
+            </header>
+
+            <div id="loading" class="status-box" data-i18n="loading_tree_data">Loading tree data...</div>
+
+            <div id="profile-content" class="section-stack" style="display:none;">
+                <section class="hero-strip">
+                    <div class="hero-panel">
+                        <span class="kicker" data-i18n="tree_level_asset">Tree-level asset</span>
+                        <h2 data-i18n="profile_hero">This profile links UAV location, farmer evidence, and model output to one stable tree code.</h2>
+                        <p data-i18n="profile_hero_desc">Use the observation session to collect role-specific images. A0 candidate review happens before downstream analysis so unsupported regions do not become permanent evidence.</p>
+                    </div>
+                    <div class="panel">
+                        <span class="step-label" data-i18n="barcode_binding">Barcode binding</span>
+                        <div id="barcode-box" class="status-box" data-i18n="barcode_loading">Barcode: loading...</div>
+                    </div>
+                </section>
+
+                <section class="profile-grid">
+                    <article class="info-card">
+                        <h3 data-i18n="basic_info">Basic Info</h3>
+                        <div id="basic-info"></div>
+                    </article>
+                    <article class="info-card">
+                        <h3 data-i18n="location">Location</h3>
+                        <div id="location-info"></div>
+                    </article>
+                </section>
+
+                <section class="panel">
+                    <h2 data-i18n="tree_assessment">Tree Assessment</h2>
+                    <p class="panel-subtitle" data-i18n="tree_assessment_desc">Aggregated structured facts. Mock dimensions stay clearly separated from future real model outputs.</p>
+                    <div id="assessment-summary" class="status-box" data-i18n="loading_assessment">Loading assessment...</div>
                     <div id="assessment-grid" class="assessment-grid"></div>
                 </section>
+
                 <section class="panel">
-                    <h2>Timeline / Coordinate History</h2>
-                    <div id="timeline-content"></div>
-                </section>
-                <section class="panel">
-                    <h2>Observation Session</h2>
-                    <div id="barcode-box" class="status-box">Barcode: loading...</div>
+                    <h2 data-i18n="observation_session">Observation Session</h2>
+                    <p class="panel-subtitle" data-i18n="observation_session_desc">Attach fruit, trunk-base, or crown images to this tree before reviewing A0 candidates.</p>
                     <div class="action-bar">
-                        <button id="btn-start-session" class="btn">Start Collection</button>
+                        <button id="btn-start-session" class="btn" data-i18n="start_collection">Start Collection</button>
                     </div>
-                    <div id="session-status" class="status-box">No active collection session</div>
+                    <div id="session-status" class="status-box" data-i18n="no_active_session">No active collection session</div>
                     <div class="session-controls">
-                        <select id="image-role">
-                            <option value="fruit">Fruit bunch</option>
-                            <option value="trunk_base">Trunk base</option>
-                            <option value="crown">Crown</option>
+                        <select id="image-role" aria-label="Image role" data-i18n-aria="image_role">
+                            <option value="fruit" data-i18n="image_role_fruit">Fruit bunch</option>
+                            <option value="trunk_base" data-i18n="image_role_trunk_base">Trunk base</option>
+                            <option value="crown" data-i18n="image_role_crown">Crown</option>
                         </select>
                         <input id="session-image" type="file" accept="image/jpeg,image/png">
-                        <button id="btn-upload-session-image" class="btn" disabled>Upload</button>
+                        <button id="btn-upload-session-image" class="btn" disabled data-i18n="upload">Upload</button>
                     </div>
                     <div id="a0-review" class="a0-review">
                         <div id="a0-stage" class="a0-stage"></div>
-                        <div class="a0-side">
-                            <h3>A0 Candidate Review</h3>
-                            <p id="a0-review-status">Confirm which candidates belong to this tree.</p>
+                        <aside class="a0-side">
+                            <h3 data-i18n="a0_candidate_review">A0 Candidate Review</h3>
+                            <p id="a0-review-status" data-i18n="a0_review_hint">Confirm which candidates belong to this tree.</p>
                             <p id="a0-review-counts">Selected: 0 / Rejected: 0</p>
                             <div class="action-bar">
-                                <button id="btn-confirm-a0" class="btn">Confirm Selection</button>
-                                <button id="btn-cancel-a0" class="btn-status">Cancel Review</button>
+                                <button id="btn-confirm-a0" class="btn" data-i18n="confirm_selection">Confirm Selection</button>
+                                <button id="btn-cancel-a0" class="btn-status" data-i18n="cancel_review">Cancel Review</button>
                             </div>
-                        </div>
+                        </aside>
                     </div>
-                    <div id="session-result" class="session-result">Session images and mock analysis will appear here.</div>
+                    <div id="session-result" class="session-result" data-i18n="session_result_empty">Session images and downstream analysis will appear here.</div>
                 </section>
+
                 <section class="panel">
-                    <h2>Actions</h2>
+                    <h2 data-i18n="timeline_history">Timeline / Coordinate History</h2>
+                    <p class="panel-subtitle" data-i18n="timeline_history_desc">Future UAV missions can enrich this tree with movement, re-detection, and matching history.</p>
+                    <div id="timeline-content"></div>
+                </section>
+
+                <section class="panel">
+                    <h2 data-i18n="actions">Actions</h2>
+                    <p class="panel-subtitle" data-i18n="actions_desc">Status changes affect the long-lived tree record.</p>
                     <div class="action-bar" id="action-bar"></div>
                 </section>
             </div>
         </main>
+
+        <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
+            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_uav">UAV</span></a>
+            <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_trees">Trees</span></a>
+            <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_dash">Dash</span></a>
+            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
+        </nav>
     </div>
+    <script src="i18n.js"></script>
     <script src="tree_profile.js"></script>
 </body>
 </html>

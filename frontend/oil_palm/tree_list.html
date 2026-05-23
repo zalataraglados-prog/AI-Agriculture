@@ -3,168 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tree Registry</title>
+    <title>Oil Palm Tree Registry</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <style>
-        .toolbar {
-            display: flex;
-            align-items: flex-start;
-            gap: 2rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            background: rgba(255,255,255,0.03);
-            padding: 1.5rem;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            min-width: 260px;
-            position: relative;
-        }
-        .filter-group label {
-            color: rgba(255,255,255,0.4);
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            padding-left: 4px;
-        }
-        /* 滚动条美化 */
-        .options-list::-webkit-scrollbar { width: 6px; }
-        .options-list::-webkit-scrollbar-track { background: transparent; }
-        .options-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .options-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-
-        .toolbar .total-badge {
-            margin-left: auto;
-            align-self: center;
-            font-size: 0.9rem;
-            color: #60a5fa;
-            font-weight: 700;
-            background: rgba(96, 165, 250, 0.1);
-            padding: 6px 16px;
-            border-radius: 20px;
-            border: 1px solid rgba(96, 165, 250, 0.2);
-        }
-        .tree-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-        .tree-table th {
-            text-align: left;
-            padding: 10px 12px;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-        .tree-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            color: #d1d5db;
-        }
-        .tree-table tr:hover td {
-            background: rgba(255,255,255,0.03);
-        }
-        .tree-table a {
-            color: #60a5fa;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .tree-table a:hover { text-decoration: underline; }
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .badge-active { background: rgba(34,197,94,0.15); color: #22c55e; }
-        .badge-dead { background: rgba(239,68,68,0.15); color: #ef4444; }
-        .badge-removed { background: rgba(156,163,175,0.15); color: #9ca3af; }
-        .badge-replanted { background: rgba(59,130,246,0.15); color: #3b82f6; }
-        .pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1.2rem;
-            color: rgba(255,255,255,0.5);
-            font-size: 0.9rem;
-        }
-        .pagination button {
-            padding: 6px 16px;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.05);
-            color: #d1d5db;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .pagination button:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
-        .pagination button:disabled { opacity: 0.3; cursor: default; }
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: rgba(255,255,255,0.35);
-            font-style: italic;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🌴 Tree Registry</h1>
-            <div>
-                <a href="plantation_dashboard.html" class="back-link">Dashboard</a>
-                <a href="index.html" class="back-link" style="margin-left:12px;">UAV Review</a>
-                <a href="/" class="back-link" style="margin-left:12px;">Portal</a>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
+                <img class="brand-mark" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
+                <span class="brand-copy">
+                    <strong data-i18n="brand_name">Oil Palm Nexus</strong>
+                    <span data-i18n="brand_subtitle">Tree asset AI</span>
+                </span>
+            </a>
+            <nav class="app-nav" aria-label="Oil palm navigation">
+                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_uav_review">UAV Review</span></a>
+                <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_tree_registry">Tree Registry</span></a>
+                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span></a>
+                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
+            </nav>
+            <div class="app-nav-bottom">
+                <a class="nav-item" href="tree_list.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_refresh">Refresh</span></a>
             </div>
-        </header>
-        <main>
-            <section class="panel">
+        </aside>
+
+        <main class="app-main">
+            <header class="topbar">
+                <div class="page-title">
+                    <h1 data-i18n="registry_title">Tree Registry</h1>
+                    <p data-i18n="registry_subtitle">Browse confirmed oil palm assets by plantation and UAV mission.</p>
+                </div>
+                <div class="topbar-actions">
+                    <span class="status-pill status-ok" data-i18n="top_tree_assets">Tree-level assets</span>
+                    <a href="plantation_dashboard.html" class="back-link" data-i18n="nav_dashboard">Dashboard</a>
+                    <a href="index.html" class="back-link" data-i18n="nav_uav_review">UAV Review</a>
+                    <a href="/" class="back-link" data-i18n="nav_portal">Portal</a>
+                    <label class="lang-switcher">
+                        <i class="fa fa-globe lang-select-icon" aria-hidden="true"></i>
+                        <select class="lang-select" data-lang-select data-i18n-aria="language">
+                            <option value="zh">ZH</option>
+                            <option value="en">EN</option>
+                            <option value="ms">MS</option>
+                        </select>
+                    </label>
+                </div>
+            </header>
+
+            <section class="hero-strip">
+                <div class="hero-panel">
+                    <span class="kicker" data-i18n="registry_kicker">Registry</span>
+                    <h2 data-i18n="registry_hero">Each row is a durable production asset, not an isolated image result.</h2>
+                    <p data-i18n="registry_hero_desc">Filter by plantation and mission to inspect confirmed trees, then open a Tree Profile for assessment, barcode, timeline, and observation-session evidence.</p>
+                </div>
+                <div class="panel">
+                    <span class="step-label" data-i18n="asset_filters">Asset filters</span>
+                    <div class="status-row"><span data-i18n="plantation">Plantation</span><span class="status-pill status-info" data-i18n="required_for_missions">required for missions</span></div>
+                    <div class="status-row"><span data-i18n="mission_filter">Mission</span><span class="status-pill status-warning" data-i18n="optional">optional</span></div>
+                </div>
+            </section>
+
+            <section class="section-stack">
                 <div class="toolbar">
                     <div class="filter-group">
-                        <label>1. Select Plantation</label>
+                        <label data-i18n="select_plantation">1. Select Plantation</label>
                         <div id="plantation-dropdown" class="custom-select">
-                            <span class="selected-text" id="plantation-text">-- All Plantations --</span>
-                            <span class="arrow">▼</span>
+                            <span class="selected-text" id="plantation-text" data-i18n="all_plantations">-- All Plantations --</span>
+                            <span class="arrow">v</span>
                         </div>
                         <div id="plantation-options" class="options-list"></div>
                     </div>
-                    
+
                     <div class="filter-group">
-                        <label>2. Filter by Mission</label>
+                        <label data-i18n="filter_mission">2. Filter by Mission</label>
                         <div id="mission-dropdown" class="custom-select" style="opacity: 0.5; pointer-events: none;">
-                            <span class="selected-text" id="mission-text">Please select a plantation...</span>
-                            <span class="arrow">▼</span>
+                            <span class="selected-text" id="mission-text" data-i18n="select_plantation_hint">Please select a plantation...</span>
+                            <span class="arrow">v</span>
                         </div>
                         <div id="mission-options" class="options-list"></div>
                     </div>
-                    
+
                     <span class="total-badge" id="total-badge">Total Assets: 0</span>
                 </div>
 
-                <div id="table-container">
-                    <div class="empty-state">Loading registry...</div>
-                </div>
+                <section class="panel">
+                    <h2 data-i18n="confirmed_trees">Confirmed Trees</h2>
+                    <p class="panel-subtitle" data-i18n="confirmed_trees_desc">Open any tree code to continue into the long-lived tree profile.</p>
+                    <div id="table-container">
+                        <div class="empty-state" data-i18n="loading_registry">Loading registry...</div>
+                    </div>
 
-                <div class="pagination" id="pagination" style="display:none;">
-                    <button id="btn-prev" disabled>&laquo; Prev</button>
-                    <span id="btn-page-info">Page 1</span>
-                    <button id="btn-next">&raquo; Next</button>
-                </div>
+                    <div class="pagination" id="pagination" style="display:none;">
+                        <button id="btn-prev" disabled>&laquo; <span data-i18n="prev">Prev</span></button>
+                        <span id="btn-page-info">Page 1</span>
+                        <button id="btn-next">&raquo; <span data-i18n="next">Next</span></button>
+                    </div>
+                </section>
             </section>
         </main>
+
+        <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
+            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_uav">UAV</span></a>
+            <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_trees">Trees</span></a>
+            <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_dash">Dash</span></a>
+            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
+        </nav>
     </div>
+    <script src="i18n.js"></script>
     <script src="tree_list.js"></script>
 </body>
 </html>

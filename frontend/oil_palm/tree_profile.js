@@ -4,11 +4,468 @@ document.addEventListener('DOMContentLoaded', async () => {
     const barcode = params.get('barcode');
     const loading = document.getElementById('loading');
     const content = document.getElementById('profile-content');
-    let currentTree = null;
-    let currentSessionId = null;
+
+    const state = {
+        code: null,
+        tree: null,
+        timeline: [],
+        assessment: null,
+        assessmentMessage: null,
+        sessionId: null,
+        sessionImages: [],
+        loadingMessage: null,
+        barcodeMessage: null,
+        sessionMessage: { key: 'no_active_session', params: {} },
+        a0Message: { key: 'a0_review_hint', params: {} },
+        a0: null
+    };
+
+    function t(key, params = {}) {
+        if (window.OP_I18N) return window.OP_I18N.t(key, params);
+        return Object.entries(params).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, value), key);
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function unknownError(message) {
+        return message || t('unknown_error');
+    }
+
+    function formatDate(iso) {
+        if (!iso) return '-';
+        try {
+            const lang = window.OP_I18N?.getLanguage?.() || 'en';
+            const locale = lang === 'zh' ? 'zh-CN' : (lang === 'ms' ? 'ms-MY' : 'en-US');
+            return new Date(iso).toLocaleDateString(locale, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return iso;
+        }
+    }
+
+    function fixImageUrl(url, uploadId) {
+        if (!url) return '';
+        if (url.includes('api/v1/image/file')) return url;
+        if (uploadId) return `/api/v1/image/file?upload_id=${encodeURIComponent(uploadId)}`;
+        const parts = url.split(/[\\/]/);
+        const filename = parts[parts.length - 1];
+        const idMatch = filename.match(/^(.+)\.\w+$/);
+        const id = idMatch ? idMatch[1] : filename;
+        return `/api/v1/image/file?upload_id=${encodeURIComponent(id)}`;
+    }
+
+    function setLoading(key, params = {}) {
+        state.loadingMessage = { key, params };
+        loading.textContent = t(key, params);
+    }
+
+    function updateProfileTitle() {
+        if (!state.code) return;
+        document.getElementById('profile-title').textContent = t('profile_title_with_code', { code: state.code });
+    }
+
+    function setBarcodeMessage(key, params = {}) {
+        state.barcodeMessage = { key, params };
+        document.getElementById('barcode-box').textContent = t(key, params);
+    }
+
+    function setSessionMessage(key, params = {}) {
+        state.sessionMessage = { key, params };
+        document.getElementById('session-status').textContent = t(key, params);
+    }
+
+    function setA0Message(key, params = {}) {
+        state.a0Message = { key, params };
+        document.getElementById('a0-review-status').textContent = t(key, params);
+    }
+
+    function setAssessmentMessage(key, params = {}) {
+        state.assessmentMessage = { key, params };
+        document.getElementById('assessment-summary').textContent = t(key, params);
+    }
+
+    function roleLabel(role) {
+        return t(`image_role_${role}`) || role;
+    }
+
+    function updateRoleOptions() {
+        const roleInput = document.getElementById('image-role');
+        Array.from(roleInput.options).forEach((option) => {
+            option.textContent = roleLabel(option.value);
+        });
+    }
+
+    function assessmentTile(titleKey, status, label, metric) {
+        const m = metric === null || metric === undefined ? '-' : (Number.isFinite(Number(metric)) ? Number(metric).toFixed(2) : metric);
+        return `
+            <div class="assessment-tile">
+                <strong>${t(titleKey)}</strong>
+                <div class="assessment-main">${escapeHtml(status || t('unknown'))}</div>
+                <div class="assessment-sub">${escapeHtml(label || '-')} &bull; ${escapeHtml(m)}</div>
+            </div>
+        `;
+    }
+
+    function renderAssessment(assessment) {
+        if (!assessment) {
+            if (state.assessmentMessage) setAssessmentMessage(state.assessmentMessage.key, state.assessmentMessage.params);
+            return;
+        }
+
+        state.assessment = assessment;
+        state.assessmentMessage = null;
+        const summaryEl = document.getElementById('assessment-summary');
+        const gridEl = document.getElementById('assessment-grid');
+        const dims = assessment.dimensions || {};
+
+        summaryEl.textContent = t('assessment_summary', {
+            summary: assessment.summary || '-',
+            action: assessment.recommended_action || '-',
+            completeness: assessment.completeness || '-',
+            date: formatDate(assessment.valid_until)
+        });
+
+        gridEl.innerHTML = [
+            assessmentTile('dim_fruit', dims.fruit?.status, dims.fruit?.label, dims.fruit?.confidence),
+            assessmentTile('dim_disease', dims.disease?.risk_level || dims.disease?.status, dims.disease?.label, dims.disease?.confidence),
+            assessmentTile('dim_growth', dims.growth?.status, dims.growth?.label, dims.growth?.vigor_index),
+            assessmentTile('dim_uav', dims.uav?.status, t('shift_value', { value: dims.uav?.center_shift ?? '-' }), dims.uav?.confidence)
+        ].join('');
+    }
+
+    async function loadAssessment(treeCode) {
+        try {
+            const res = await fetch(`/api/v1/trees/${encodeURIComponent(treeCode)}/assessment`);
+            const data = await res.json();
+            if (data.status !== 'ok') {
+                state.assessment = null;
+                setAssessmentMessage('assessment_unavailable');
+                return;
+            }
+            renderAssessment(data.assessment);
+        } catch (e) {
+            state.assessment = null;
+            setAssessmentMessage('assessment_failed', { message: e.message });
+        }
+    }
+
+    async function loadBarcode(treeCode) {
+        try {
+            const res = await fetch(`/api/v1/trees/${encodeURIComponent(treeCode)}/barcode`);
+            const data = await res.json();
+            if (data.status === 'ok') {
+                setBarcodeMessage('barcode_value', { value: data.barcode_value });
+            } else {
+                setBarcodeMessage('barcode_unavailable');
+            }
+        } catch (e) {
+            setBarcodeMessage('barcode_failed');
+        }
+    }
+
+    function infoRow(labelKey, value, valueHtml = false) {
+        const renderedValue = valueHtml ? value : escapeHtml(value ?? '-');
+        return `<div class="info-row"><span class="info-label">${t(labelKey)}</span><span class="info-value">${renderedValue}</span></div>`;
+    }
+
+    function renderBasicInfo() {
+        const tree = state.tree;
+        if (!tree) return;
+        const statusClass = `badge-${tree.current_status}`;
+        document.getElementById('basic-info').innerHTML = [
+            infoRow('tree_code', tree.tree_code),
+            infoRow('species', tree.species),
+            infoRow('status', `<span class="badge ${statusClass}">${escapeHtml(tree.current_status)}</span>`, true),
+            infoRow('barcode_binding', tree.barcode_value || '-'),
+            infoRow('verified', tree.manual_verified ? t('yes') : t('no')),
+            infoRow('plantation', tree.plantation_name || '-'),
+            infoRow('created', formatDate(tree.created_at))
+        ].join('');
+    }
+
+    function renderLocationInfo() {
+        const tree = state.tree;
+        if (!tree) return;
+        document.getElementById('location-info').innerHTML = [
+            infoRow('coordinate_x', tree.coordinate_x ?? '-'),
+            infoRow('coordinate_y', tree.coordinate_y ?? '-'),
+            infoRow('crown_center_x', tree.crown_center_x ?? '-'),
+            infoRow('crown_center_y', tree.crown_center_y ?? '-'),
+            infoRow('source_ortho_id', tree.source_orthomosaic_id ?? '-'),
+            infoRow('block', tree.block_id || '-')
+        ].join('');
+    }
+
+    function renderTimeline() {
+        const el = document.getElementById('timeline-content');
+        if (state.timeline === null) {
+            el.innerHTML = `<div class="timeline-empty">${t('timeline_failed')}</div>`;
+            return;
+        }
+        if (!state.timeline.length) {
+            el.innerHTML = `<div class="timeline-empty">${t('no_history_records')}</div>`;
+            return;
+        }
+
+        el.innerHTML = state.timeline.map((item) => `
+            <div class="timeline-item">
+                <strong>${escapeHtml(item.mission_name || '-')}</strong>
+                <span style="color:rgba(255,255,255,0.4); margin-left:8px;">${formatDate(item.mission_date || item.created_at)}</span>
+                <div style="margin-top:4px; font-size:0.88rem; color:#9ca3af;">
+                    ${t('detected')}: (${item.detected_x?.toFixed(2) ?? '-'}, ${item.detected_y?.toFixed(2) ?? '-'})
+                    &bull; ${t('shift')}: ${item.center_shift?.toFixed(3) ?? '-'}
+                    &bull; ${t('confidence')}: ${item.match_confidence?.toFixed(2) ?? '-'}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderActions() {
+        const tree = state.tree;
+        if (!tree) return;
+        const bar = document.getElementById('action-bar');
+        const statuses = ['active', 'dead', 'removed', 'replanted'];
+        bar.innerHTML = '';
+
+        statuses.forEach((status) => {
+            if (status === tree.current_status) return;
+            const btn = document.createElement('button');
+            btn.className = 'btn-status' + (status === 'dead' || status === 'removed' ? ' danger' : '');
+            btn.textContent = t('mark_as', { status });
+            btn.addEventListener('click', async () => {
+                if (!confirm(t('change_status_confirm', { status }))) return;
+                try {
+                    const res = await fetch(`/api/v1/trees/${encodeURIComponent(state.code)}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status })
+                    });
+                    if (res.ok) {
+                        window.location.reload();
+                    } else {
+                        const err = await res.json();
+                        alert(t('failed_message', { message: unknownError(err.message) }));
+                    }
+                } catch (e) {
+                    alert(t('error_prefix', { message: e.message }));
+                }
+            });
+            bar.appendChild(btn);
+        });
+    }
+
+    function bindSessionActions() {
+        const startBtn = document.getElementById('btn-start-session');
+        const uploadBtn = document.getElementById('btn-upload-session-image');
+        const fileInput = document.getElementById('session-image');
+        const roleInput = document.getElementById('image-role');
+
+        fileInput.addEventListener('change', () => {
+            uploadBtn.disabled = !state.sessionId || !fileInput.files.length;
+        });
+
+        startBtn.addEventListener('click', async () => {
+            if (!state.tree?.id) return;
+            setSessionMessage('creating_session');
+            try {
+                const res = await fetch(`/api/v1/trees/${state.tree.id}/sessions`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    state.sessionId = data.session.id;
+                    setSessionMessage('active_session', { code: data.session.session_code });
+                    uploadBtn.disabled = !fileInput.files.length;
+                    await loadSessionImages(state.sessionId);
+                } else {
+                    setSessionMessage('session_failed', { message: unknownError(data.message) });
+                }
+            } catch (e) {
+                setSessionMessage('session_error', { message: e.message });
+            }
+        });
+
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            const role = roleInput.value;
+            if (!state.sessionId || !file) return;
+
+            const form = new FormData();
+            form.append('image_role', role);
+            form.append('file', file);
+            setSessionMessage('uploading_session_image');
+
+            try {
+                const res = await fetch(`/api/v1/sessions/${state.sessionId}/images?image_role=${encodeURIComponent(role)}`, {
+                    method: 'POST',
+                    body: form
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    setSessionMessage(
+                        data.requires_confirmation ? 'uploaded_needs_a0' : 'uploaded_image',
+                        { role: roleLabel(data.image.image_role) }
+                    );
+                    fileInput.value = '';
+                    uploadBtn.disabled = true;
+                    if (data.requires_confirmation) {
+                        showA0Review(data.image, data.analysis);
+                    } else {
+                        await loadSessionImages(state.sessionId);
+                        if (state.tree?.tree_code) await loadAssessment(state.tree.tree_code);
+                    }
+                } else {
+                    setSessionMessage('upload_failed', { message: unknownError(data.message) });
+                }
+            } catch (e) {
+                setSessionMessage('upload_error', { message: e.message });
+            }
+        });
+    }
+
+    function showA0Review(image, analysis) {
+        const candidates = analysis?.metadata?.a0_candidates || [];
+        state.a0 = {
+            image,
+            analysis,
+            candidates,
+            selected: new Set(candidates.map((candidate) => candidate.candidate_id))
+        };
+
+        document.getElementById('a0-review').style.display = 'grid';
+        const stage = document.getElementById('a0-stage');
+        stage.innerHTML = `<img id="a0-review-img" src="${fixImageUrl(image.image_url, image.upload_id)}" alt="A0 review image">`;
+        setA0Message(
+            analysis?.metadata?.route_status === 'needs_user_confirmation' ? 'a0_remove_hint' : 'a0_route_status',
+            { status: analysis?.metadata?.route_status || t('unknown') }
+        );
+        renderA0Boxes();
+        wireA0Buttons();
+    }
+
+    function renderA0Boxes() {
+        if (!state.a0) return;
+        const stage = document.getElementById('a0-stage');
+        stage.querySelectorAll('.a0-box').forEach((el) => el.remove());
+
+        state.a0.candidates.forEach((candidate) => {
+            const geometry = candidate.geometry || {};
+            if (geometry.type !== 'bbox') return;
+            const box = document.createElement('button');
+            box.type = 'button';
+            box.className = 'a0-box' + (state.a0.selected.has(candidate.candidate_id) ? '' : ' rejected');
+            box.style.left = `${Number(geometry.x || 0) * 100}%`;
+            box.style.top = `${Number(geometry.y || 0) * 100}%`;
+            box.style.width = `${Number(geometry.w || 0) * 100}%`;
+            box.style.height = `${Number(geometry.h || 0) * 100}%`;
+            box.innerHTML = `<span>${escapeHtml(candidate.label)} ${(Number(candidate.confidence || 0) * 100).toFixed(0)}%</span>`;
+            box.addEventListener('click', () => {
+                if (state.a0.selected.has(candidate.candidate_id)) {
+                    state.a0.selected.delete(candidate.candidate_id);
+                } else {
+                    state.a0.selected.add(candidate.candidate_id);
+                }
+                renderA0Boxes();
+            });
+            stage.appendChild(box);
+        });
+
+        renderA0Counts();
+    }
+
+    function renderA0Counts() {
+        if (!state.a0) return;
+        const selected = state.a0.selected.size;
+        const rejected = Math.max(state.a0.candidates.length - selected, 0);
+        document.getElementById('a0-review-counts').textContent = t('selected_rejected', { selected, rejected });
+        document.getElementById('btn-confirm-a0').disabled = selected === 0;
+    }
+
+    function wireA0Buttons() {
+        const confirmBtn = document.getElementById('btn-confirm-a0');
+        const cancelBtn = document.getElementById('btn-cancel-a0');
+
+        confirmBtn.onclick = async () => {
+            if (!state.a0?.selected.size) {
+                setA0Message('select_candidate_warning');
+                return;
+            }
+            setA0Message('creating_masked_analysis');
+            try {
+                const res = await fetch(`/api/v1/sessions/${state.sessionId}/images/${state.a0.image.id}/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selected_candidate_ids: Array.from(state.a0.selected) })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    document.getElementById('a0-review').style.display = 'none';
+                    state.a0 = null;
+                    await loadSessionImages(state.sessionId);
+                    if (state.tree?.tree_code) await loadAssessment(state.tree.tree_code);
+                } else {
+                    setA0Message('confirmation_failed', { message: unknownError(data.message) });
+                }
+            } catch (e) {
+                setA0Message('confirmation_error', { message: e.message });
+            }
+        };
+
+        cancelBtn.onclick = () => {
+            document.getElementById('a0-review').style.display = 'none';
+        };
+    }
+
+    async function loadSessionImages(sessionId) {
+        if (!sessionId) return;
+        try {
+            const res = await fetch(`/api/v1/sessions/${sessionId}/images`);
+            const data = await res.json();
+            state.sessionImages = data.status === 'ok' ? (data.images || []) : [];
+            renderSessionImages();
+        } catch (e) {
+            console.error('Failed to load session images', e);
+        }
+    }
+
+    function renderSessionImages() {
+        const el = document.getElementById('session-result');
+        if (!state.sessionImages.length) {
+            el.textContent = t('session_result_empty');
+            return;
+        }
+
+        const latest = state.sessionImages[state.sessionImages.length - 1];
+        el.innerHTML = `
+            <div class="session-image-grid">
+                ${state.sessionImages.map((img) => `
+                    <div class="session-image-card">
+                        <img src="${fixImageUrl(img.image_url, img.upload_id)}" alt="${escapeHtml(roleLabel(img.image_role))} evidence">
+                        <div class="session-image-role">${escapeHtml(roleLabel(img.image_role))}</div>
+                        <div class="session-image-meta">${escapeHtml(img.metadata?.route_status || img.mock_analysis?.metadata?.route_status || 'analysis')}</div>
+                        <div class="session-image-meta">${formatDate(img.created_at)}</div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="analysis-detail">
+                <h4>${t('latest_analysis_detail')}</h4>
+                <pre>${escapeHtml(JSON.stringify(latest.mock_analysis, null, 2))}</pre>
+            </div>
+        `;
+    }
 
     if (!code && barcode) {
-        loading.textContent = 'Looking up barcode...';
+        setLoading('looking_up_barcode');
         try {
             const res = await fetch(`/api/v1/trees/by-barcode/${encodeURIComponent(barcode)}`);
             const data = await res.json();
@@ -16,369 +473,68 @@ document.addEventListener('DOMContentLoaded', async () => {
                 code = data.tree.tree_code;
             }
         } catch (e) {
-            loading.textContent = 'Barcode lookup failed: ' + e.message;
+            setLoading('barcode_lookup_failed', { message: e.message });
             return;
         }
     }
 
     if (!code) {
-        loading.textContent = 'Error: No tree code or barcode provided. Use ?code=OP-XXXXXX or ?barcode=OP-XXXXXX';
+        setLoading('missing_tree_identifier');
         return;
     }
 
-    document.getElementById('profile-title').textContent = `\u{1F334} Tree Profile: ${code}`;
+    state.code = code;
+    updateProfileTitle();
+    updateRoleOptions();
 
     try {
-        const res = await fetch(`/api/v1/trees/${code}`);
+        const res = await fetch(`/api/v1/trees/${encodeURIComponent(code)}`);
         if (!res.ok) {
-            loading.textContent = `Error: Tree "${code}" not found (HTTP ${res.status})`;
+            setLoading('tree_not_found', { code, status: res.status });
             return;
         }
         const data = await res.json();
-        const tree = data.tree;
-        currentTree = tree;
+        state.tree = data.tree;
 
-        renderBasicInfo(tree);
-        renderLocationInfo(tree);
-        renderActions(tree, code);
-        bindSessionActions(() => currentTree, () => currentSessionId, (id) => { 
-            currentSessionId = id; 
-            loadSessionImages(id);
-        });
-        loadBarcode(code);
-        loadAssessment(code);
+        renderBasicInfo();
+        renderLocationInfo();
+        renderActions();
+        bindSessionActions();
+        await Promise.all([loadBarcode(code), loadAssessment(code)]);
 
         loading.style.display = 'none';
         content.style.display = 'block';
     } catch (e) {
-        loading.textContent = 'Error loading tree: ' + e.message;
+        setLoading('error_loading_tree', { message: e.message });
         return;
     }
 
     try {
-        const tlRes = await fetch(`/api/v1/trees/${code}/timeline`);
+        const tlRes = await fetch(`/api/v1/trees/${encodeURIComponent(code)}/timeline`);
         const tlData = await tlRes.json();
-        renderTimeline(tlData.timeline || []);
+        state.timeline = tlData.timeline || [];
+        renderTimeline();
     } catch (e) {
-        document.getElementById('timeline-content').innerHTML =
-            '<div class="timeline-empty">Failed to load timeline</div>';
+        state.timeline = null;
+        renderTimeline();
     }
+
+    document.addEventListener('op:i18n-change', () => {
+        updateProfileTitle();
+        updateRoleOptions();
+        if (state.loadingMessage) loading.textContent = t(state.loadingMessage.key, state.loadingMessage.params);
+        if (state.barcodeMessage) setBarcodeMessage(state.barcodeMessage.key, state.barcodeMessage.params);
+        setSessionMessage(state.sessionMessage.key, state.sessionMessage.params);
+        setA0Message(state.a0Message.key, state.a0Message.params);
+        renderBasicInfo();
+        renderLocationInfo();
+        renderActions();
+        renderAssessment(state.assessment);
+        renderTimeline();
+        renderSessionImages();
+        if (state.a0) {
+            renderA0Boxes();
+            renderA0Counts();
+        }
+    });
 });
-
-async function loadBarcode(code) {
-    const el = document.getElementById('barcode-box');
-    try {
-        const res = await fetch(`/api/v1/trees/${code}/barcode`);
-        const data = await res.json();
-        if (data.status === 'ok') {
-            el.textContent = `Barcode: ${data.barcode_value}`;
-        } else {
-            el.textContent = 'Barcode: unavailable';
-        }
-    } catch (e) {
-        el.textContent = 'Barcode: failed to load';
-    }
-}
-
-async function loadAssessment(code) {
-    const summaryEl = document.getElementById('assessment-summary');
-    const gridEl = document.getElementById('assessment-grid');
-    try {
-        const res = await fetch(`/api/v1/trees/${code}/assessment`);
-        const data = await res.json();
-        if (data.status !== 'ok') {
-            summaryEl.textContent = 'Assessment unavailable';
-            return;
-        }
-        const a = data.assessment;
-        summaryEl.textContent = `${a.summary} Action: ${a.recommended_action}. Completeness: ${a.completeness}. Valid until: ${formatDate(a.valid_until)}.`;
-        const d = a.dimensions || {};
-        gridEl.innerHTML = [
-            assessmentTile('Fruit', d.fruit?.status, d.fruit?.label, d.fruit?.confidence),
-            assessmentTile('Disease', d.disease?.risk_level || d.disease?.status, d.disease?.label, d.disease?.confidence),
-            assessmentTile('Growth', d.growth?.status, d.growth?.label, d.growth?.vigor_index),
-            assessmentTile('UAV', d.uav?.status, `shift ${d.uav?.center_shift ?? '-'}`, d.uav?.confidence)
-        ].join('');
-    } catch (e) {
-        summaryEl.textContent = 'Assessment failed: ' + e.message;
-    }
-}
-
-function assessmentTile(title, status, label, metric) {
-    const m = metric === null || metric === undefined ? '-' : (Number.isFinite(Number(metric)) ? Number(metric).toFixed(2) : metric);
-    return `
-        <div class="assessment-tile">
-            <strong>${title}</strong>
-            <div class="assessment-main">${status || 'unknown'}</div>
-            <div class="assessment-sub">${label || '-'} &bull; ${m}</div>
-        </div>
-    `;
-}
-
-function renderBasicInfo(tree) {
-    const statusClass = `badge-${tree.current_status}`;
-    document.getElementById('basic-info').innerHTML = `
-        <div class="info-row"><span class="info-label">Tree Code</span><span class="info-value">${tree.tree_code}</span></div>
-        <div class="info-row"><span class="info-label">Species</span><span class="info-value">${tree.species}</span></div>
-        <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge ${statusClass}">${tree.current_status}</span></span></div>
-        <div class="info-row"><span class="info-label">Barcode</span><span class="info-value">${tree.barcode_value || '-'}</span></div>
-        <div class="info-row"><span class="info-label">Verified</span><span class="info-value">${tree.manual_verified ? '\u2705 Yes' : '\u274C No'}</span></div>
-        <div class="info-row"><span class="info-label">Plantation</span><span class="info-value">${tree.plantation_name || '-'}</span></div>
-        <div class="info-row"><span class="info-label">Created</span><span class="info-value">${formatDate(tree.created_at)}</span></div>
-    `;
-}
-
-function renderLocationInfo(tree) {
-    document.getElementById('location-info').innerHTML = `
-        <div class="info-row"><span class="info-label">Coordinate X</span><span class="info-value">${tree.coordinate_x ?? '-'}</span></div>
-        <div class="info-row"><span class="info-label">Coordinate Y</span><span class="info-value">${tree.coordinate_y ?? '-'}</span></div>
-        <div class="info-row"><span class="info-label">Crown Center X</span><span class="info-value">${tree.crown_center_x ?? '-'}</span></div>
-        <div class="info-row"><span class="info-label">Crown Center Y</span><span class="info-value">${tree.crown_center_y ?? '-'}</span></div>
-        <div class="info-row"><span class="info-label">Source Ortho ID</span><span class="info-value">${tree.source_orthomosaic_id ?? '-'}</span></div>
-        <div class="info-row"><span class="info-label">Block</span><span class="info-value">${tree.block_id || '-'}</span></div>
-    `;
-}
-
-function renderTimeline(timeline) {
-    const el = document.getElementById('timeline-content');
-    if (timeline.length === 0) {
-        el.innerHTML = '<div class="timeline-empty">\u{1F4ED} No history records yet. Timeline will be populated when future UAV missions match this tree.</div>';
-        return;
-    }
-    el.innerHTML = timeline.map(t => `
-        <div class="timeline-item">
-            <strong>${t.mission_name}</strong>
-            <span style="color:rgba(255,255,255,0.4); margin-left:8px;">${formatDate(t.mission_date || t.created_at)}</span>
-            <div style="margin-top:4px; font-size:0.88rem; color:#9ca3af;">
-                Detected: (${t.detected_x?.toFixed(2) ?? '-'}, ${t.detected_y?.toFixed(2) ?? '-'})
-                &bull; Shift: ${t.center_shift?.toFixed(3) ?? '-'}
-                &bull; Confidence: ${t.match_confidence?.toFixed(2) ?? '-'}
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderActions(tree, code) {
-    const bar = document.getElementById('action-bar');
-    const statuses = ['active', 'dead', 'removed', 'replanted'];
-    statuses.forEach(s => {
-        if (s === tree.current_status) return;
-        const btn = document.createElement('button');
-        btn.className = 'btn-status' + (s === 'dead' || s === 'removed' ? ' danger' : '');
-        btn.textContent = `Mark as ${s}`;
-        btn.addEventListener('click', async () => {
-            if (!confirm(`Change status to "${s}"?`)) return;
-            try {
-                const res = await fetch(`/api/v1/trees/${code}/status`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: s })
-                });
-                if (res.ok) {
-                    window.location.reload();
-                } else {
-                    const err = await res.json();
-                    alert('Failed: ' + (err.message || 'unknown error'));
-                }
-            } catch (e) {
-                alert('Error: ' + e.message);
-            }
-        });
-        bar.appendChild(btn);
-    });
-}
-
-function bindSessionActions(getTree, getSessionId, setSessionId) {
-    const startBtn = document.getElementById('btn-start-session');
-    const uploadBtn = document.getElementById('btn-upload-session-image');
-    const fileInput = document.getElementById('session-image');
-    const roleInput = document.getElementById('image-role');
-    const status = document.getElementById('session-status');
-    const result = document.getElementById('session-result');
-
-    fileInput.addEventListener('change', () => {
-        uploadBtn.disabled = !getSessionId() || !fileInput.files.length;
-    });
-
-    startBtn.addEventListener('click', async () => {
-        const tree = getTree();
-        if (!tree || !tree.id) return;
-        status.textContent = 'Creating observation session...';
-        try {
-            const res = await fetch(`/api/v1/trees/${tree.id}/sessions`, { method: 'POST' });
-            const data = await res.json();
-            if (data.status === 'ok') {
-                setSessionId(data.session.id);
-                status.textContent = `Active session: ${data.session.session_code}`;
-                uploadBtn.disabled = !fileInput.files.length;
-            } else {
-                status.textContent = 'Session failed: ' + (data.message || 'unknown error');
-            }
-        } catch (e) {
-            status.textContent = 'Session error: ' + e.message;
-        }
-    });
-
-    uploadBtn.addEventListener('click', async () => {
-        const sessionId = getSessionId();
-        const file = fileInput.files[0];
-        const role = roleInput.value;
-        if (!sessionId || !file) return;
-        const form = new FormData();
-        form.append('image_role', role);
-        form.append('file', file);
-        status.textContent = 'Uploading session image...';
-        try {
-            // 我们同时在 URL 中带上 image_role 作为后端解析器的兜底
-            const res = await fetch(`/api/v1/sessions/${sessionId}/images?image_role=${role}`, {
-                method: 'POST',
-                body: form
-            });
-            const data = await res.json();
-            if (data.status === 'ok') {
-                status.textContent = data.requires_confirmation
-                    ? `Uploaded ${data.image.image_role} image. Confirm A0 candidates before analysis.`
-                    : `Uploaded ${data.image.image_role} image`;
-                fileInput.value = '';
-                uploadBtn.disabled = true;
-                if (data.requires_confirmation) {
-                    showA0Review(sessionId, data.image, data.analysis, getTree());
-                } else {
-                    loadSessionImages(sessionId);
-                    const tree = getTree();
-                    if (tree?.tree_code) loadAssessment(tree.tree_code);
-                }
-            } else {
-                status.textContent = 'Upload failed: ' + (data.message || 'unknown error');
-            }
-        } catch (e) {
-            status.textContent = 'Upload error: ' + e.message;
-        }
-    });
-}
-
-function showA0Review(sessionId, image, analysis, tree) {
-    const review = document.getElementById('a0-review');
-    const stage = document.getElementById('a0-stage');
-    const counts = document.getElementById('a0-review-counts');
-    const status = document.getElementById('a0-review-status');
-    const confirmBtn = document.getElementById('btn-confirm-a0');
-    const cancelBtn = document.getElementById('btn-cancel-a0');
-    const candidates = analysis?.metadata?.a0_candidates || [];
-    const selected = new Set(candidates.map(c => c.candidate_id));
-
-    review.style.display = 'grid';
-    stage.innerHTML = `<img id="a0-review-img" src="${fixImageUrl(image.image_url, image.upload_id)}" alt="A0 review image">`;
-    status.textContent = analysis?.metadata?.route_status === 'needs_user_confirmation'
-        ? 'Tap boxes to remove candidates that do not belong to this tree.'
-        : `A0 route status: ${analysis?.metadata?.route_status || 'unknown'}`;
-
-    function renderBoxes() {
-        stage.querySelectorAll('.a0-box').forEach(el => el.remove());
-        candidates.forEach(candidate => {
-            const g = candidate.geometry || {};
-            if (g.type !== 'bbox') return;
-            const box = document.createElement('button');
-            box.type = 'button';
-            box.className = 'a0-box' + (selected.has(candidate.candidate_id) ? '' : ' rejected');
-            box.style.left = `${Number(g.x || 0) * 100}%`;
-            box.style.top = `${Number(g.y || 0) * 100}%`;
-            box.style.width = `${Number(g.w || 0) * 100}%`;
-            box.style.height = `${Number(g.h || 0) * 100}%`;
-            box.innerHTML = `<span>${candidate.label} ${(Number(candidate.confidence || 0) * 100).toFixed(0)}%</span>`;
-            box.addEventListener('click', () => {
-                if (selected.has(candidate.candidate_id)) {
-                    selected.delete(candidate.candidate_id);
-                } else {
-                    selected.add(candidate.candidate_id);
-                }
-                renderBoxes();
-            });
-            stage.appendChild(box);
-        });
-        counts.textContent = `Selected: ${selected.size} / Rejected: ${Math.max(candidates.length - selected.size, 0)}`;
-        confirmBtn.disabled = selected.size === 0;
-    }
-
-    confirmBtn.onclick = async () => {
-        if (!selected.size) {
-            status.textContent = 'Select at least one candidate or upload a new image.';
-            return;
-        }
-        status.textContent = 'Creating masked image and running downstream mock analysis...';
-        try {
-            const res = await fetch(`/api/v1/sessions/${sessionId}/images/${image.id}/confirm`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ selected_candidate_ids: Array.from(selected) })
-            });
-            const data = await res.json();
-            if (data.status === 'ok') {
-                review.style.display = 'none';
-                await loadSessionImages(sessionId);
-                if (tree?.tree_code) loadAssessment(tree.tree_code);
-            } else {
-                status.textContent = 'Confirmation failed: ' + (data.message || 'unknown error');
-            }
-        } catch (e) {
-            status.textContent = 'Confirmation error: ' + e.message;
-        }
-    };
-
-    cancelBtn.onclick = () => {
-        review.style.display = 'none';
-    };
-
-    renderBoxes();
-}
-
-async function loadSessionImages(sessionId) {
-    const el = document.getElementById('session-result');
-    if (!sessionId) return;
-    try {
-        const res = await fetch(`/api/v1/sessions/${sessionId}/images`);
-        const data = await res.json();
-        if (data.status === 'ok' && data.images.length > 0) {
-            el.innerHTML = `
-                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;">
-                    ${data.images.map(img => `
-                        <div class="info-card" style="padding:8px; border:1px solid rgba(255,255,255,0.1);">
-                            <img src="${fixImageUrl(img.image_url, img.upload_id)}" style="width:100%; border-radius:4px; aspect-ratio:1; object-fit:cover;">
-                            <div style="font-size:0.75rem; margin-top:5px; color:#60a5fa; font-weight:700; text-transform:uppercase;">${img.image_role}</div>
-                            <div style="font-size:0.68rem; color:#94a3b8;">${img.metadata?.route_status || img.mock_analysis?.metadata?.route_status || 'analysis'}</div>
-                            <div style="font-size:0.7rem; color:rgba(255,255,255,0.5);">${formatDate(img.created_at)}</div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
-                    <h4 style="font-size:0.8rem; margin-bottom:5px; color:rgba(255,255,255,0.6);">Latest Analysis Detail</h4>
-                    <pre style="font-size:0.75rem; color:#94a3b8; overflow-x:auto;">${JSON.stringify(data.images[data.images.length-1].mock_analysis, null, 2)}</pre>
-                </div>
-            `;
-        }
-    } catch (e) {
-        console.error('Failed to load session images', e);
-    }
-}
-
-function fixImageUrl(url, uploadId) {
-    if (!url) return '';
-    if (url.includes('api/v1/image/file')) return url;
-    if (uploadId) return `/api/v1/image/file?upload_id=${uploadId}`;
-    // 处理可能的物理路径
-    const parts = url.split(/[\\/]/);
-    const filename = parts[parts.length - 1];
-    const idMatch = filename.match(/^(.+)\.\w+$/);
-    const id = idMatch ? idMatch[1] : filename;
-    return `/api/v1/image/file?upload_id=${id}`;
-}
-
-function formatDate(iso) {
-    if (!iso) return '-';
-    try {
-        return new Date(iso).toLocaleDateString('en-US', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    } catch { return iso; }
-}

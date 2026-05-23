@@ -1,92 +1,121 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const btnCreateMission = document.getElementById('btn-create-mission');
-    const btnRegisterOrtho = document.getElementById('btn-register-ortho');
-    const btnMockDetections = document.getElementById('btn-mock-detections');
-    const missionStatus = document.getElementById('mission-status');
-    const orthoStatus = document.getElementById('ortho-status');
-    const detectionStatus = document.getElementById('detection-status');
-    const detectionList = document.getElementById('detection-list');
-    const treeList = document.getElementById('tree-list');
-    const btnViewOrtho = document.getElementById('btn-view-ortho');
-    const btnAutoMatch = document.getElementById('btn-auto-match');
-    const matchStatus = document.getElementById('match-status');
-    const matchReviewList = document.getElementById('match-review-list');
+    const $ = (id) => document.getElementById(id);
+    const btnCreateMission = $('btn-create-mission');
+    const btnRegisterOrtho = $('btn-register-ortho');
+    const btnMockDetections = $('btn-mock-detections');
+    const btnAutoMatch = $('btn-auto-match');
+    const btnViewOrtho = $('btn-view-ortho');
+    const missionStatus = $('mission-status');
+    const orthoStatus = $('ortho-status');
+    const detectionStatus = $('detection-status');
+    const detectionList = $('detection-list');
+    const treeList = $('tree-list');
+    const matchStatus = $('match-status');
+    const matchReviewList = $('match-review-list');
 
     let missionId = null;
     let orthoId = null;
+    let detectionsCache = [];
+    let matchReviewsCache = [];
+    let confirmedTreeCodes = [];
 
-    // --- 初始化：尝试恢复最近的状态 ---
+    const statusMemory = new Map();
+
+    function t(key, params = {}) {
+        if (window.OP_I18N) return window.OP_I18N.t(key, params);
+        return Object.entries(params).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, value), key);
+    }
+
+    function unknownError(message) {
+        return message || t('unknown_error');
+    }
+
+    function setStatus(el, key, params = {}) {
+        statusMemory.set(el, { key, params });
+        el.textContent = t(key, params);
+    }
+
+    function setStatusText(el, text) {
+        statusMemory.delete(el);
+        el.textContent = text;
+    }
+
+    function renderRememberedStatuses() {
+        statusMemory.forEach(({ key, params }, el) => {
+            el.textContent = t(key, params);
+        });
+    }
+
+    function buildOrthoLink() {
+        btnViewOrtho.style.display = orthoId ? 'block' : 'none';
+        if (orthoId) btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
+    }
+
     async function init() {
         try {
-            // 1. 获取所有任务
             const res = await fetch('/api/v1/uav/missions');
             const data = await res.json();
             const missions = data.missions || [];
-            
-            if (missions.length > 0) {
-                // 取最近的一个任务
-                const lastMission = missions[missions.length - 1];
-                missionId = lastMission.id;
-                missionStatus.textContent = `Current Mission: ${lastMission.mission_name} (ID ${missionId})`;
-                btnRegisterOrtho.disabled = false;
 
-                // 2. 获取该任务的正射图
-                const orthoRes = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`);
-                if (orthoRes.ok) {
-                    const orthoData = await orthoRes.json();
-                    if (orthoData && orthoData.id) {
-                        orthoId = orthoData.id;
-                        orthoStatus.textContent = `Orthomosaic: ${orthoData.image_url} (ID ${orthoId})`;
-                        btnMockDetections.disabled = false;
-                        btnViewOrtho.style.display = 'block';
-                        btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
-                        
-                        // 3. 加载已有的检测点
-                        await fetchDetections();
-                    }
-                }
+            if (!missions.length) return;
+
+            const lastMission = missions[missions.length - 1];
+            missionId = lastMission.id;
+            setStatus(missionStatus, 'current_mission', { name: lastMission.mission_name, id: missionId });
+            btnRegisterOrtho.disabled = false;
+            btnAutoMatch.disabled = false;
+
+            const orthoRes = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`);
+            if (!orthoRes.ok) return;
+
+            const orthoData = await orthoRes.json();
+            if (orthoData && orthoData.id) {
+                orthoId = orthoData.id;
+                setStatus(orthoStatus, 'ortho_current', { url: orthoData.image_url, id: orthoId });
+                btnMockDetections.disabled = false;
+                buildOrthoLink();
+                await fetchDetections();
             }
         } catch (e) {
             console.log('Init state recovery skipped or failed', e);
         }
     }
 
-    init();
-
     btnCreateMission.addEventListener('click', async () => {
-        const plantationName = document.getElementById('plantation-name').value || "Default Plantation";
-        const missionName = document.getElementById('mission-name').value || "Unnamed Mission";
-        
+        const plantationName = $('plantation-name').value || t('default_plantation');
+        const missionName = $('mission-name').value || t('unnamed_mission');
+
         try {
-            const res = await fetch('/api/v1/uav/missions', { 
+            const res = await fetch('/api/v1/uav/missions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    plantation_id: 0, 
+                body: JSON.stringify({
+                    plantation_id: 0,
                     plantation_name: plantationName,
-                    mission_name: missionName 
+                    mission_name: missionName
                 })
             });
             const data = await res.json();
             missionId = data.mission_id;
-            const pid = data.plantation_id;
-            missionStatus.textContent = `Mission created: ${missionName} (ID ${missionId}) under Plantation ID ${pid}`;
+            const plantationId = data.plantation_id;
+            setStatus(missionStatus, 'mission_created', { name: missionName, id: missionId, plantationId });
             btnRegisterOrtho.disabled = false;
-            orthoStatus.textContent = "Status: Ready to register";
             btnAutoMatch.disabled = false;
+            setStatus(orthoStatus, 'status_ready_register');
         } catch (e) {
-            missionStatus.textContent = 'Error: ' + e.message;
+            setStatus(missionStatus, 'error_prefix', { message: e.message });
         }
     });
 
     btnRegisterOrtho.addEventListener('click', async () => {
-        const orthoUrl = document.getElementById('ortho-url').value;
+        const orthoUrl = $('ortho-url').value;
         if (!orthoUrl) {
-            alert("Please provide an image URL");
+            alert(t('image_url_required'));
             return;
         }
+
         try {
-            const res = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`, { 
+            const res = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -98,49 +127,49 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             orthoId = data.orthomosaic_id;
-            orthoStatus.textContent = `Orthomosaic registered: ID ${orthoId}`;
+            setStatus(orthoStatus, 'orthomosaic_registered', { id: orthoId });
             btnMockDetections.disabled = false;
-            btnViewOrtho.style.display = 'block';
-            btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
+            buildOrthoLink();
         } catch (e) {
-            orthoStatus.textContent = 'Error: ' + e.message;
+            setStatus(orthoStatus, 'error_prefix', { message: e.message });
         }
     });
 
     btnMockDetections.addEventListener('click', async () => {
         try {
-            // 先切瓦片
-            const tileRes = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, {
+            await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tile_size: 256, tile_overlap: 0.1 })
             });
-            
-            // 再跑 Mock
+
             const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detections/mock`, { method: 'POST' });
             const data = await res.json();
-            detectionStatus.textContent = `${data.detections_created || 0} detections generated.`;
-            
+            setStatus(detectionStatus, 'detections_generated', { count: data.detections_created || 0 });
             await fetchDetections();
         } catch (e) {
-            detectionStatus.textContent = 'Error: ' + e.message;
+            setStatus(detectionStatus, 'error_prefix', { message: e.message });
         }
     });
 
     btnAutoMatch.addEventListener('click', async () => {
         try {
-            matchStatus.textContent = 'Matching to existing trees...';
+            setStatus(matchStatus, 'matching_existing');
             const res = await fetch(`/api/v1/uav/missions/${missionId}/match-existing-trees`, { method: 'POST' });
             const data = await res.json();
             if (data.status === 'ok') {
-                matchStatus.innerHTML = `Auto-matched: <strong>${data.auto_matched}</strong> | Ambiguous: <strong>${data.ambiguous}</strong> | Unmatched: <strong>${data.unmatched}</strong>`;
-                if (data.ambiguous > 0) loadMatchReview();
+                setStatus(matchStatus, 'match_summary', {
+                    auto: data.auto_matched,
+                    ambiguous: data.ambiguous,
+                    unmatched: data.unmatched
+                });
+                if (data.ambiguous > 0) await loadMatchReview();
                 await refreshTreesAndDetections();
             } else {
-                matchStatus.textContent = 'Match failed: ' + (data.message || 'unknown error');
+                setStatus(matchStatus, 'match_failed', { message: unknownError(data.message) });
             }
         } catch (e) {
-            matchStatus.textContent = 'Error: ' + e.message;
+            setStatus(matchStatus, 'error_prefix', { message: e.message });
         }
     });
 
@@ -148,7 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`/api/v1/uav/missions/${missionId}/match-review`);
             const data = await res.json();
-            renderMatchReviews(data.reviews || []);
+            matchReviewsCache = data.reviews || [];
+            renderMatchReviews(matchReviewsCache);
         } catch (e) {
             console.error('match review load failed', e);
         }
@@ -156,24 +186,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderMatchReviews(reviews) {
         matchReviewList.innerHTML = '';
-        if (reviews.length === 0) {
-            matchReviewList.innerHTML = '<div class="status-box">No ambiguous matches</div>';
+        if (!reviews.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = t('no_ambiguous_matches');
+            matchReviewList.appendChild(empty);
             return;
         }
-        reviews.forEach(r => {
-            const div = document.createElement('div');
-            div.className = 'detection-item';
-            let candidatesHtml = r.candidates.map(c =>
-                `<div class="match-candidate" style="cursor:pointer;padding:4px 8px;border-radius:4px;background:rgba(59,130,246,0.2);margin-top:2px;" onclick="matchToTree(${r.detection_id}, ${c.tree_id}, this.parentElement.parentElement)">
-                    Tree ${c.tree_code} (dist: ${(c.distance_pixels * 0.05).toFixed(2)}m)
-                </div>`
-            ).join('');
-            div.innerHTML = `<div><span>Detection #${r.detection_id} (Conf: ${r.confidence.toFixed(2)})</span><div style="margin-top:4px;">Candidates: ${candidatesHtml}</div></div>`;
-            matchReviewList.appendChild(div);
+
+        reviews.forEach((review) => {
+            const item = document.createElement('div');
+            item.className = 'detection-item';
+
+            const body = document.createElement('div');
+            const title = document.createElement('span');
+            title.textContent = t('detection_candidate_label', {
+                id: review.detection_id,
+                confidence: Number(review.confidence || 0).toFixed(2)
+            });
+            body.appendChild(title);
+
+            const candidates = document.createElement('div');
+            candidates.style.marginTop = '4px';
+            const label = document.createElement('span');
+            label.textContent = t('candidate_list_label');
+            candidates.appendChild(label);
+
+            (review.candidates || []).forEach((candidate) => {
+                const option = document.createElement('div');
+                option.className = 'match-candidate';
+                option.tabIndex = 0;
+                option.role = 'button';
+                option.textContent = t('tree_candidate_label', {
+                    code: candidate.tree_code,
+                    distance: (Number(candidate.distance_pixels || 0) * 0.05).toFixed(2)
+                });
+                option.addEventListener('click', () => matchToTree(review.detection_id, candidate.tree_id, item));
+                option.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        matchToTree(review.detection_id, candidate.tree_id, item);
+                    }
+                });
+                candidates.appendChild(option);
+            });
+
+            body.appendChild(candidates);
+            item.appendChild(body);
+            matchReviewList.appendChild(item);
         });
     }
 
-    window.matchToTree = async (detId, treeId, element) => {
+    async function matchToTree(detId, treeId, element) {
         try {
             const res = await fetch(`/api/v1/uav/detections/${detId}/match-to-tree`, {
                 method: 'POST',
@@ -183,24 +247,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.status === 'ok') {
                 element.remove();
-                matchStatus.textContent += ` | Matched #${detId} -> ${data.tree_code}`;
+                setStatus(matchStatus, 'matched_detection', { id: detId, code: data.tree_code });
             } else {
-                alert('Match failed: ' + (data.message || 'unknown'));
+                alert(t('match_failed', { message: unknownError(data.message) }));
             }
         } catch (e) {
-            alert('Match error: ' + e.message);
+            alert(t('match_error', { message: e.message }));
         }
-    };
+    }
 
     async function refreshTreesAndDetections() {
         await fetchDetections();
     }
 
     async function fetchDetections() {
+        if (!orthoId) return;
         try {
             const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detections`);
             const data = await res.json();
-            renderDetections(data.detections || []);
+            detectionsCache = data.detections || [];
+            renderDetections(detectionsCache);
         } catch (e) {
             console.error('fetch detections failed', e);
         }
@@ -208,42 +274,118 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderDetections(detections) {
         detectionList.innerHTML = '';
-        detections.forEach(d => {
-            if (d.review_status !== 'pending') return;
-            const div = document.createElement('div');
-            div.className = 'detection-item';
-            div.innerHTML = `
-                <span>Detection #${d.id} (Conf: ${d.confidence.toFixed(2)})</span>
-                <div class="detection-actions">
-                    <button class="btn success" onclick="confirmDetection(${d.id}, this.parentElement.parentElement)">Confirm</button>
-                    <button class="btn danger" onclick="rejectDetection(${d.id}, this.parentElement.parentElement)">Reject</button>
-                </div>
-            `;
-            detectionList.appendChild(div);
+        const pending = detections.filter((d) => d.review_status === 'pending');
+
+        pending.forEach((detection) => {
+            const item = document.createElement('div');
+            item.className = 'detection-item';
+
+            const title = document.createElement('span');
+            title.textContent = t('detection_candidate_label', {
+                id: detection.id,
+                confidence: Number(detection.confidence || 0).toFixed(2)
+            });
+
+            const actions = document.createElement('div');
+            actions.className = 'detection-actions';
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'btn success';
+            confirmBtn.textContent = t('confirm');
+            confirmBtn.addEventListener('click', () => confirmDetection(detection.id, item));
+
+            const rejectBtn = document.createElement('button');
+            rejectBtn.className = 'btn danger';
+            rejectBtn.textContent = t('reject');
+            rejectBtn.addEventListener('click', () => rejectDetection(detection.id, item));
+
+            actions.append(confirmBtn, rejectBtn);
+            item.append(title, actions);
+            detectionList.appendChild(item);
+        });
+
+        if (!pending.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = t('no_pending_detections');
+            detectionList.appendChild(empty);
+        }
+    }
+
+    function renderConfirmedTrees() {
+        treeList.innerHTML = '';
+        if (!confirmedTreeCodes.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = t('confirmed_tree_assets_empty');
+            treeList.appendChild(empty);
+            return;
+        }
+
+        confirmedTreeCodes.forEach((code) => {
+            const item = document.createElement('div');
+            item.className = 'tree-item';
+
+            const label = document.createElement('span');
+            label.append(`${t('tree_asset_link')} `);
+            const link = document.createElement('a');
+            link.href = `tree_profile.html?code=${encodeURIComponent(code)}`;
+            link.textContent = code;
+            label.appendChild(link);
+
+            const badge = document.createElement('span');
+            badge.className = 'status-pill status-ok';
+            badge.textContent = t('status_confirmed');
+
+            item.append(label, badge);
+            treeList.appendChild(item);
         });
     }
 
-    window.confirmDetection = async (id, element) => {
+    async function confirmDetection(id, element) {
         try {
             const res = await fetch(`/api/v1/uav/detections/${id}/confirm`, { method: 'POST' });
             const data = await res.json();
+            if (data.status !== 'ok') {
+                alert(t('confirm_failed', { message: unknownError(data.message) }));
+                return;
+            }
             element.remove();
-            
-            const treeDiv = document.createElement('div');
-            treeDiv.className = 'tree-item';
-            treeDiv.innerHTML = `<span>🌳 Tree: <a href="tree_profile.html?code=${data.tree_code}" style="color:#60a5fa;text-decoration:none;font-weight:700;">${data.tree_code}</a></span>`;
-            treeList.appendChild(treeDiv);
+            if (data.tree_code && !confirmedTreeCodes.includes(data.tree_code)) {
+                confirmedTreeCodes.push(data.tree_code);
+            }
+            renderConfirmedTrees();
+            await fetchDetections();
         } catch (e) {
-            alert('Confirm failed');
+            alert(t('confirm_failed', { message: e.message || t('unknown_error') }));
         }
-    };
+    }
 
-    window.rejectDetection = async (id, element) => {
+    async function rejectDetection(id, element) {
         try {
-            await fetch(`/api/v1/uav/detections/${id}/reject`, { method: 'POST' });
+            const res = await fetch(`/api/v1/uav/detections/${id}/reject`, { method: 'POST' });
+            const data = await res.json().catch(() => ({}));
+            if (data.status && data.status !== 'ok') {
+                alert(t('reject_failed', { message: unknownError(data.message) }));
+                return;
+            }
             element.remove();
+            await fetchDetections();
         } catch (e) {
-            alert('Reject failed');
+            alert(t('reject_failed', { message: e.message || t('unknown_error') }));
         }
-    };
+    }
+
+    document.addEventListener('op:i18n-change', () => {
+        renderRememberedStatuses();
+        renderDetections(detectionsCache);
+        renderMatchReviews(matchReviewsCache);
+        renderConfirmedTrees();
+    });
+
+    window.confirmDetection = confirmDetection;
+    window.rejectDetection = rejectDetection;
+    window.matchToTree = matchToTree;
+
+    init();
 });

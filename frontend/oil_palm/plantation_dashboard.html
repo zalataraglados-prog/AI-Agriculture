@@ -3,90 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plantation Dashboard</title>
+    <title>Oil Palm Plantation Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <style>
-        .dashboard-toolbar {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-        .dashboard-toolbar select {
-            min-width: 240px;
-            background: rgba(0,0,0,0.25);
-            color: #e5e7eb;
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 8px;
-            padding: 0.75rem;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 1rem;
-        }
-        .stat-card {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
-            padding: 1rem;
-        }
-        .stat-card span {
-            display: block;
-            color: #94a3b8;
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            margin-bottom: 0.4rem;
-        }
-        .stat-card strong { font-size: 1.7rem; color: #f8fafc; }
-        .report-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-        .report-table th,
-        .report-table td {
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            padding: 0.65rem;
-        }
-        .report-table th { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Plantation Dashboard</h1>
-            <div>
-                <a href="tree_list.html" class="back-link">Tree Registry</a>
-                <a href="index.html" class="back-link" style="margin-left:12px;">UAV Review</a>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
+                <img class="brand-mark" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
+                <span class="brand-copy">
+                    <strong data-i18n="brand_name">Oil Palm Nexus</strong>
+                    <span data-i18n="brand_subtitle">Tree asset AI</span>
+                </span>
+            </a>
+            <nav class="app-nav" aria-label="Oil palm navigation">
+                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_uav_review">UAV Review</span></a>
+                <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_tree_registry">Tree Registry</span></a>
+                <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span></a>
+                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
+            </nav>
+            <div class="app-nav-bottom">
+                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_refresh">Refresh</span></a>
             </div>
-        </header>
-        <main style="display:block;">
-            <div class="dashboard-toolbar">
-                <div class="filter-group" style="position:relative; min-width:300px;">
-                    <div id="plantation-dropdown" class="custom-select">
-                        <span id="plantation-text">Select Plantation...</span>
-                        <span class="arrow">▼</span>
-                    </div>
-                    <div id="plantation-options" class="options-list"></div>
+        </aside>
+
+        <main class="app-main">
+            <header class="topbar">
+                <div class="page-title">
+                    <h1 data-i18n="plantation_dashboard_title">Plantation Dashboard</h1>
+                    <p data-i18n="plantation_dashboard_subtitle">Plantation-level assessment counts, priority trees, and block reports.</p>
                 </div>
-            </div>
-            <section class="panel">
-                <h2>Assessment Stats</h2>
-                <div id="stats-grid" class="stats-grid"></div>
+                <div class="topbar-actions dashboard-actions">
+                    <span class="status-pill status-info" data-i18n="top_structured_facts">Structured facts</span>
+                    <a href="tree_list.html" class="back-link" data-i18n="nav_tree_registry">Tree Registry</a>
+                    <a href="index.html" class="back-link" data-i18n="nav_uav_review">UAV Review</a>
+                    <label class="lang-switcher">
+                        <i class="fa fa-globe lang-select-icon" aria-hidden="true"></i>
+                        <select class="lang-select" data-lang-select data-i18n-aria="language">
+                            <option value="zh">ZH</option>
+                            <option value="en">EN</option>
+                            <option value="ms">MS</option>
+                        </select>
+                    </label>
+                </div>
+            </header>
+
+            <section class="hero-strip">
+                <div class="hero-panel">
+                    <span class="kicker" data-i18n="plantation_view">Plantation view</span>
+                    <h2 data-i18n="plantation_hero">Use the dashboard to decide which trees need harvest, inspection, or more evidence.</h2>
+                    <p data-i18n="plantation_hero_desc">These summaries aggregate existing structured records. They are not a substitute for tree-level evidence review or expert confirmation.</p>
+                </div>
+                <div class="panel">
+                    <span class="step-label" data-i18n="select_scope">Select scope</span>
+                    <div class="action-bar">
+                        <div class="filter-group">
+                            <div id="plantation-dropdown" class="custom-select">
+                                <span id="plantation-text" data-i18n="select_plantation_placeholder">Select Plantation...</span>
+                                <span class="arrow">v</span>
+                            </div>
+                            <div id="plantation-options" class="options-list"></div>
+                        </div>
+                    </div>
+                </div>
             </section>
-            <section class="panel" style="margin-top:1.5rem;">
-                <h2>Priority Trees</h2>
-                <div id="priority-list" class="status-box">Loading...</div>
-            </section>
-            <section class="panel" style="margin-top:1.5rem;">
-                <h2>Block Report</h2>
-                <div id="block-report"></div>
+
+            <section class="section-stack">
+                <section class="panel">
+                    <h2 data-i18n="assessment_stats">Assessment Stats</h2>
+                    <p class="panel-subtitle" data-i18n="assessment_stats_desc">High-level operational counters for the selected plantation.</p>
+                    <div id="stats-grid" class="stats-grid"></div>
+                </section>
+                <section class="panel">
+                    <h2 data-i18n="priority_trees">Priority Trees</h2>
+                    <p class="panel-subtitle" data-i18n="priority_trees_desc">Trees surfaced for harvest, disease risk, abnormal UAV watch, or missing evidence.</p>
+                    <div id="priority-list" class="status-box" data-i18n="loading">Loading...</div>
+                </section>
+                <section class="panel">
+                    <h2 data-i18n="block_report">Block Report</h2>
+                    <p class="panel-subtitle" data-i18n="block_report_desc">Grouped assessment summary by block.</p>
+                    <div id="block-report"></div>
+                </section>
             </section>
         </main>
+
+        <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
+            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_uav">UAV</span></a>
+            <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_trees">Trees</span></a>
+            <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_dash">Dash</span></a>
+            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
+        </nav>
     </div>
+    <script src="i18n.js"></script>
     <script src="plantation_dashboard.js"></script>
 </body>
 </html>
