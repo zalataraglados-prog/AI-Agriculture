@@ -213,6 +213,8 @@ select {
 
 .topbar,
 header {
+    position: relative;
+    z-index: 120;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -252,68 +254,55 @@ header > div,
     flex-wrap: wrap;
 }
 
-.lang-switcher {
-    position: relative;
+.viewer-title-lockup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
 }
 
-.lang-trigger {
+.topbar-logo {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 18px rgba(16, 185, 129, 0.24));
+}
+
+.lang-switcher {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-height: 32px;
     padding: 0 12px;
     border: 1px solid var(--glass-border);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.045);
     color: #cbd5e1;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.lang-select-icon {
+    color: #34d399;
+    font-size: 0.875rem;
+}
+
+.lang-select {
+    min-height: 30px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #cbd5e1;
     cursor: pointer;
     font-size: 0.75rem;
     font-weight: 800;
 }
 
-.lang-trigger i {
-    color: #34d399;
-    font-size: 0.875rem;
-}
-
-.lang-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    z-index: 90;
-    display: none;
-    width: 136px;
-    padding: 6px;
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.96);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(16px);
-}
-
-.lang-switcher:hover .lang-menu,
-.lang-switcher:focus-within .lang-menu {
-    display: grid;
-    gap: 4px;
-}
-
-.lang-option {
-    width: 100%;
-    min-height: 34px;
-    padding: 0 10px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-align: left;
-}
-
-.lang-option:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #34d399;
+.lang-select option {
+    background: #0f172a;
+    color: #e2e8f0;
 }
 
 .back-link {

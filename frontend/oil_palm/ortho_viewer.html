@@ -14,22 +14,25 @@
 <body>
     <div class="viewer-container">
         <header class="viewer-header">
-            <div class="page-title">
-                <h1 data-i18n="ortho_title">Orthomosaic Viewer</h1>
-                <p data-i18n="ortho_subtitle">Review crown candidates directly on the UAV map before creating or linking tree assets.</p>
+            <div class="viewer-title-lockup">
+                <img class="topbar-logo" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
+                <div class="page-title">
+                    <h1 data-i18n="ortho_title">Orthomosaic Viewer</h1>
+                    <p data-i18n="ortho_subtitle">Review crown candidates directly on the UAV map before creating or linking tree assets.</p>
+                </div>
             </div>
             <div class="viewer-nav">
                 <span class="status-pill status-ok" data-i18n="top_map_review">Map review</span>
                 <a href="index.html" class="back-link" data-i18n="missions">Missions</a>
                 <a href="tree_list.html" class="back-link" data-i18n="nav_tree_registry">Tree Registry</a>
-                <div class="lang-switcher">
-                    <button class="lang-trigger" type="button" data-i18n-aria="language"><i class="fa fa-globe" aria-hidden="true"></i><span id="currentLangDisplay">ZH</span><i class="fa fa-chevron-down" aria-hidden="true"></i></button>
-                    <div class="lang-menu">
-                        <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('zh')">ZH - 中文</button>
-                        <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('en')">EN - English</button>
-                        <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('ms')">MS - Melayu</button>
-                    </div>
-                </div>
+                <label class="lang-switcher">
+                    <i class="fa fa-globe lang-select-icon" aria-hidden="true"></i>
+                    <select class="lang-select" data-lang-select data-i18n-aria="language">
+                        <option value="zh">ZH</option>
+                        <option value="en">EN</option>
+                        <option value="ms">MS</option>
+                    </select>
+                </label>
             </div>
         </header>
 

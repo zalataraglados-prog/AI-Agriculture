@@ -846,8 +846,9 @@ window.OP_I18N = (() => {
             el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
         });
 
-        const display = document.getElementById('currentLangDisplay');
-        if (display) display.textContent = currentLang.toUpperCase();
+        document.querySelectorAll('[data-lang-select]').forEach((select) => {
+            select.value = currentLang;
+        });
         document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : currentLang;
     };
 
@@ -859,7 +860,18 @@ window.OP_I18N = (() => {
         document.dispatchEvent(new CustomEvent('op:i18n-change', { detail: { lang } }));
     };
 
-    document.addEventListener('DOMContentLoaded', updateDOM);
+    const bindLanguageControls = () => {
+        document.querySelectorAll('[data-lang-select]').forEach((select) => {
+            if (select.dataset.i18nBound === 'true') return;
+            select.dataset.i18nBound = 'true';
+            select.addEventListener('change', () => setLanguage(select.value));
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        bindLanguageControls();
+        updateDOM();
+    });
 
     return {
         getLanguage: () => currentLang,
