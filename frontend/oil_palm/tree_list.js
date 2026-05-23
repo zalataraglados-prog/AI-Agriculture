@@ -1,8 +1,12 @@
-(function() {
-    console.log('Tree List Script V2 - Loaded');
+(function () {
+    'use strict';
+
+    function t(key, params = {}) {
+        if (window.OP_I18N) return window.OP_I18N.t(key, params);
+        return Object.entries(params).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, value), key);
+    }
 
     function init() {
-        // --- Elements ---
         const els = {
             pDropdown: document.getElementById('plantation-dropdown'),
             pOptions: document.getElementById('plantation-options'),
@@ -18,27 +22,34 @@
             pagination: document.getElementById('pagination')
         };
 
-        // 安全检查：如果有任何元素缺失，报错并停止，防止后续崩溃
-        for (let key in els) {
+        for (const key in els) {
             if (!els[key]) {
                 console.error(`Missing element: ${key}`);
                 return;
             }
         }
 
-        let state = {
+        const state = {
             currentPage: 1,
             limit: 15,
             plantationId: 0,
-            missionId: 0
+            missionId: 0,
+            plantations: [],
+            missions: [],
+            lastTrees: [],
+            lastTotal: 0
         };
 
-        // --- Dropdown Logic ---
         function closeAll() {
             els.pOptions.classList.remove('show');
             els.mOptions.classList.remove('show');
             els.pDropdown.classList.remove('active');
             els.mDropdown.classList.remove('active');
+        }
+
+        function setMissionEnabled(enabled) {
+            els.mDropdown.style.opacity = enabled ? '1' : '0.5';
+            els.mDropdown.style.pointerEvents = enabled ? 'auto' : 'none';
         }
 
         document.addEventListener('click', closeAll);
@@ -63,135 +74,208 @@
             }
         };
 
-        // --- Option Creation ---
-        function createOpt(id, label, type) {
+        function plantationLabel(plantation) {
+            if (!plantation) return t('all_plantations');
+            return `${plantation.name} (ID: ${plantation.id})`;
+        }
+
+        function missionLabel(mission) {
+            if (!mission) return t('all_missions');
+            const dateStr = mission.created_at ? mission.created_at.substring(5, 10) : t('not_available');
+            return `${mission.mission_name} (#${mission.id}, ${dateStr})`;
+        }
+
+        function selectedPlantation() {
+            return state.plantations.find((p) => Number(p.id) === Number(state.plantationId));
+        }
+
+        function selectedMission() {
+            return state.missions.find((m) => Number(m.id) === Number(state.missionId));
+        }
+
+        function updateSelectedText() {
+            els.pText.textContent = plantationLabel(selectedPlantation());
+            if (state.plantationId > 0) {
+                els.mText.textContent = missionLabel(selectedMission());
+                setMissionEnabled(true);
+            } else {
+                els.mText.textContent = t('select_plantation_hint');
+                setMissionEnabled(false);
+            }
+        }
+
+        function createOpt(id, label, type, selected) {
             const div = document.createElement('div');
-            div.className = 'option-item';
+            div.className = 'option-item' + (selected ? ' selected' : '');
             div.textContent = label;
             div.onclick = async (e) => {
                 e.stopPropagation();
                 if (type === 'plantation') {
-                    await selectPlantation(id, label);
+                    await selectPlantation(id);
                 } else {
-                    await selectMission(id, label);
+                    await selectMission(id);
                 }
                 closeAll();
             };
             return div;
         }
 
-        async function selectPlantation(id, label) {
-            state.plantationId = id;
+        function renderPlantationOptions() {
+            els.pOptions.innerHTML = '';
+            els.pOptions.appendChild(createOpt(0, t('all_plantations'), 'plantation', state.plantationId === 0));
+            state.plantations.forEach((plantation) => {
+                els.pOptions.appendChild(createOpt(
+                    plantation.id,
+                    plantationLabel(plantation),
+                    'plantation',
+                    Number(plantation.id) === Number(state.plantationId)
+                ));
+            });
+        }
+
+        function renderMissionOptions() {
+            els.mOptions.innerHTML = '';
+            els.mOptions.appendChild(createOpt(0, t('all_missions'), 'mission', state.missionId === 0));
+            state.missions.forEach((mission) => {
+                els.mOptions.appendChild(createOpt(
+                    mission.id,
+                    missionLabel(mission),
+                    'mission',
+                    Number(mission.id) === Number(state.missionId)
+                ));
+            });
+        }
+
+        async function selectPlantation(id) {
+            state.plantationId = Number(id);
             state.missionId = 0;
             state.currentPage = 1;
-            els.pText.textContent = label;
-            
-            if (id > 0) {
-                els.mText.textContent = '-- All Missions --';
-                els.mDropdown.style.opacity = '1';
-                els.mDropdown.style.pointerEvents = 'auto';
-                await loadMissions(id);
+            state.missions = [];
+            updateSelectedText();
+            renderPlantationOptions();
+
+            if (state.plantationId > 0) {
+                await loadMissions(state.plantationId);
             } else {
-                els.mText.textContent = 'Please select a plantation...';
-                els.mDropdown.style.opacity = '0.5';
-                els.mDropdown.style.pointerEvents = 'none';
+                renderMissionOptions();
             }
-            loadTrees();
+            await loadTrees();
         }
 
-        async function selectMission(id, label) {
-            state.missionId = id;
+        async function selectMission(id) {
+            state.missionId = Number(id);
             state.currentPage = 1;
-            els.mText.textContent = label;
-            loadTrees();
+            updateSelectedText();
+            renderMissionOptions();
+            await loadTrees();
         }
 
-        // --- Data Loading ---
         async function loadPlantations() {
             try {
                 const res = await fetch('/api/v1/plantations');
                 const data = await res.json();
-                const list = data.plantations || [];
-                els.pOptions.innerHTML = '';
-                els.pOptions.appendChild(createOpt(0, '-- All Plantations --', 'plantation'));
-                list.forEach(p => {
-                    els.pOptions.appendChild(createOpt(p.id, `${p.name} (ID: ${p.id})`, 'plantation'));
-                });
-            } catch (e) { console.error('P-load error', e); }
+                state.plantations = data.plantations || [];
+                renderPlantationOptions();
+                updateSelectedText();
+            } catch (e) {
+                console.error('P-load error', e);
+            }
         }
 
         async function loadMissions(pid) {
             try {
                 const res = await fetch(`/api/v1/uav/missions?plantation_id=${pid}`);
                 const data = await res.json();
-                const list = data.missions || [];
-                els.mOptions.innerHTML = '';
-                els.mOptions.appendChild(createOpt(0, '-- All Missions --', 'mission'));
-                list.forEach(m => {
-                    // 格式化日期：2026-05-02T18:00:00 -> 05-02
-                    const dateStr = m.created_at ? m.created_at.substring(5, 10) : 'N/A';
-                    const label = `${m.mission_name} (#${m.id}, ${dateStr})`;
-                    els.mOptions.appendChild(createOpt(m.id, label, 'mission'));
-                });
-            } catch (e) { console.error('M-load error', e); }
+                state.missions = data.missions || [];
+                renderMissionOptions();
+                updateSelectedText();
+            } catch (e) {
+                console.error('M-load error', e);
+            }
         }
 
         async function loadTrees() {
-            els.table.innerHTML = '<div class="empty-state">Loading registry data...</div>';
+            els.table.innerHTML = `<div class="empty-state">${t('loading_registry_data')}</div>`;
             try {
                 const url = `/api/v1/trees?plantation_id=${state.plantationId}&mission_id=${state.missionId}&page=${state.currentPage}&limit=${state.limit}`;
                 const res = await fetch(url);
                 const data = await res.json();
-                const trees = data.trees || [];
-                const total = data.total || 0;
-                
-                els.total.textContent = `Total Assets: ${total}`;
-                if (trees.length === 0) {
-                    els.table.innerHTML = '<div class="empty-state">No matching tree records found</div>';
+                state.lastTrees = data.trees || [];
+                state.lastTotal = data.total || 0;
+
+                els.total.textContent = t('total_assets', { count: state.lastTotal });
+                if (!state.lastTrees.length) {
+                    els.table.innerHTML = `<div class="empty-state">${t('no_matching_trees')}</div>`;
                     els.pagination.style.display = 'none';
                 } else {
-                    renderTable(trees);
-                    updatePagination(total);
+                    renderTable(state.lastTrees);
+                    updatePagination(state.lastTotal);
                 }
-            } catch (e) { 
-                els.table.innerHTML = '<div class="empty-state" style="color:#ef4444;">Error loading data: ' + e.message + '</div>';
+            } catch (e) {
+                els.table.innerHTML = `<div class="empty-state" style="color:#ef4444;">${t('error_loading_data', { message: e.message })}</div>`;
             }
         }
 
         function renderTable(trees) {
-            let html = `<table class="tree-table">
-                <thead><tr>
-                    <th>Code</th><th>Mission</th><th>Species</th><th>Status</th><th>Coordinate</th><th>Action</th>
-                </tr></thead><tbody>`;
-            trees.forEach(t => {
-                const coord = (t.coordinate_x != null && t.coordinate_y != null)
-                    ? `(${t.coordinate_x.toFixed(1)}, ${t.coordinate_y.toFixed(1)})`
+            const rows = trees.map((tree) => {
+                const coord = (tree.coordinate_x != null && tree.coordinate_y != null)
+                    ? `(${Number(tree.coordinate_x).toFixed(1)}, ${Number(tree.coordinate_y).toFixed(1)})`
                     : '-';
-                html += `<tr>
-                    <td><a href="tree_profile.html?code=${t.tree_code}">${t.tree_code}</a></td>
-                    <td>${t.mission_name || '-'}</td>
-                    <td>${t.species}</td>
-                    <td><span class="badge badge-${t.current_status}">${t.current_status}</span></td>
+                return `<tr>
+                    <td><a href="tree_profile.html?code=${encodeURIComponent(tree.tree_code)}">${tree.tree_code}</a></td>
+                    <td>${tree.mission_name || '-'}</td>
+                    <td>${tree.species || '-'}</td>
+                    <td><span class="badge badge-${tree.current_status}">${tree.current_status || t('unknown')}</span></td>
                     <td>${coord}</td>
-                    <td><a href="tree_profile.html?code=${t.tree_code}">View</a></td>
+                    <td><a href="tree_profile.html?code=${encodeURIComponent(tree.tree_code)}">${t('view')}</a></td>
                 </tr>`;
-            });
-            html += '</tbody></table>';
-            els.table.innerHTML = html;
+            }).join('');
+
+            els.table.innerHTML = `<table class="tree-table">
+                <thead><tr>
+                    <th>${t('code')}</th>
+                    <th>${t('mission')}</th>
+                    <th>${t('species')}</th>
+                    <th>${t('status')}</th>
+                    <th>${t('coordinate')}</th>
+                    <th>${t('action')}</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
         }
 
         function updatePagination(total) {
             els.pagination.style.display = 'flex';
             const totalPages = Math.ceil(total / state.limit);
-            els.pageInfo.textContent = `Page ${state.currentPage} of ${totalPages || 1}`;
+            els.pageInfo.textContent = t('page_info', { page: state.currentPage, total: totalPages || 1 });
             els.btnPrev.disabled = state.currentPage <= 1;
             els.btnNext.disabled = state.currentPage >= totalPages;
         }
 
-        els.btnPrev.onclick = () => { if (state.currentPage > 1) { state.currentPage--; loadTrees(); } };
-        els.btnNext.onclick = () => { state.currentPage++; loadTrees(); };
+        els.btnPrev.onclick = () => {
+            if (state.currentPage > 1) {
+                state.currentPage -= 1;
+                loadTrees();
+            }
+        };
 
-        // --- Start ---
+        els.btnNext.onclick = () => {
+            state.currentPage += 1;
+            loadTrees();
+        };
+
+        document.addEventListener('op:i18n-change', async () => {
+            renderPlantationOptions();
+            renderMissionOptions();
+            updateSelectedText();
+            if (state.lastTrees.length) {
+                renderTable(state.lastTrees);
+                updatePagination(state.lastTotal);
+            } else {
+                await loadTrees();
+            }
+        });
+
         loadPlantations();
         loadTrees();
     }
