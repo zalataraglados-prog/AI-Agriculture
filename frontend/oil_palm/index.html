@@ -16,114 +16,123 @@
             <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
                 <img class="brand-mark" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
                 <span class="brand-copy">
-                    <strong>Oil Palm Nexus</strong>
-                    <span>Tree asset AI</span>
+                    <strong data-i18n="brand_name">Oil Palm Nexus</strong>
+                    <span data-i18n="brand_subtitle">Tree asset AI</span>
                 </span>
             </a>
             <nav class="app-nav" aria-label="Oil palm navigation">
-                <a class="nav-item active" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV Review</span></a>
-                <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Tree Registry</span></a>
-                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dashboard</span></a>
-                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
+                <a class="nav-item active" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_uav_review">UAV Review</span></a>
+                <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_tree_registry">Tree Registry</span></a>
+                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span></a>
+                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
             </nav>
             <div class="app-nav-bottom">
-                <a class="nav-item" href="index.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label">Refresh</span></a>
+                <a class="nav-item" href="index.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_refresh">Refresh</span></a>
             </div>
         </aside>
 
         <main class="app-main">
             <header class="topbar">
                 <div class="page-title">
-                    <h1>Oil Palm UAV Mapping & Review</h1>
-                    <p>Mission intake, orthomosaic registration, tree-crown review, and registry linkage.</p>
+                    <h1 data-i18n="index_title">Oil Palm UAV Mapping & Review</h1>
+                    <p data-i18n="index_subtitle">Mission intake, orthomosaic registration, tree-crown review, and registry linkage.</p>
                 </div>
                 <div class="topbar-actions">
-                    <span class="status-pill status-ok">A0 ready</span>
-                    <a href="tree_list.html" class="back-link">Tree Registry</a>
-                    <a href="/" class="back-link">Portal</a>
+                    <span class="status-pill status-ok" data-i18n="top_a0_ready">A0 ready</span>
+                    <a href="tree_list.html" class="back-link" data-i18n="nav_tree_registry">Tree Registry</a>
+                    <a href="/" class="back-link" data-i18n="nav_portal">Portal</a>
+                    <div class="lang-switcher">
+                        <button class="lang-trigger" type="button" data-i18n-aria="language"><i class="fa fa-globe" aria-hidden="true"></i><span id="currentLangDisplay">ZH</span><i class="fa fa-chevron-down" aria-hidden="true"></i></button>
+                        <div class="lang-menu">
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('zh')">ZH - 中文</button>
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('en')">EN - English</button>
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('ms')">MS - Melayu</button>
+                        </div>
+                    </div>
                 </div>
             </header>
 
             <section class="hero-strip">
                 <div class="hero-panel">
-                    <span class="kicker">Tree-first workflow</span>
-                    <h2>Turn UAV detections into stable, reviewable oil palm assets.</h2>
-                    <p>Use this workspace to create a mission, attach an orthomosaic, generate candidate crowns, and confirm only the trees that should become long-lived Tree Profiles.</p>
+                    <span class="kicker" data-i18n="index_kicker">Tree-first workflow</span>
+                    <h2 data-i18n="index_hero">Turn UAV detections into stable, reviewable oil palm assets.</h2>
+                    <p data-i18n="index_hero_desc">Use this workspace to create a mission, attach an orthomosaic, generate candidate crowns, and confirm only the trees that should become long-lived Tree Profiles.</p>
                 </div>
                 <div class="panel">
-                    <span class="step-label">Operational sequence</span>
-                    <div class="status-row"><span>Mission</span><span class="status-pill status-info">create</span></div>
-                    <div class="status-row"><span>Orthomosaic</span><span class="status-pill status-warning">register</span></div>
-                    <div class="status-row"><span>Detections</span><span class="status-pill status-ok">review</span></div>
+                    <span class="step-label" data-i18n="operational_sequence">Operational sequence</span>
+                    <div class="status-row"><span data-i18n="mission">Mission</span><span class="status-pill status-info" data-i18n="status_create">create</span></div>
+                    <div class="status-row"><span data-i18n="orthomosaic">Orthomosaic</span><span class="status-pill status-warning" data-i18n="status_register">register</span></div>
+                    <div class="status-row"><span data-i18n="detections">Detections</span><span class="status-pill status-ok" data-i18n="status_review">review</span></div>
                 </div>
             </section>
 
             <section class="workflow-grid" aria-label="Oil palm workflow">
                 <article class="panel workflow-step">
-                    <span class="step-label">Step 01</span>
-                    <h2>UAV Mission</h2>
-                    <p class="panel-subtitle">Create the field context that future detections and tree codes will belong to.</p>
+                    <span class="step-label" data-i18n="step_01">Step 01</span>
+                    <h2 data-i18n="uav_mission">UAV Mission</h2>
+                    <p class="panel-subtitle" data-i18n="uav_mission_desc">Create the field context that future detections and tree codes will belong to.</p>
                     <div class="input-group">
-                        <label for="plantation-name">Plantation Name</label>
-                        <input type="text" id="plantation-name" placeholder="e.g. North Block A">
+                        <label for="plantation-name" data-i18n="plantation_name">Plantation Name</label>
+                        <input type="text" id="plantation-name" data-i18n-placeholder="placeholder_plantation" placeholder="e.g. North Block A">
                     </div>
                     <div class="input-group">
-                        <label for="mission-name">Mission Name</label>
-                        <input type="text" id="mission-name" placeholder="e.g. 2026-05 survey">
+                        <label for="mission-name" data-i18n="mission_name">Mission Name</label>
+                        <input type="text" id="mission-name" data-i18n-placeholder="placeholder_mission" placeholder="e.g. 2026-05 survey">
                     </div>
-                    <button id="btn-create-mission" class="btn">Create Mission</button>
-                    <div id="mission-status" class="status-box">Status: Not started</div>
+                    <button id="btn-create-mission" class="btn" data-i18n="create_mission">Create Mission</button>
+                    <div id="mission-status" class="status-box" data-i18n="status_not_started">Status: Not started</div>
                 </article>
 
                 <article class="panel workflow-step">
-                    <span class="step-label">Step 02</span>
-                    <h2>Orthomosaic</h2>
-                    <p class="panel-subtitle">Register the map image that candidate tree crowns will be placed on.</p>
+                    <span class="step-label" data-i18n="step_02">Step 02</span>
+                    <h2 data-i18n="orthomosaic">Orthomosaic</h2>
+                    <p class="panel-subtitle" data-i18n="orthomosaic_desc">Register the map image that candidate tree crowns will be placed on.</p>
                     <div class="input-group">
-                        <label for="ortho-url">Image URL</label>
+                        <label for="ortho-url" data-i18n="image_url">Image URL</label>
                         <input type="text" id="ortho-url" placeholder="/static/your_image.png" value="/static/ortho_test.png">
                     </div>
-                    <button id="btn-register-ortho" class="btn" disabled>Register Orthomosaic</button>
-                    <div id="ortho-status" class="status-box">Status: Waiting for mission</div>
+                    <button id="btn-register-ortho" class="btn" disabled data-i18n="register_orthomosaic">Register Orthomosaic</button>
+                    <div id="ortho-status" class="status-box" data-i18n="status_waiting_mission">Status: Waiting for mission</div>
                 </article>
 
                 <article class="panel workflow-step">
-                    <span class="step-label">Step 03</span>
-                    <h2>Candidate Detections</h2>
-                    <p class="panel-subtitle">Generate or reload pending crowns, then send confirmed candidates into the registry.</p>
-                    <button id="btn-mock-detections" class="btn" disabled>Run Mock Detection</button>
-                    <a id="btn-view-ortho" class="btn btn-outline" style="display:none;" href="#">Open Ortho Viewer</a>
-                    <div id="detection-status" class="status-box">Status: Waiting for orthomosaic</div>
+                    <span class="step-label" data-i18n="step_03">Step 03</span>
+                    <h2 data-i18n="candidate_detections">Candidate Detections</h2>
+                    <p class="panel-subtitle" data-i18n="candidate_detections_desc">Generate or reload pending crowns, then send confirmed candidates into the registry.</p>
+                    <button id="btn-mock-detections" class="btn" disabled data-i18n="run_mock_detection">Run Mock Detection</button>
+                    <a id="btn-view-ortho" class="btn btn-outline" style="display:none;" href="#" data-i18n="open_ortho_viewer">Open Ortho Viewer</a>
+                    <div id="detection-status" class="status-box" data-i18n="status_waiting_ortho">Status: Waiting for orthomosaic</div>
                     <div class="detection-list" id="detection-list"></div>
                 </article>
 
                 <article class="panel workflow-step">
-                    <span class="step-label">Step 04</span>
-                    <h2>Tree Registry Output</h2>
-                    <p class="panel-subtitle">Confirmed detections become stable tree codes that future farmer images can attach to.</p>
+                    <span class="step-label" data-i18n="step_04">Step 04</span>
+                    <h2 data-i18n="tree_registry_output">Tree Registry Output</h2>
+                    <p class="panel-subtitle" data-i18n="tree_registry_output_desc">Confirmed detections become stable tree codes that future farmer images can attach to.</p>
                     <div class="tree-list" id="tree-list">
-                        <div class="empty-state">Confirmed tree assets will appear here.</div>
+                        <div class="empty-state" data-i18n="confirmed_tree_assets_empty">Confirmed tree assets will appear here.</div>
                     </div>
                 </article>
 
                 <article class="panel workflow-step">
-                    <span class="step-label">Step 05</span>
-                    <h2>Match Existing Trees</h2>
-                    <p class="panel-subtitle">When a new mission overlaps with known assets, review ambiguous matches before linking.</p>
-                    <button id="btn-auto-match" class="btn" disabled>Auto-Match Detections</button>
-                    <div id="match-status" class="status-box">Status: Need detections first</div>
+                    <span class="step-label" data-i18n="step_05">Step 05</span>
+                    <h2 data-i18n="match_existing_trees">Match Existing Trees</h2>
+                    <p class="panel-subtitle" data-i18n="match_existing_trees_desc">When a new mission overlaps with known assets, review ambiguous matches before linking.</p>
+                    <button id="btn-auto-match" class="btn" disabled data-i18n="auto_match_detections">Auto-Match Detections</button>
+                    <div id="match-status" class="status-box" data-i18n="status_need_detections">Status: Need detections first</div>
                     <div class="match-review-list" id="match-review-list"></div>
                 </article>
             </section>
         </main>
 
         <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
-            <a class="nav-item active" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV</span></a>
-            <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Trees</span></a>
-            <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dash</span></a>
-            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
+            <a class="nav-item active" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_uav">UAV</span></a>
+            <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_trees">Trees</span></a>
+            <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_dash">Dash</span></a>
+            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
         </nav>
     </div>
+    <script src="i18n.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

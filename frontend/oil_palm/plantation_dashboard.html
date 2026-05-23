@@ -16,46 +16,54 @@
             <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
                 <img class="brand-mark" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
                 <span class="brand-copy">
-                    <strong>Oil Palm Nexus</strong>
-                    <span>Tree asset AI</span>
+                    <strong data-i18n="brand_name">Oil Palm Nexus</strong>
+                    <span data-i18n="brand_subtitle">Tree asset AI</span>
                 </span>
             </a>
             <nav class="app-nav" aria-label="Oil palm navigation">
-                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV Review</span></a>
-                <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Tree Registry</span></a>
-                <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dashboard</span></a>
-                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
+                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_uav_review">UAV Review</span></a>
+                <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_tree_registry">Tree Registry</span></a>
+                <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span></a>
+                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
             </nav>
             <div class="app-nav-bottom">
-                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label">Refresh</span></a>
+                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_refresh">Refresh</span></a>
             </div>
         </aside>
 
         <main class="app-main">
             <header class="topbar">
                 <div class="page-title">
-                    <h1>Plantation Dashboard</h1>
-                    <p>Plantation-level assessment counts, priority trees, and block reports.</p>
+                    <h1 data-i18n="plantation_dashboard_title">Plantation Dashboard</h1>
+                    <p data-i18n="plantation_dashboard_subtitle">Plantation-level assessment counts, priority trees, and block reports.</p>
                 </div>
                 <div class="topbar-actions">
-                    <span class="status-pill status-info">Structured facts</span>
-                    <a href="tree_list.html" class="back-link">Tree Registry</a>
-                    <a href="index.html" class="back-link">UAV Review</a>
+                    <span class="status-pill status-info" data-i18n="top_structured_facts">Structured facts</span>
+                    <a href="tree_list.html" class="back-link" data-i18n="nav_tree_registry">Tree Registry</a>
+                    <a href="index.html" class="back-link" data-i18n="nav_uav_review">UAV Review</a>
+                    <div class="lang-switcher">
+                        <button class="lang-trigger" type="button" data-i18n-aria="language"><i class="fa fa-globe" aria-hidden="true"></i><span id="currentLangDisplay">ZH</span><i class="fa fa-chevron-down" aria-hidden="true"></i></button>
+                        <div class="lang-menu">
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('zh')">ZH - 中文</button>
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('en')">EN - English</button>
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('ms')">MS - Melayu</button>
+                        </div>
+                    </div>
                 </div>
             </header>
 
             <section class="hero-strip">
                 <div class="hero-panel">
-                    <span class="kicker">Plantation view</span>
-                    <h2>Use the dashboard to decide which trees need harvest, inspection, or more evidence.</h2>
-                    <p>These summaries aggregate existing structured records. They are not a substitute for tree-level evidence review or expert confirmation.</p>
+                    <span class="kicker" data-i18n="plantation_view">Plantation view</span>
+                    <h2 data-i18n="plantation_hero">Use the dashboard to decide which trees need harvest, inspection, or more evidence.</h2>
+                    <p data-i18n="plantation_hero_desc">These summaries aggregate existing structured records. They are not a substitute for tree-level evidence review or expert confirmation.</p>
                 </div>
                 <div class="panel">
-                    <span class="step-label">Select scope</span>
+                    <span class="step-label" data-i18n="select_scope">Select scope</span>
                     <div class="action-bar">
                         <div class="filter-group">
                             <div id="plantation-dropdown" class="custom-select">
-                                <span id="plantation-text">Select Plantation...</span>
+                                <span id="plantation-text" data-i18n="select_plantation_placeholder">Select Plantation...</span>
                                 <span class="arrow">v</span>
                             </div>
                             <div id="plantation-options" class="options-list"></div>
@@ -66,30 +74,31 @@
 
             <section class="section-stack">
                 <section class="panel">
-                    <h2>Assessment Stats</h2>
-                    <p class="panel-subtitle">High-level operational counters for the selected plantation.</p>
+                    <h2 data-i18n="assessment_stats">Assessment Stats</h2>
+                    <p class="panel-subtitle" data-i18n="assessment_stats_desc">High-level operational counters for the selected plantation.</p>
                     <div id="stats-grid" class="stats-grid"></div>
                 </section>
                 <section class="panel">
-                    <h2>Priority Trees</h2>
-                    <p class="panel-subtitle">Trees surfaced for harvest, disease risk, abnormal UAV watch, or missing evidence.</p>
-                    <div id="priority-list" class="status-box">Loading...</div>
+                    <h2 data-i18n="priority_trees">Priority Trees</h2>
+                    <p class="panel-subtitle" data-i18n="priority_trees_desc">Trees surfaced for harvest, disease risk, abnormal UAV watch, or missing evidence.</p>
+                    <div id="priority-list" class="status-box" data-i18n="loading">Loading...</div>
                 </section>
                 <section class="panel">
-                    <h2>Block Report</h2>
-                    <p class="panel-subtitle">Grouped assessment summary by block.</p>
+                    <h2 data-i18n="block_report">Block Report</h2>
+                    <p class="panel-subtitle" data-i18n="block_report_desc">Grouped assessment summary by block.</p>
                     <div id="block-report"></div>
                 </section>
             </section>
         </main>
 
         <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
-            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV</span></a>
-            <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Trees</span></a>
-            <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dash</span></a>
-            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
+            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_uav">UAV</span></a>
+            <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_trees">Trees</span></a>
+            <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_dash">Dash</span></a>
+            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
         </nav>
     </div>
+    <script src="i18n.js"></script>
     <script src="plantation_dashboard.js"></script>
 </body>
 </html>

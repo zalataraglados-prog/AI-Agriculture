@@ -16,63 +16,71 @@
             <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
                 <img class="brand-mark" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
                 <span class="brand-copy">
-                    <strong>Oil Palm Nexus</strong>
-                    <span>Tree asset AI</span>
+                    <strong data-i18n="brand_name">Oil Palm Nexus</strong>
+                    <span data-i18n="brand_subtitle">Tree asset AI</span>
                 </span>
             </a>
             <nav class="app-nav" aria-label="Oil palm navigation">
-                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV Review</span></a>
-                <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Tree Registry</span></a>
-                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dashboard</span></a>
-                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
+                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_uav_review">UAV Review</span></a>
+                <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_tree_registry">Tree Registry</span></a>
+                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span></a>
+                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
             </nav>
             <div class="app-nav-bottom">
-                <a class="nav-item" href="tree_list.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label">Refresh</span></a>
+                <a class="nav-item" href="tree_list.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_refresh">Refresh</span></a>
             </div>
         </aside>
 
         <main class="app-main">
             <header class="topbar">
                 <div class="page-title">
-                    <h1>Tree Registry</h1>
-                    <p>Browse confirmed oil palm assets by plantation and UAV mission.</p>
+                    <h1 data-i18n="registry_title">Tree Registry</h1>
+                    <p data-i18n="registry_subtitle">Browse confirmed oil palm assets by plantation and UAV mission.</p>
                 </div>
                 <div class="topbar-actions">
-                    <span class="status-pill status-ok">Tree-level assets</span>
-                    <a href="plantation_dashboard.html" class="back-link">Dashboard</a>
-                    <a href="index.html" class="back-link">UAV Review</a>
-                    <a href="/" class="back-link">Portal</a>
+                    <span class="status-pill status-ok" data-i18n="top_tree_assets">Tree-level assets</span>
+                    <a href="plantation_dashboard.html" class="back-link" data-i18n="nav_dashboard">Dashboard</a>
+                    <a href="index.html" class="back-link" data-i18n="nav_uav_review">UAV Review</a>
+                    <a href="/" class="back-link" data-i18n="nav_portal">Portal</a>
+                    <div class="lang-switcher">
+                        <button class="lang-trigger" type="button" data-i18n-aria="language"><i class="fa fa-globe" aria-hidden="true"></i><span id="currentLangDisplay">ZH</span><i class="fa fa-chevron-down" aria-hidden="true"></i></button>
+                        <div class="lang-menu">
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('zh')">ZH - 中文</button>
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('en')">EN - English</button>
+                            <button class="lang-option" type="button" onclick="window.OP_I18N.setLanguage('ms')">MS - Melayu</button>
+                        </div>
+                    </div>
                 </div>
             </header>
 
             <section class="hero-strip">
                 <div class="hero-panel">
-                    <span class="kicker">Registry</span>
-                    <h2>Each row is a durable production asset, not an isolated image result.</h2>
-                    <p>Filter by plantation and mission to inspect confirmed trees, then open a Tree Profile for assessment, barcode, timeline, and observation-session evidence.</p>
+                    <span class="kicker" data-i18n="registry_kicker">Registry</span>
+                    <h2 data-i18n="registry_hero">Each row is a durable production asset, not an isolated image result.</h2>
+                    <p data-i18n="registry_hero_desc">Filter by plantation and mission to inspect confirmed trees, then open a Tree Profile for assessment, barcode, timeline, and observation-session evidence.</p>
                 </div>
                 <div class="panel">
-                    <span class="step-label">Asset filters</span>
-                    <div class="status-row"><span>Plantation</span><span class="status-pill status-info">required for missions</span></div>
-                    <div class="status-row"><span>Mission</span><span class="status-pill status-warning">optional</span></div>
+                    <span class="step-label" data-i18n="asset_filters">Asset filters</span>
+                    <div class="status-row"><span data-i18n="plantation">Plantation</span><span class="status-pill status-info" data-i18n="required_for_missions">required for missions</span></div>
+                    <div class="status-row"><span data-i18n="mission_filter">Mission</span><span class="status-pill status-warning" data-i18n="optional">optional</span></div>
                 </div>
             </section>
 
             <section class="section-stack">
                 <div class="toolbar">
                     <div class="filter-group">
-                        <label>1. Select Plantation</label>
+                        <label data-i18n="select_plantation">1. Select Plantation</label>
                         <div id="plantation-dropdown" class="custom-select">
-                            <span class="selected-text" id="plantation-text">-- All Plantations --</span>
+                            <span class="selected-text" id="plantation-text" data-i18n="all_plantations">-- All Plantations --</span>
                             <span class="arrow">v</span>
                         </div>
                         <div id="plantation-options" class="options-list"></div>
                     </div>
 
                     <div class="filter-group">
-                        <label>2. Filter by Mission</label>
+                        <label data-i18n="filter_mission">2. Filter by Mission</label>
                         <div id="mission-dropdown" class="custom-select" style="opacity: 0.5; pointer-events: none;">
-                            <span class="selected-text" id="mission-text">Please select a plantation...</span>
+                            <span class="selected-text" id="mission-text" data-i18n="select_plantation_hint">Please select a plantation...</span>
                             <span class="arrow">v</span>
                         </div>
                         <div id="mission-options" class="options-list"></div>
@@ -82,28 +90,29 @@
                 </div>
 
                 <section class="panel">
-                    <h2>Confirmed Trees</h2>
-                    <p class="panel-subtitle">Open any tree code to continue into the long-lived tree profile.</p>
+                    <h2 data-i18n="confirmed_trees">Confirmed Trees</h2>
+                    <p class="panel-subtitle" data-i18n="confirmed_trees_desc">Open any tree code to continue into the long-lived tree profile.</p>
                     <div id="table-container">
-                        <div class="empty-state">Loading registry...</div>
+                        <div class="empty-state" data-i18n="loading_registry">Loading registry...</div>
                     </div>
 
                     <div class="pagination" id="pagination" style="display:none;">
-                        <button id="btn-prev" disabled>&laquo; Prev</button>
+                        <button id="btn-prev" disabled>&laquo; <span data-i18n="prev">Prev</span></button>
                         <span id="btn-page-info">Page 1</span>
-                        <button id="btn-next">&raquo; Next</button>
+                        <button id="btn-next">&raquo; <span data-i18n="next">Next</span></button>
                     </div>
                 </section>
             </section>
         </main>
 
         <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
-            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV</span></a>
-            <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Trees</span></a>
-            <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dash</span></a>
-            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
+            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_uav">UAV</span></a>
+            <a class="nav-item active" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_trees">Trees</span></a>
+            <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="mobile_dash">Dash</span></a>
+            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label" data-i18n="nav_portal">Portal</span></a>
         </nav>
     </div>
+    <script src="i18n.js"></script>
     <script src="tree_list.js"></script>
 </body>
 </html>
