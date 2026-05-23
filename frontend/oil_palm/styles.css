@@ -322,6 +322,10 @@ main {
     gap: 18px;
 }
 
+.app-main {
+    display: block;
+}
+
 .section-stack {
     display: grid;
     gap: 18px;
@@ -717,8 +721,21 @@ main {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     min-width: 240px;
     cursor: pointer;
+}
+
+.custom-select .selected-text,
+.custom-select > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.custom-select .arrow {
+    flex: 0 0 auto;
 }
 
 .options-list {
