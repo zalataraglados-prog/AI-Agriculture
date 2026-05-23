@@ -7,26 +7,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="app-shell">
         <aside class="app-sidebar">
             <a class="brand-lockup" href="index.html" aria-label="Oil Palm Nexus home">
-                <span class="brand-mark">OP</span>
+                <img class="brand-mark" src="/assets/ai-agri-logo.svg" alt="AI Agriculture logo">
                 <span class="brand-copy">
                     <strong>Oil Palm Nexus</strong>
                     <span>Tree asset AI</span>
                 </span>
             </a>
             <nav class="app-nav" aria-label="Oil palm navigation">
-                <a class="nav-item" href="index.html"><span class="nav-icon">01</span><span class="nav-label">UAV Review</span></a>
-                <a class="nav-item" href="tree_list.html"><span class="nav-icon">02</span><span class="nav-label">Tree Registry</span></a>
-                <a class="nav-item active" href="plantation_dashboard.html"><span class="nav-icon">03</span><span class="nav-label">Dashboard</span></a>
-                <a class="nav-item" href="/"><span class="nav-icon">00</span><span class="nav-label">Portal</span></a>
+                <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV Review</span></a>
+                <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Tree Registry</span></a>
+                <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dashboard</span></a>
+                <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
             </nav>
             <div class="app-nav-bottom">
-                <a class="nav-item" href="plantation_dashboard.html"><span class="nav-icon">R</span><span class="nav-label">Refresh</span></a>
+                <a class="nav-item" href="plantation_dashboard.html"><i class="fa fa-refresh nav-icon" aria-hidden="true"></i><span class="nav-label">Refresh</span></a>
             </div>
         </aside>
 
@@ -83,10 +84,10 @@
         </main>
 
         <nav class="mobile-nav" aria-label="Mobile oil palm navigation">
-            <a class="nav-item" href="index.html"><span class="nav-icon">01</span><span class="nav-label">UAV</span></a>
-            <a class="nav-item" href="tree_list.html"><span class="nav-icon">02</span><span class="nav-label">Trees</span></a>
-            <a class="nav-item active" href="plantation_dashboard.html"><span class="nav-icon">03</span><span class="nav-label">Dash</span></a>
-            <a class="nav-item" href="/"><span class="nav-icon">00</span><span class="nav-label">Portal</span></a>
+            <a class="nav-item" href="index.html"><i class="fa fa-th-large nav-icon" aria-hidden="true"></i><span class="nav-label">UAV</span></a>
+            <a class="nav-item" href="tree_list.html"><i class="fa fa-tree nav-icon" aria-hidden="true"></i><span class="nav-label">Trees</span></a>
+            <a class="nav-item active" href="plantation_dashboard.html"><i class="fa fa-line-chart nav-icon" aria-hidden="true"></i><span class="nav-label">Dash</span></a>
+            <a class="nav-item" href="/"><i class="fa fa-home nav-icon" aria-hidden="true"></i><span class="nav-label">Portal</span></a>
         </nav>
     </div>
     <script src="plantation_dashboard.js"></script>
