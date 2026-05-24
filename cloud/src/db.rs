@@ -226,17 +226,30 @@ impl DbManager {
             let sql = std::fs::read_to_string(&path)
                 .map_err(|e| format!("failed to read {name}: {e}"))?;
             
-            // 将 SQL 按分号拆分，逐条执行（防止隐式事务块导致 TimescaleDB 报错）
-            for stmt in sql.split(';') {
-                let trimmed = stmt.trim();
-                if !trimmed.is_empty() {
-                    if let Err(e) = client.simple_query(trimmed) {
-                        let err_str = e.to_string().to_lowercase();
-                        // 忽略重复创建时的安全报错，因为可能之前手动运行过但没被 _sql_migrations 记录
-                        if err_str.contains("already exists") || err_str.contains("already a hypertable") || err_str.contains("does not exist") || err_str.contains("multiple primary keys") {
-                            eprintln!("{} [db] migration ignored safe error on {name}: {}", crate::time_util::now_rfc3339(), e);
-                        } else {
-                            return Err(format!("failed to run migration {name}: {e}\nQuery: {trimmed}"));
+            // 如果包含 $$，说明有 PL/pgSQL 块（如 0002），不能简单用分号拆分，必须交由 batch_execute
+            // 且之前的 0001 和 0002 都是幂等的，能安全重入
+            if sql.contains("$$") {
+                if let Err(e) = client.batch_execute(&sql) {
+                    let err_str = e.to_string().to_lowercase();
+                    if err_str.contains("already exists") {
+                        eprintln!("{} [db] migration ignored safe error on {name}: {}", crate::time_util::now_rfc3339(), e);
+                    } else {
+                        return Err(format!("failed to run migration {name}: {e}"));
+                    }
+                }
+            } else {
+                // 将 SQL 按分号拆分，逐条执行（防止隐式事务块导致 TimescaleDB 的 create_hypertable 报错）
+                for stmt in sql.split(';') {
+                    let trimmed = stmt.trim();
+                    if !trimmed.is_empty() {
+                        if let Err(e) = client.simple_query(trimmed) {
+                            let err_str = e.to_string().to_lowercase();
+                            // 忽略重复创建时的安全报错，因为可能之前手动运行过但没被 _sql_migrations 记录
+                            if err_str.contains("already exists") || err_str.contains("already a hypertable") || err_str.contains("does not exist") || err_str.contains("multiple primary keys") {
+                                eprintln!("{} [db] migration ignored safe error on {name}: {}", crate::time_util::now_rfc3339(), e);
+                            } else {
+                                return Err(format!("failed to run migration {name}: {e}\nQuery: {trimmed}"));
+                            }
                         }
                     }
                 }
