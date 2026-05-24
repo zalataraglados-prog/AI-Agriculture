@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         assessment: null,
         assessmentMessage: null,
         sessionId: null,
+        sessionCode: null,
+        sessionCreating: false,
+        sessionUploading: false,
         sessionImages: [],
         loadingMessage: null,
         barcodeMessage: null,
@@ -272,38 +275,72 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fileInput = document.getElementById('session-image');
         const roleInput = document.getElementById('image-role');
 
+        function hasSelectedFile() {
+            return Boolean(fileInput.files && fileInput.files.length);
+        }
+
+        function updateSessionControls() {
+            const hasFile = hasSelectedFile();
+            startBtn.disabled = state.sessionCreating || state.sessionUploading || Boolean(state.sessionId) || !hasFile;
+            uploadBtn.disabled = state.sessionCreating || state.sessionUploading || !state.sessionId || !hasFile || Boolean(state.a0);
+        }
+
         fileInput.addEventListener('change', () => {
-            uploadBtn.disabled = !state.sessionId || !fileInput.files.length;
+            if (!state.sessionId && !hasSelectedFile()) {
+                setSessionMessage('select_image_before_session');
+            }
+            updateSessionControls();
         });
 
         startBtn.addEventListener('click', async () => {
             if (!state.tree?.id) return;
+            if (state.sessionId) {
+                setSessionMessage('session_already_active', { code: state.sessionCode || state.sessionId });
+                updateSessionControls();
+                return;
+            }
+            if (!hasSelectedFile()) {
+                setSessionMessage('select_image_before_session');
+                updateSessionControls();
+                return;
+            }
             setSessionMessage('creating_session');
+            state.sessionCreating = true;
+            updateSessionControls();
             try {
                 const res = await fetch(`/api/v1/trees/${state.tree.id}/sessions`, { method: 'POST' });
                 const data = await res.json();
                 if (data.status === 'ok') {
                     state.sessionId = data.session.id;
+                    state.sessionCode = data.session.session_code;
                     setSessionMessage('active_session', { code: data.session.session_code });
-                    uploadBtn.disabled = !fileInput.files.length;
                     await loadSessionImages(state.sessionId);
                 } else {
                     setSessionMessage('session_failed', { message: unknownError(data.message) });
                 }
             } catch (e) {
                 setSessionMessage('session_error', { message: e.message });
+            } finally {
+                state.sessionCreating = false;
+                updateSessionControls();
             }
         });
 
         uploadBtn.addEventListener('click', async () => {
             const file = fileInput.files[0];
             const role = roleInput.value;
-            if (!state.sessionId || !file) return;
+            if (!state.sessionId || !file) {
+                setSessionMessage(!state.sessionId ? 'select_image_before_session' : 'upload_select_image');
+                updateSessionControls();
+                return;
+            }
 
             const form = new FormData();
             form.append('image_role', role);
             form.append('file', file);
             setSessionMessage('uploading_session_image');
+            state.sessionUploading = true;
+            updateSessionControls();
 
             try {
                 const res = await fetch(`/api/v1/sessions/${state.sessionId}/images?image_role=${encodeURIComponent(role)}`, {
@@ -317,7 +354,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         { role: roleLabel(data.image.image_role) }
                     );
                     fileInput.value = '';
-                    uploadBtn.disabled = true;
                     if (data.requires_confirmation) {
                         showA0Review(data.image, data.analysis);
                     } else {
@@ -329,8 +365,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } catch (e) {
                 setSessionMessage('upload_error', { message: e.message });
+            } finally {
+                state.sessionUploading = false;
+                updateSessionControls();
             }
         });
+
+        setSessionMessage('select_image_before_session');
+        updateSessionControls();
     }
 
     function showA0Review(image, analysis) {
@@ -351,6 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
         renderA0Boxes();
         wireA0Buttons();
+        document.getElementById('btn-upload-session-image').disabled = true;
     }
 
     function renderA0Boxes() {
@@ -411,6 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (data.status === 'ok') {
                     document.getElementById('a0-review').style.display = 'none';
                     state.a0 = null;
+                    document.getElementById('btn-upload-session-image').disabled = true;
                     await loadSessionImages(state.sessionId);
                     if (state.tree?.tree_code) await loadAssessment(state.tree.tree_code);
                 } else {
@@ -423,6 +467,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         cancelBtn.onclick = () => {
             document.getElementById('a0-review').style.display = 'none';
+            state.a0 = null;
+            document.getElementById('btn-upload-session-image').disabled = true;
         };
     }
 
