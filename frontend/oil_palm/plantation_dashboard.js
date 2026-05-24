@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function closeAll() {
         options.classList.remove('show');
         dropdown.classList.remove('active');
+        options.closest('.filter-group')?.classList.remove('dropdown-open');
     }
 
     document.addEventListener('click', closeAll);
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!wasOpen) {
             options.classList.add('show');
             dropdown.classList.add('active');
+            options.closest('.filter-group')?.classList.add('dropdown-open');
         }
     };
 

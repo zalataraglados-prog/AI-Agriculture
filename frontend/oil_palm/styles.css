@@ -434,6 +434,7 @@ main {
 }
 
 .panel {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -484,6 +485,12 @@ main {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    z-index: 1;
+}
+
+.filter-group.dropdown-open,
+.filter-group:has(.options-list.show) {
+    z-index: 420;
 }
 
 .input-group label,
@@ -770,11 +777,20 @@ main {
 .toolbar,
 .dashboard-toolbar {
     display: flex;
+    position: relative;
     align-items: flex-end;
     gap: 16px;
     flex-wrap: wrap;
     border-radius: var(--radius);
     padding: 18px;
+    overflow: visible;
+    z-index: 20;
+}
+
+.toolbar:has(.options-list.show),
+.dashboard-toolbar:has(.options-list.show),
+.panel:has(.options-list.show) {
+    z-index: 400;
 }
 
 .toolbar .total-badge {
@@ -822,7 +838,7 @@ main {
     top: calc(100% + 8px);
     left: 0;
     right: 0;
-    z-index: 60;
+    z-index: 430;
     display: none;
     max-height: 300px;
     overflow-y: auto;

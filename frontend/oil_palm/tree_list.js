@@ -45,6 +45,8 @@
             els.mOptions.classList.remove('show');
             els.pDropdown.classList.remove('active');
             els.mDropdown.classList.remove('active');
+            els.pOptions.closest('.filter-group')?.classList.remove('dropdown-open');
+            els.mOptions.closest('.filter-group')?.classList.remove('dropdown-open');
         }
 
         function setMissionEnabled(enabled) {
@@ -61,6 +63,7 @@
             if (!wasOpen) {
                 els.pOptions.classList.add('show');
                 els.pDropdown.classList.add('active');
+                els.pOptions.closest('.filter-group')?.classList.add('dropdown-open');
             }
         };
 
@@ -71,6 +74,7 @@
             if (!wasOpen) {
                 els.mOptions.classList.add('show');
                 els.mDropdown.classList.add('active');
+                els.mOptions.closest('.filter-group')?.classList.add('dropdown-open');
             }
         };
 
