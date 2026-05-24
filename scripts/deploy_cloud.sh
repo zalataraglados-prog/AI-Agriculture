@@ -207,6 +207,14 @@ if [[ "$START_AI_ENGINE" == "1" ]]; then
     stop_pid_file "$AI_PID_FILE" "AI engine"
 fi
 
+# Fallback: aggressively kill any lingering process matching the binary name
+# to prevent "Text file busy" errors during 'cp'.
+if pgrep -f "$BIN_NAME" >/dev/null 2>&1; then
+    log "Warning: Lingering $BIN_NAME processes found. Forcibly killing them..."
+    pkill -9 -f "$BIN_NAME" || true
+    sleep 1
+fi
+
 ensure_port_available "$CLOUD_PORT" "cloud backend"
 if [[ "$START_AI_ENGINE" == "1" ]]; then
     ensure_port_available "$AI_PORT" "AI engine"
