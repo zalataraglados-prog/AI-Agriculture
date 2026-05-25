@@ -211,6 +211,10 @@ def test_oil_palm_hybrid_mode_registers_real_a0_when_available(
     monkeypatch.setenv("OIL_PALM_MODEL_MODE", "hybrid")
     monkeypatch.setenv("OIL_PALM_A0_MODEL_PATH", str(weights))
     monkeypatch.setenv("OIL_PALM_A0_LABELS_FILE", str(labels))
+    monkeypatch.setenv(
+        "OIL_PALM_GANODERMA_MODEL_PATH",
+        str(tmp_path / "missing_ganoderma_weights.pth"),
+    )
     monkeypatch.delenv("OIL_PALM_A0_CONFIG_FILE", raising=False)
 
     import importlib
@@ -225,6 +229,103 @@ def test_oil_palm_hybrid_mode_registers_real_a0_when_available(
     assert {item["mode"] for item in capabilities if item["task"] != "a0_structure_detection"} == {
         "mock"
     }
+
+
+def test_ganoderma_resnet_predictor_returns_suspected_risk_envelope(
+    tmp_path,
+    monkeypatch,
+):
+    _install_fake_torchvision_resnet(monkeypatch, probabilities=[0.18, 0.82])
+    labels = tmp_path / "labels.json"
+    labels.write_text(
+        '["healthy", "suspected_risk", "other_stress_unknown"]',
+        encoding="utf-8",
+    )
+    metrics = tmp_path / "metrics.json"
+    metrics.write_text(
+        "{"
+        '"model_version":"oil_palm_ganoderma_test_v1",'
+        '"labels":["healthy","suspected_risk","other_stress_unknown"],'
+        '"active_training_labels":["healthy","suspected_risk"],'
+        '"class_order":{"0":"healthy","1":"suspected_risk"},'
+        '"preprocessing":{"resize":[224,224],"normalize":{"mean":[0.485,0.456,0.406],"std":[0.229,0.224,0.225]}}'
+        "}",
+        encoding="utf-8",
+    )
+    weights = tmp_path / "best.pth"
+    weights.write_bytes(b"fake weights")
+
+    from ai_engine.crops.oil_palm.inference.ganoderma_resnet_predictor import (
+        GanodermaResNetPredictor,
+    )
+
+    predictor = GanodermaResNetPredictor(
+        weights_path=weights,
+        labels_path=labels,
+        metrics_path=metrics,
+    )
+    payload = predictor.predict(
+        _valid_png_bytes(),
+        PredictorContext(
+            crop="oil_palm",
+            task="ganoderma_risk",
+            image_role="trunk_base",
+            tree_code="OP-000001",
+            session_id="OS-000001",
+        ),
+    )
+
+    envelope = PredictionEnvelope.model_validate(payload)
+    assert envelope.model_version == "oil_palm_ganoderma_test_v1"
+    assert envelope.results[0].task == "ganoderma_risk"
+    assert envelope.results[0].label == "suspected_risk"
+    assert envelope.results[0].confidence == 0.82
+    assert envelope.results[0].geometry == {"type": "whole_image"}
+    assert envelope.metadata["mock"] is False
+    assert envelope.metadata["diagnosis_status"] == "not_confirmed"
+    assert envelope.metadata["user_review_status"] == "confirmed_by_default"
+    assert envelope.metadata["probabilities"] == {
+        "healthy": 0.18,
+        "suspected_risk": 0.82,
+    }
+
+
+def test_oil_palm_hybrid_mode_registers_real_ganoderma_when_available(
+    tmp_path,
+    monkeypatch,
+):
+    _install_fake_torchvision_resnet(monkeypatch, probabilities=[0.74, 0.26])
+    labels = tmp_path / "labels.json"
+    labels.write_text(
+        '["healthy", "suspected_risk", "other_stress_unknown"]',
+        encoding="utf-8",
+    )
+    metrics = tmp_path / "metrics.json"
+    metrics.write_text(
+        '{"model_version":"oil_palm_ganoderma_test_v1","class_order":{"0":"healthy","1":"suspected_risk"}}',
+        encoding="utf-8",
+    )
+    weights = tmp_path / "best.pth"
+    weights.write_bytes(b"fake weights")
+
+    monkeypatch.setenv("OIL_PALM_MODEL_MODE", "hybrid")
+    monkeypatch.setenv("OIL_PALM_GANODERMA_MODEL_PATH", str(weights))
+    monkeypatch.setenv("OIL_PALM_GANODERMA_LABELS_FILE", str(labels))
+    monkeypatch.setenv("OIL_PALM_GANODERMA_METRICS_FILE", str(metrics))
+    monkeypatch.delenv("OIL_PALM_A0_MODEL_PATH", raising=False)
+
+    import importlib
+    import ai_engine.crops.oil_palm.pipeline as pipeline_mod
+
+    pipeline_mod = importlib.reload(pipeline_mod)
+    pipeline = pipeline_mod.build_default_oil_palm_pipeline()
+
+    capabilities = pipeline.registry.capabilities("oil_palm")
+    ganoderma = [item for item in capabilities if item["task"] == "ganoderma_risk"]
+    a0 = [item for item in capabilities if item["task"] == "a0_structure_detection"]
+    assert ganoderma[0]["mode"] == "real"
+    assert ganoderma[0]["model_version"] == "oil_palm_ganoderma_test_v1"
+    assert a0[0]["mode"] == "mock"
 
 
 def _valid_png_bytes() -> bytes:
@@ -254,3 +355,103 @@ def _install_fake_ultralytics(monkeypatch, *, cls_values, conf_values):
 
     fake_module.YOLO = FakeModel
     monkeypatch.setitem(sys.modules, "ultralytics", fake_module)
+
+
+def _install_fake_torchvision_resnet(monkeypatch, *, probabilities):
+    fake_torch = types.ModuleType("torch")
+    fake_torchvision = types.ModuleType("torchvision")
+    fake_models = types.SimpleNamespace()
+    fake_transforms = types.SimpleNamespace()
+
+    class FakeLinear:
+        def __init__(self, in_features, out_features):
+            self.in_features = in_features
+            self.out_features = out_features
+
+    class FakeFunctional:
+        @staticmethod
+        def softmax(_logits, dim):
+            assert dim == 1
+            return [FakeProbabilityTensor(probabilities)]
+
+    class FakeNoGrad:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, _exc_type, _exc, _traceback):
+            return False
+
+    class FakeCuda:
+        @staticmethod
+        def is_available():
+            return False
+
+    class FakeTensor:
+        def unsqueeze(self, dim):
+            assert dim == 0
+            return self
+
+        def to(self, device):
+            assert device in {"cpu", "cuda"}
+            return self
+
+    class FakeProbabilityTensor:
+        def __init__(self, values):
+            self.values = values
+
+        def detach(self):
+            return self
+
+        def cpu(self):
+            return self
+
+        def tolist(self):
+            return self.values
+
+    class FakeTransform:
+        def __call__(self, _image):
+            return FakeTensor()
+
+    class FakeCompose:
+        def __init__(self, steps):
+            self.steps = steps
+
+        def __call__(self, image):
+            assert self.steps
+            return FakeTensor()
+
+    class FakeModel:
+        def __init__(self):
+            self.fc = types.SimpleNamespace(in_features=512)
+            self.loaded_state_dict = None
+
+        def load_state_dict(self, state_dict):
+            self.loaded_state_dict = state_dict
+
+        def to(self, device):
+            assert device == "cpu"
+            return self
+
+        def eval(self):
+            return self
+
+        def __call__(self, _tensor):
+            return object()
+
+    fake_torch.nn = types.SimpleNamespace(
+        Linear=FakeLinear,
+        functional=FakeFunctional,
+    )
+    fake_torch.cuda = FakeCuda()
+    fake_torch.no_grad = FakeNoGrad
+    fake_torch.load = lambda _path, map_location=None: {}
+    fake_models.resnet18 = lambda weights=None: FakeModel()
+    fake_transforms.Compose = FakeCompose
+    fake_transforms.Resize = lambda _size: FakeTransform()
+    fake_transforms.ToTensor = lambda: FakeTransform()
+    fake_transforms.Normalize = lambda mean, std: FakeTransform()
+    fake_torchvision.models = fake_models
+    fake_torchvision.transforms = fake_transforms
+
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setitem(sys.modules, "torchvision", fake_torchvision)
