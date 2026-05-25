@@ -8,37 +8,94 @@
 | Task | Image classification (risk screening) |
 | Crop | Oil Palm |
 | Framework | ResNet18 |
-| Current Status | **offline trained v1; not integrated into AI Engine runtime** |
+| Current Status | **offline trained v1; ready for runtime integration preparation** |
 | Model Version | `oil_palm_ganoderma_resnet18_v1.0.0_offline` |
 
 ## Intended Use
 
 Screen trunk-base oil palm images for visible Ganoderma / basal stem rot risk
-signals. This is a risk-screening model, not a diagnostic tool. Positive
-outputs must be described as suspected risk and should trigger recheck or expert
-confirmation.
+signals. The model output is a risk-screening signal for tree/session evidence,
+not an agronomic diagnosis.
 
-## Labels
+## Labels And Output Semantics
 
 Project-standard labels are `healthy`, `suspected_risk`, and
 `other_stress_unknown`.
 
-The recorded v1 model trains only `healthy` and `suspected_risk`.
+The v1 model trains two active classes:
+
+```text
+0 = healthy
+1 = suspected_risk
+```
+
+Runtime interpretation:
+
+```text
+healthy        -> Healthy / no visible risk indicators
+suspected_risk -> Ganoderma/BSR suspected risk; expert confirmation required
+```
+
 `other_stress_unknown` is reserved for future data and is not produced by this
 offline v1 classifier.
 
+The model does not output confirmed disease. If a runtime workflow later uses a
+`confirmed` status, that status means user-review workflow state, not agronomic
+diagnosis.
+
 ## Training Data
 
-The handoff describes two Roboflow sources: one Ganoderma-risk source and one
-healthy oil palm source. The source pages, dataset versions, licenses, download
-dates, and split grouping still require teammate confirmation.
+The v1 handoff uses two Roboflow-derived sources: one Ganoderma-risk source and
+one healthy oil palm source. Source URLs are not tracked in Git in this pass.
 
-The current manifest intentionally records source URLs without temporary
-Roboflow download keys.
+| Split | healthy | suspected_risk | Total |
+|-------|---------|----------------|-------|
+| train | 414 | 337 | 751 |
+| val | 88 | 70 | 158 |
+| test | 92 | 75 | 167 |
+| total | 594 | 482 | 1076 |
+
+Split method: each source importer applies stratified random split by class
+with seed 42 and appends into the same `classification/` directory.
+
+Known data risks:
+
+- healthy and suspected-risk samples come from different Roboflow projects;
+- suspected-risk samples include trunk-base/root and trunk views, while healthy
+  samples are trunk views;
+- cross-dataset duplicate detection was not performed;
+- same-tree and same-capture-batch leakage cannot be ruled out;
+- domain bias may inflate test performance.
+
+## Training Configuration
+
+| Parameter | Value |
+|-----------|-------|
+| Base model | ResNet18 |
+| Pretraining | ImageNet `ResNet18_Weights.IMAGENET1K_V1` |
+| Input size | 224 x 224 |
+| Batch size | 32 |
+| Epochs | 20 |
+| Phase 1 | FC layer only, 10 epochs, lr=1e-4 |
+| Phase 2 | Full fine-tune, 10 epochs, lr=1e-5 |
+| Optimizer | Adam |
+| Scheduler | StepLR; phase1 step_size=7 gamma=0.1, phase2 step_size=5 gamma=0.1 |
+| Loss | CrossEntropyLoss |
+| Class weights | healthy=0.9263, suspected_risk=1.0864 |
+| Augmentation | Random flips, RandomRotation(15), ColorJitter brightness/contrast 0.3 |
+| Seed | 42 |
+
+Preprocessing:
+
+```text
+Resize to 224 x 224
+ToTensor
+Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+```
 
 ## Evaluation
 
-Recorded handoff metrics:
+Results source: test set.
 
 | Class | Precision | Recall | F1 | Support |
 |-------|-----------|--------|----|---------|
@@ -46,6 +103,7 @@ Recorded handoff metrics:
 | suspected_risk | 1.00 | 0.92 | 0.96 | 75 |
 | accuracy | | | 0.96 | 167 |
 | macro avg | 0.97 | 0.96 | 0.96 | 167 |
+| weighted avg | 0.97 | 0.96 | 0.96 | 167 |
 
 Confusion matrix:
 
@@ -55,35 +113,33 @@ Actual healthy                      92                         0
 Actual suspected_risk                6                        69
 ```
 
-See `metrics.json` for the normalized schema and pending fields.
+Best validation accuracy during training: `0.9684`. Per-class validation
+metrics were not recorded separately.
+
+The six suspected-risk false negatives have not been manually reviewed. v2
+should output misclassified sample paths for follow-up inspection.
+
+## Artifact
+
+```text
+Format: PyTorch state_dict (.pth)
+Recommended filename: best.pth
+Path: models/oil_palm/ganoderma_risk/best.pth
+Architecture: ResNet18 with final fc layer 512 -> 2
+Class order: 0=healthy, 1=suspected_risk
+```
+
+Weights remain outside Git.
 
 ## Runtime Status
 
 This branch records offline training metadata only. AI Engine still uses the
-safe mock Ganoderma predictor unless a future runtime branch adds a real
-predictor and loads weights through `OIL_PALM_GANODERMA_MODEL_PATH`.
-
-## Ethical Considerations
-
-- This model does not confirm Ganoderma or any agronomic diagnosis.
-- All positive outputs must be labeled as suspected risk.
-- False negatives matter: 6 of 75 suspected-risk test samples were missed in
-  the handoff metrics.
-- Expert confirmation is required before disease management action.
-
-## Limitations
-
-- v1 is only suitable for trunk-base/root-level RGB photography.
-- Generalization across plantations, palm ages, cameras, and environments has
-  not been validated.
-- The split strategy appears to be stratified random/source-limited; grouped
-  tree/plantation leakage has not been ruled out.
-- `other_stress_unknown` is not trained in v1.
-- Weight hash, exact split counts, dataset versions, and licenses are pending.
+safe mock Ganoderma predictor until a runtime branch adds a real predictor and
+loads weights through `OIL_PALM_GANODERMA_MODEL_PATH`.
 
 ## Changelog
 
 | Version | Date | Notes |
 |---------|------|-------|
-| `oil_palm_ganoderma_resnet18_v1.0.0_offline` | 2026-05 | Offline ResNet18 handoff metrics recorded; runtime integration pending. |
+| `oil_palm_ganoderma_resnet18_v1.0.0_offline` | 2026-05 | Offline ResNet18 handoff details recorded; runtime integration pending. |
 | `oil_palm_ganoderma_mock_v1` | 2026-05 | Mock predictor established. No real weights. |

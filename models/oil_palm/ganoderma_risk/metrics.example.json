@@ -6,6 +6,10 @@
   "dataset_manifest": "datasets/oil_palm/manifests/ganoderma_risk.example.json",
   "labels": ["healthy", "suspected_risk", "other_stress_unknown"],
   "active_training_labels": ["healthy", "suspected_risk"],
+  "class_order": {
+    "0": "healthy",
+    "1": "suspected_risk"
+  },
   "metrics": {
     "accuracy": null,
     "precision_macro": null,

@@ -74,8 +74,9 @@ it through `OIL_PALM_A0_MODEL_PATH`; the weight file itself remains outside Git.
 
 The Ganoderma v1 branch records offline handoff metrics in
 `models/oil_palm/ganoderma_risk/metrics.json`, but it does not register a real
-Ganoderma predictor yet. Treat source licenses, split grouping, exact counts,
-and the weight hash as pending teammate confirmation.
+Ganoderma predictor yet. The v1 handoff now records class order, split counts,
+training configuration, preprocessing, and known source-bias risks. Treat the
+weight hash and runtime loading as pending integration work.
 
 Mode semantics in this foundation branch:
 

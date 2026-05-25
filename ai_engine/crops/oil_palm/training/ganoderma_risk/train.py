@@ -58,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset-version", default="v1_pending_team_confirmation")
     parser.add_argument(
         "--dataset-manifest",
-        default="datasets/oil_palm/manifests/ganoderma_risk.example.json",
+        default="datasets/oil_palm/manifests/ganoderma_risk.json",
     )
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--phase1-epochs", type=int, default=10)

@@ -2,20 +2,45 @@
   "model_version": "oil_palm_ganoderma_resnet18_v1.0.0_offline",
   "framework": "ResNet18",
   "task": "ganoderma_risk",
-  "dataset_version": "v1_pending_team_confirmation",
-  "dataset_manifest": "datasets/oil_palm/manifests/ganoderma_risk.example.json",
+  "dataset_version": "v1",
+  "dataset_manifest": "datasets/oil_palm/manifests/ganoderma_risk.json",
   "labels": ["healthy", "suspected_risk", "other_stress_unknown"],
   "active_training_labels": ["healthy", "suspected_risk"],
+  "class_order": {
+    "0": "healthy",
+    "1": "suspected_risk"
+  },
+  "runtime_interpretation": {
+    "healthy": "Healthy / no visible risk indicators",
+    "suspected_risk": "Ganoderma/BSR suspected risk - expert confirmation required",
+    "diagnosis_policy": "The model does not output confirmed disease. Any later runtime confirmed status is user-review workflow state, not agronomic diagnosis."
+  },
   "artifact": {
     "weights": "models/oil_palm/ganoderma_risk/best.pth",
+    "format": "PyTorch state_dict",
+    "architecture": "ResNet18 with final fc layer 512 -> 2",
     "weights_sha256": null,
-    "status": "pending_team_confirmation"
+    "status": "path_recorded_weight_not_committed"
+  },
+  "preprocessing": {
+    "resize": [224, 224],
+    "to_tensor": true,
+    "normalize": {
+      "mean": [0.485, 0.456, 0.406],
+      "std": [0.229, 0.224, 0.225]
+    }
   },
   "metrics": {
+    "source": "test_set",
     "accuracy": 0.96,
     "precision_macro": 0.97,
     "recall_macro": 0.96,
     "f1_macro": 0.96,
+    "precision_weighted": 0.97,
+    "recall_weighted": 0.96,
+    "f1_weighted": 0.96,
+    "best_val_accuracy": 0.9684,
+    "val_per_class_recorded": false,
     "per_class": {
       "healthy": {
         "precision": 0.94,
@@ -27,7 +52,9 @@
         "precision": 1.00,
         "recall": 0.92,
         "f1": 0.96,
-        "support": 75
+        "support": 75,
+        "false_negative_count": 6,
+        "false_negative_review_status": "not_reviewed"
       },
       "other_stress_unknown": {
         "precision": null,
@@ -49,25 +76,64 @@
     "device": null
   },
   "training": {
+    "command": "python ai_engine/crops/oil_palm/training/ganoderma_risk/train.py --data-dir datasets/oil_palm/ganoderma_risk/classification --model-out models/oil_palm/ganoderma_risk --labels-file models/oil_palm/ganoderma_risk/labels.json --active-labels healthy,suspected_risk --model-version oil_palm_ganoderma_resnet18_v1.0.0_offline --dataset-version v1 --dataset-manifest datasets/oil_palm/manifests/ganoderma_risk.json --epochs 20 --phase1-epochs 10 --batch-size 32 --learning-rate 1e-4 --finetune-learning-rate 1e-5 --image-size 224 --seed 42 --num-workers 2",
+    "environment": "Google Colab",
+    "base_model": "ResNet18",
+    "imagenet_pretrained": true,
     "epochs": 20,
     "phase1_epochs": 10,
+    "phase2_epochs": 10,
     "batch_size": 32,
     "optimizer": "Adam",
+    "scheduler": {
+      "phase1": {"name": "StepLR", "step_size": 7, "gamma": 0.1},
+      "phase2": {"name": "StepLR", "step_size": 5, "gamma": 0.1}
+    },
+    "loss": "CrossEntropyLoss",
+    "class_weights_enabled": true,
+    "class_weights": {
+      "healthy": 0.9263,
+      "suspected_risk": 1.0864
+    },
     "learning_rate": {
       "phase1": 0.0001,
       "phase2": 0.00001
     },
-    "augmentation": "RandomHorizontalFlip, RandomVerticalFlip, RandomRotation(15), ColorJitter",
+    "augmentation": [
+      "RandomHorizontalFlip",
+      "RandomVerticalFlip",
+      "RandomRotation(15)",
+      "ColorJitter(brightness=0.3, contrast=0.3)"
+    ],
     "seed": 42,
-    "train_count": null,
-    "val_count": null,
-    "test_count": 167
+    "dataset_sizes": {
+      "train": 751,
+      "val": 158,
+      "test": 167,
+      "total": 1076
+    },
+    "split_class_counts": {
+      "train": {"healthy": 414, "suspected_risk": 337},
+      "val": {"healthy": 88, "suspected_risk": 70},
+      "test": {"healthy": 92, "suspected_risk": 75},
+      "total": {"healthy": 594, "suspected_risk": 482}
+    },
+    "split_strategy": "stratified_random_per_source_then_appended",
+    "split_notes": "Each source importer split by class with seed=42 and appended into the same classification directory."
   },
+  "known_risks": [
+    "healthy and suspected_risk samples come from different Roboflow projects",
+    "suspected_risk samples include trunk-base/root and trunk views, while healthy samples are trunk views",
+    "cross-dataset duplicate detection was not performed",
+    "same-tree and same-capture-batch leakage cannot be ruled out",
+    "domain bias may inflate test performance",
+    "six false negatives were not manually reviewed"
+  ],
   "notes": [
     "Offline training metrics were provided by the teammate and are recorded for handoff review.",
     "All positive outputs are suspected risk, never confirmed disease.",
     "other_stress_unknown is a reserved project label and was not trained in v1.",
     "The model is not integrated into AI Engine runtime in this branch.",
-    "Dataset license, split grouping, split counts, and weight hash require teammate confirmation."
+    "v2 should add misclassified sample path output for manual false-negative review."
   ]
 }

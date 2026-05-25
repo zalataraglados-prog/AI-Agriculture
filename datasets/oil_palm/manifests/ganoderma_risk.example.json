@@ -53,8 +53,8 @@
   "expected_counts": {
     "train": null,
     "val": null,
-    "test": 167,
-    "total": 773
+    "test": null,
+    "total": null
   },
   "active_training_labels": ["healthy", "suspected_risk"],
   "reserved_labels": ["other_stress_unknown"],
