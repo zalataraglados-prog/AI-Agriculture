@@ -4,15 +4,27 @@
   "task": "ganoderma_risk",
   "dataset_version": null,
   "dataset_manifest": "datasets/oil_palm/manifests/ganoderma_risk.example.json",
+  "labels": ["healthy", "suspected_risk", "other_stress_unknown"],
+  "active_training_labels": ["healthy", "suspected_risk"],
+  "class_order": {
+    "0": "healthy",
+    "1": "suspected_risk"
+  },
   "metrics": {
     "accuracy": null,
     "precision_macro": null,
     "recall_macro": null,
     "f1_macro": null,
     "per_class": {
-      "healthy": {"precision": null, "recall": null, "f1": null},
-      "suspected_risk": {"precision": null, "recall": null, "f1": null},
-      "other_stress_unknown": {"precision": null, "recall": null, "f1": null}
+      "healthy": {"precision": null, "recall": null, "f1": null, "support": null},
+      "suspected_risk": {"precision": null, "recall": null, "f1": null, "support": null},
+      "other_stress_unknown": {
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "support": 0,
+        "status": "reserved_not_trained_in_v1"
+      }
     },
     "confusion_matrix": null
   },
@@ -30,5 +42,5 @@
     "augmentation": null,
     "seed": 42
   },
-  "notes": "Placeholder - fill after first training run. Risk labels are NEVER confirmed without expert evidence."
+  "notes": "Template for Ganoderma risk metrics. Risk labels are suspected only, never confirmed."
 }

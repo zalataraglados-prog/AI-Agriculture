@@ -61,6 +61,10 @@ ai_predict_url = "http://127.0.0.1:8000/api/v1/predict"
 # bbox review. If unset or unavailable, Cloud falls back to the local mock A0
 # contract so tree-profile collection remains usable.
 # AI_OIL_PALM_A0_DETECT_URL=http://127.0.0.1:8000/api/v1/oil-palm/a0/detect
+# Optional: when set, confirmed trunk_base session images call AI Engine oil
+# palm analysis. With Ganoderma v1 loaded in AI Engine, this replaces the local
+# Ganoderma mock after A0 user confirmation.
+# AI_OIL_PALM_ANALYZE_URL=http://127.0.0.1:8000/api/v1/oil-palm/analyze
 openclaw_url = "http://127.0.0.1:3000"
 
 [[exact_payloads]]
@@ -167,13 +171,17 @@ Observation session image upload now uses an A0 confirmation step:
 - `POST /api/v1/sessions/{session_id}/images/{image_id}/confirm`
   - body: `{"selected_candidate_ids":["a0_fruit_001"]}`
   - rejected bbox candidates are masked in a derived PNG image
-  - downstream mock analysis runs on the masked asset and records `source_upload_id`,
-    `masked_upload_id`, `selected_candidate_ids`, and `mask_source`
+  - for `image_role=trunk_base`, calls `${AI_OIL_PALM_ANALYZE_URL}` when
+    configured; otherwise keeps the explicit local mock result
+  - configured runtime failures are recorded as `status:error` instead of
+    silently falling back to mock
+  - downstream analysis records `source_upload_id`, `masked_upload_id`,
+    `selected_candidate_ids`, `mask_source`, and `downstream_source`
 
 Frontend:
 - `frontend/oil_palm/tree_profile.html` displays a Tree Assessment card.
 - `frontend/oil_palm/tree_profile.html` displays an A0 bbox review overlay before
-  downstream mock analysis.
+  downstream trunk-base Ganoderma analysis or fallback mock analysis.
 - `frontend/oil_palm/plantation_dashboard.html` displays plantation stats and block reports.
 
 ## Agent chat proxy API

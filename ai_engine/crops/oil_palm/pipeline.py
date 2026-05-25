@@ -9,6 +9,9 @@ from ai_engine.common.registry import ModelRegistry
 from ai_engine.crops.oil_palm.inference.a0_yolo_predictor import (
     build_a0_yolo_predictor_from_env,
 )
+from ai_engine.crops.oil_palm.inference.ganoderma_resnet_predictor import (
+    build_ganoderma_resnet_predictor_from_env,
+)
 from ai_engine.crops.oil_palm.inference.mock_predictors import (
     A0StructureMockPredictor,
     FFBMockPredictor,
@@ -99,8 +102,8 @@ class OilPalmPipeline:
         envelope["metadata"]["model_mode"] = self.model_mode
         if self.model_mode == "hybrid":
             envelope["metadata"]["model_mode_note"] = (
-                "foundation branch: real oil palm predictors are not registered yet; "
-                "hybrid safely falls back to mock predictors"
+                "hybrid uses configured real oil palm predictors and keeps "
+                "unconfigured tasks on safe mock fallback"
             )
         envelope["metadata"]["registered_capabilities"] = self.registry.capabilities(self.crop)
         return envelope
@@ -144,10 +147,10 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
     Mode semantics:
     - mock:   All tasks use mock predictors. No real weights needed.
               Suitable for demo, CI, and environments without model files.
-    - real:   Fail fast in this foundation branch. Real predictors are enabled
-              only by the later per-task model branches.
-    - hybrid: Safe foundation fallback. All tasks still use mock predictors until
-              a per-task model branch registers a real predictor.
+    - real:   Require configured real predictors for the currently integrated
+              A0 and Ganoderma runtime branches.
+    - hybrid: Use configured real predictors and keep missing per-task models on
+              safe mock fallback.
     """
     mode = OIL_PALM_MODEL_MODE
     if mode not in ("mock", "real", "hybrid"):
@@ -159,16 +162,16 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
     logger.info("Building OilPalmPipeline in mode=%s", mode)
     if mode == "hybrid":
         logger.info(
-            "Oil palm hybrid mode will use real A0 when configured and keep "
-            "other unavailable oil palm predictors on safe mock fallback."
+            "Oil palm hybrid mode will use configured real predictors and keep "
+            "unavailable oil palm tasks on safe mock fallback."
         )
 
     registry = ModelRegistry()
 
-    a0_predictor: BasePredictor | None = None
+    real_predictors: dict[str, BasePredictor] = {}
     if mode in ("real", "hybrid"):
         try:
-            a0_predictor = build_a0_yolo_predictor_from_env()
+            real_predictors["a0_structure_detection"] = build_a0_yolo_predictor_from_env()
             logger.info("  [a0_structure_detection] registered real YOLO predictor")
         except Exception as exc:
             if mode == "real":
@@ -182,21 +185,39 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
                 exc,
             )
 
-    if a0_predictor is not None:
-        registry.register(a0_predictor)
+        try:
+            real_predictors["ganoderma_risk"] = build_ganoderma_resnet_predictor_from_env()
+            logger.info("  [ganoderma_risk] registered real ResNet18 predictor")
+        except Exception as exc:
+            if mode == "real":
+                raise RuntimeError(
+                    "OIL_PALM_MODEL_MODE=real requires a usable Ganoderma ResNet "
+                    "predictor. Set OIL_PALM_GANODERMA_MODEL_PATH/"
+                    "OIL_PALM_GANODERMA_LABELS_FILE and install oil palm inference "
+                    "dependencies."
+                ) from exc
+            logger.warning(
+                "Ganoderma real predictor unavailable in hybrid mode; falling back "
+                "to mock: %s",
+                exc,
+            )
+
+    for predictor in real_predictors.values():
+        registry.register(predictor)
 
     # Tasks that get registered into the pipeline. Downstream oil palm tasks
     # remain mock until their own real model branches land.
     tasks_to_register = [
+        "a0_structure_detection",
         "ffb_maturity",
         "ganoderma_risk",
         "growth_vigor",
         "uav_tree_crown",
     ]
-    if a0_predictor is None:
-        tasks_to_register.insert(0, "a0_structure_detection")
 
     for task in tasks_to_register:
+        if task in real_predictors:
+            continue
         mock_cls = _MOCK_PREDICTORS.get(task)
         if mock_cls:
             registry.register(mock_cls())

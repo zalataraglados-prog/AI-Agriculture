@@ -424,6 +424,10 @@ pub fn start_http_server(
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty());
+    let ai_oil_palm_analyze_url = std::env::var("AI_OIL_PALM_ANALYZE_URL")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
     let openclaw_http_client = Arc::new(
         reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(openclaw_timeout_sec))
@@ -466,6 +470,7 @@ pub fn start_http_server(
             let image_db_error_store_path = image_db_error_store_path.clone();
             let ai_predict_url = ai_predict_url.clone();
             let ai_oil_palm_a0_detect_url = ai_oil_palm_a0_detect_url.clone();
+            let ai_oil_palm_analyze_url = ai_oil_palm_analyze_url.clone();
             let openclaw_url = openclaw_url.clone();
             let sensor_schema_payload = sensor_schema_payload.clone();
             let registry_path = registry_path.clone();
@@ -493,6 +498,7 @@ pub fn start_http_server(
                         &image_db_error_store_path,
                         &ai_predict_url,
                         ai_oil_palm_a0_detect_url.as_deref(),
+                        ai_oil_palm_analyze_url.as_deref(),
                         &openclaw_url,
                         &sensor_schema_payload,
                         &registry_path,
@@ -561,6 +567,7 @@ fn handle_api(
     image_db_error_store_path: &str,
     ai_predict_url: &str,
     ai_oil_palm_a0_detect_url: Option<&str>,
+    ai_oil_palm_analyze_url: Option<&str>,
     openclaw_url: &str,
     sensor_schema_payload: &str,
     registry_path: &str,
@@ -766,7 +773,15 @@ fn handle_api(
             } else if method == Method::Post && p.starts_with("/api/v1/sessions/") && p.ends_with("/confirm") {
                 let session_id = extract_path_segment(p, "/sessions/").unwrap_or_default();
                 let image_id = extract_path_segment(p, "/images/").unwrap_or_default();
-                crate::session::handle_confirm_session_image(request, &session_id, &image_id, image_store_path, db);
+                crate::session::handle_confirm_session_image(
+                    request,
+                    &session_id,
+                    &image_id,
+                    image_store_path,
+                    ai_oil_palm_analyze_url,
+                    ai_http_client,
+                    db,
+                );
             } else if p.starts_with("/api/v1/sessions/") && p.ends_with("/images") {
                 let session_id = extract_path_segment(p, "/sessions/").unwrap_or_default();
                 if method == Method::Post {

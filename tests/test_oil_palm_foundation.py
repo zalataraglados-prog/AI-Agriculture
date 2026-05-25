@@ -69,6 +69,25 @@ class TestManifests:
             data = json.load(f)
         assert data["task"] == task
 
+    def test_ganoderma_v1_manifest_records_handoff_counts(self) -> None:
+        manifest_path = MANIFEST_DIR / "ganoderma_risk.json"
+        assert manifest_path.exists(), "Ganoderma v1 manifest should be recorded"
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["task"] == "ganoderma_risk"
+        assert data["version"] == "v1"
+        assert data["class_order"] == {"0": "healthy", "1": "suspected_risk"}
+        assert data["active_training_labels"] == ["healthy", "suspected_risk"]
+        assert data["reserved_labels"] == ["other_stress_unknown"]
+
+        counts = data["counts"]
+        assert counts["train"] == {"healthy": 414, "suspected_risk": 337, "total": 751}
+        assert counts["val"] == {"healthy": 88, "suspected_risk": 70, "total": 158}
+        assert counts["test"] == {"healthy": 92, "suspected_risk": 75, "total": 167}
+        assert counts["total"] == {"healthy": 594, "suspected_risk": 482, "all": 1076}
+        assert counts["train"]["total"] + counts["val"]["total"] + counts["test"]["total"] == 1076
+
 
 # ---------------------------------------------------------------------------
 # Labels tests
@@ -154,6 +173,77 @@ class TestMetrics:
         with open(metrics_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         assert data["task"] == task
+
+    @pytest.mark.parametrize("task", TASKS)
+    def test_trained_metrics_json_has_required_fields_when_present(self, task: str) -> None:
+        metrics_path = MODELS_OIL_PALM / task / "metrics.json"
+        if not metrics_path.exists():
+            pytest.skip(f"No trained metrics recorded for {task}")
+
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for field in [
+            "model_version",
+            "framework",
+            "task",
+            "dataset_version",
+            "dataset_manifest",
+            "metrics",
+            "training",
+            "inference",
+            "notes",
+        ]:
+            assert field in data, f"Trained metrics {task} missing required field: {field}"
+        assert data["task"] == task
+        assert data["dataset_manifest"].endswith(".json")
+        manifest_path = PROJECT_ROOT / data["dataset_manifest"]
+        assert manifest_path.exists(), f"Metrics {task} references missing manifest"
+        assert isinstance(data["metrics"], dict)
+        assert isinstance(data["training"], dict)
+        assert isinstance(data["inference"], dict)
+
+    def test_ganoderma_trained_metrics_record_v1_contract(self) -> None:
+        metrics_path = MODELS_OIL_PALM / "ganoderma_risk" / "metrics.json"
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["dataset_version"] == "v1"
+        assert data["dataset_manifest"] == "datasets/oil_palm/manifests/ganoderma_risk.json"
+        assert data["class_order"] == {"0": "healthy", "1": "suspected_risk"}
+        assert data["active_training_labels"] == ["healthy", "suspected_risk"]
+        assert "other_stress_unknown" not in data["active_training_labels"]
+        assert data["runtime_interpretation"]["diagnosis_policy"].endswith(
+            "not agronomic diagnosis."
+        )
+
+        training = data["training"]
+        assert training["dataset_sizes"] == {
+            "train": 751,
+            "val": 158,
+            "test": 167,
+            "total": 1076,
+        }
+        assert training["split_class_counts"]["train"] == {
+            "healthy": 414,
+            "suspected_risk": 337,
+        }
+        assert training["split_class_counts"]["val"] == {
+            "healthy": 88,
+            "suspected_risk": 70,
+        }
+        assert training["split_class_counts"]["test"] == {
+            "healthy": 92,
+            "suspected_risk": 75,
+        }
+        assert training["class_weights"] == {
+            "healthy": 0.9263,
+            "suspected_risk": 1.0864,
+        }
+
+        assert data["metrics"]["source"] == "test_set"
+        assert data["metrics"]["best_val_accuracy"] == 0.9684
+        assert data["metrics"]["per_class"]["suspected_risk"]["false_negative_count"] == 6
 
     def test_a0_trained_metrics_are_recorded(self) -> None:
         metrics_path = MODELS_OIL_PALM / "a0_image_routing" / "metrics.json"
@@ -263,6 +353,83 @@ class TestBaseImporter:
         assert importer.validate_raw_dir() is True
 
 
+class TestGanodermaRoboflowImporters:
+    """Test Ganoderma Roboflow importers and active-label safeguards."""
+
+    def _write_roboflow_csv(
+        self,
+        raw_dir: Path,
+        header: str,
+        rows: list[str],
+        image_names: list[str],
+    ) -> None:
+        train_dir = raw_dir / "train"
+        train_dir.mkdir(parents=True)
+        (train_dir / "_classes.csv").write_text(
+            "\n".join([header, *rows]) + "\n",
+            encoding="utf-8",
+        )
+        for image_name in image_names:
+            (train_dir / image_name).write_bytes(b"fake image bytes")
+
+    def test_importers_append_active_classes_without_reserved_directory(
+        self, tmp_path: Path
+    ) -> None:
+        from ai_engine.crops.oil_palm.training.data_importers.import_ganoderma_healthy_roboflow import (
+            GanodermaHealthyImporter,
+        )
+        from ai_engine.crops.oil_palm.training.data_importers.import_ganoderma_infected_roboflow import (
+            GanodermaInfectedImporter,
+        )
+
+        infected_raw = tmp_path / "ganoderma_infected"
+        healthy_raw = tmp_path / "ganoderma_healthy"
+        output_dir = tmp_path / "classification"
+
+        self._write_roboflow_csv(
+            infected_raw,
+            "filename,Ganoderma,Ganoderma Fungus",
+            ["infected.jpg,1,0", "control.jpg,0,0"],
+            ["infected.jpg", "control.jpg"],
+        )
+        self._write_roboflow_csv(
+            healthy_raw,
+            "filename,healthy,unhealthy",
+            ["healthy.jpg,1,0", "risk.jpg,0,1"],
+            ["healthy.jpg", "risk.jpg"],
+        )
+
+        infected_summary = GanodermaInfectedImporter(
+            raw_dir=str(infected_raw),
+            output_dir=str(output_dir),
+            summary_file=str(tmp_path / "infected_summary.json"),
+            seed=42,
+            overwrite=True,
+        ).convert()
+        healthy_summary = GanodermaHealthyImporter(
+            raw_dir=str(healthy_raw),
+            output_dir=str(output_dir),
+            summary_file=str(tmp_path / "healthy_summary.json"),
+            seed=42,
+        ).convert()
+
+        assert infected_summary["active_labels"] == ["healthy", "suspected_risk"]
+        assert healthy_summary["active_labels"] == ["healthy", "suspected_risk"]
+        assert not any(output_dir.glob("*/other_stress_unknown"))
+        copied = list(output_dir.glob("*/*/*.jpg"))
+        assert len(copied) == 4
+
+    def test_ganoderma_training_active_labels_are_project_label_subset(self) -> None:
+        from ai_engine.crops.oil_palm.training.ganoderma_risk.train import (
+            validate_active_labels,
+        )
+
+        project_labels = ["healthy", "suspected_risk", "other_stress_unknown"]
+        validate_active_labels(project_labels, ["healthy", "suspected_risk"])
+        with pytest.raises(ValueError, match="not in project labels"):
+            validate_active_labels(project_labels, ["confirmed_ganoderma"])
+
+
 # ---------------------------------------------------------------------------
 # Metrics utils tests
 # ---------------------------------------------------------------------------
@@ -358,7 +525,7 @@ class TestPipelineMode:
     def test_pipeline_hybrid_mode_safely_uses_mock_predictors(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Hybrid mode falls back safely when A0 real assets are unavailable."""
+        """Hybrid mode falls back safely when real assets are unavailable."""
         monkeypatch.setenv(
             "OIL_PALM_FFB_MODEL_PATH",
             str(MODELS_OIL_PALM / "ffb_maturity" / "labels.json"),
@@ -366,6 +533,10 @@ class TestPipelineMode:
         monkeypatch.setenv(
             "OIL_PALM_A0_MODEL_PATH",
             str(MODELS_OIL_PALM / "a0_image_routing" / "missing_best.pt"),
+        )
+        monkeypatch.setenv(
+            "OIL_PALM_GANODERMA_MODEL_PATH",
+            str(MODELS_OIL_PALM / "ganoderma_risk" / "missing_best.pth"),
         )
         pipeline_mod = self._reload_pipeline(monkeypatch, "hybrid")
 
@@ -386,7 +557,7 @@ class TestPipelineMode:
             image_role="fruit",
         )
         assert result["metadata"]["model_mode"] == "hybrid"
-        assert "foundation branch" in result["metadata"]["model_mode_note"]
+        assert "safe mock fallback" in result["metadata"]["model_mode_note"]
         assert result["model_version"].endswith("_mock_v1")
 
     def test_pipeline_real_mode_fails_fast(self, monkeypatch: pytest.MonkeyPatch) -> None:

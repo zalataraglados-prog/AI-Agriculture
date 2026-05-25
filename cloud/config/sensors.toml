@@ -14,6 +14,9 @@ ai_predict_url = "http://ai-engine:8000/api/v1/predict"
 # Optional runtime A0 detector. Keep unset to use Cloud's local mock A0 fallback.
 # Set via environment in deployment:
 # AI_OIL_PALM_A0_DETECT_URL="http://ai-engine:8000/api/v1/oil-palm/a0/detect"
+# Optional runtime oil palm analyzer. Set to enable real Ganoderma after
+# trunk_base A0 confirmation when AI Engine has Ganoderma weights mounted.
+# AI_OIL_PALM_ANALYZE_URL="http://ai-engine:8000/api/v1/oil-palm/analyze"
 openclaw_url = "http://openclaw:3000"
 
 [[exact_payloads]]

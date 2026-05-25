@@ -4,7 +4,8 @@
 
 - `test_oil_palm_foundation.py` validates oil palm manifests, labels, metrics
   templates, and model-mode safety.
-- `test_oil_palm_routing.py` validates the A0 mock routing contract.
+- `test_oil_palm_routing.py` validates A0 routing and Ganoderma runtime
+  registration with fake model modules.
 - `test_oil_palm_a0_dataset.py` validates the A0 Roboflow COCO adapter,
   grouped split output, YOLO label ranges, duplicate skipping, and training
   dry-run argument construction.

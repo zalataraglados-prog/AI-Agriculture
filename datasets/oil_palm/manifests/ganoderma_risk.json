@@ -1,0 +1,97 @@
+{
+  "task": "ganoderma_risk",
+  "version": "v1",
+  "description": "Ganoderma / BSR two-class offline training dataset manifest",
+  "internal_training_standard": {
+    "format": "classification_directory",
+    "annotation_type": "image_level_label",
+    "image_size": [224, 224],
+    "coordinate_system": null
+  },
+  "sources": [
+    {
+      "name": "Oil Palm Ganoderma Infected Dataset",
+      "url": null,
+      "source_url_status": "provided_out_of_band",
+      "license": null,
+      "format": "Multi-Label Classification (filename, Ganoderma, Ganoderma Fungus)",
+      "estimated_images": null,
+      "importer": "import_ganoderma_infected_roboflow.py",
+      "raw_dir": "datasets/oil_palm/ganoderma_risk/raw/ganoderma_infected",
+      "mapped_labels": ["healthy", "suspected_risk"],
+      "camera_angle": "trunk_base_and_trunk",
+      "notes": "Ganoderma=1 or Ganoderma Fungus=1 maps to suspected_risk. Source page, version, and license are intentionally not tracked in Git for this pass."
+    },
+    {
+      "name": "Oil Palm Healthy Dataset",
+      "url": null,
+      "source_url_status": "provided_out_of_band",
+      "license": null,
+      "format": "Multi-Label Classification (filename, healthy, unhealthy)",
+      "estimated_images": null,
+      "importer": "import_ganoderma_healthy_roboflow.py",
+      "raw_dir": "datasets/oil_palm/ganoderma_risk/raw/ganoderma_healthy",
+      "mapped_labels": ["healthy", "suspected_risk"],
+      "camera_angle": "trunk",
+      "notes": "healthy=1 maps to healthy; unhealthy=1 maps to suspected_risk. Source page, version, and license are intentionally not tracked in Git for this pass."
+    }
+  ],
+  "label_map": {
+    "0": "healthy",
+    "1": "suspected_risk",
+    "2": "other_stress_unknown"
+  },
+  "class_order": {
+    "0": "healthy",
+    "1": "suspected_risk"
+  },
+  "active_training_labels": ["healthy", "suspected_risk"],
+  "reserved_labels": ["other_stress_unknown"],
+  "label_notes": "v1 trains healthy and suspected_risk only. other_stress_unknown is reserved for future data. suspected_risk is a risk-screening class, not confirmed disease.",
+  "split_strategy": {
+    "method": "stratified_random_per_source_then_appended",
+    "ratios": {
+      "train": 0.70,
+      "val": 0.15,
+      "test": 0.15
+    },
+    "seed": 42,
+    "constraint": "No tree, plantation, source, or capture-batch grouping was available for v1.",
+    "notes": "The two Roboflow source importers split their own rows by class and append into the same classification directory. This is a random baseline and does not rule out source, tree, or capture-batch leakage."
+  },
+  "counts": {
+    "train": {
+      "healthy": 414,
+      "suspected_risk": 337,
+      "total": 751
+    },
+    "val": {
+      "healthy": 88,
+      "suspected_risk": 70,
+      "total": 158
+    },
+    "test": {
+      "healthy": 92,
+      "suspected_risk": 75,
+      "total": 167
+    },
+    "total": {
+      "healthy": 594,
+      "suspected_risk": 482,
+      "all": 1076
+    }
+  },
+  "known_risks": [
+    "healthy and suspected_risk samples come from different Roboflow projects",
+    "suspected_risk samples include trunk-base/root and trunk views, while healthy samples are trunk views",
+    "cross-dataset duplicate detection was not performed",
+    "same-tree and same-capture-batch leakage cannot be ruled out",
+    "domain bias may inflate test performance"
+  ],
+  "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
+  "notes": [
+    "This manifest records the actual v1 offline training handoff facts.",
+    "The model output must be interpreted as suspected risk, never confirmed disease.",
+    "If a runtime workflow later uses a confirmed status, that status is user-review state, not agronomic diagnosis."
+  ]
+}
