@@ -70,11 +70,14 @@ CROP_PROFILE=oil_palm uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 
 | `OIL_PALM_A0_LABELS_FILE` | A0 YOLO labels file | `models/oil_palm/a0_image_routing/labels.json` |
 | `OIL_PALM_A0_CONFIG_FILE` | A0 inference config file | `models/oil_palm/a0_image_routing/inference_config.yaml` |
 | `OIL_PALM_CONFIDENCE_THRESHOLD` | A0 confidence threshold override | `0.5` |
+| `OIL_PALM_GANODERMA_MODEL_PATH` | Ganoderma ResNet18 `.pth` state_dict path | `models/oil_palm/ganoderma_risk/best.pth` |
+| `OIL_PALM_GANODERMA_LABELS_FILE` | Ganoderma project labels file | `models/oil_palm/ganoderma_risk/labels.json` |
+| `OIL_PALM_GANODERMA_METRICS_FILE` | Ganoderma metrics/model metadata file | `models/oil_palm/ganoderma_risk/metrics.json` |
+| `OIL_PALM_GANODERMA_DEVICE` | Ganoderma runtime device: `cpu`, `cuda`, or `auto` | `cpu` |
+| `OIL_PALM_GANODERMA_MODEL_VERSION` | Optional Ganoderma model version override | metrics `model_version` |
 
-Future oil palm model path variables are documented in `ai_engine/.env.example`.
 `OIL_PALM_A0_MODEL_PATH` can point at the trained A0 YOLO baseline recorded in
-`models/oil_palm/a0_image_routing/inference_config.yaml` once runtime YOLO
-predictor wiring is enabled.
+`models/oil_palm/a0_image_routing/inference_config.yaml`.
 
 ## API Endpoints
 
@@ -99,16 +102,16 @@ Oil palm:
 
 ## Oil Palm Model Modes
 
-The service still defaults to mock predictors. A trained A0 YOLO baseline
-artifact exists, and runtime registration is now available for A0 only.
+The service still defaults to mock predictors. A0 and Ganoderma can be enabled
+per task by mounting weights and switching `OIL_PALM_MODEL_MODE`.
 
 - `mock`: all tasks use mock predictors. This is the default and is safe for CI,
   demos, and environments without weights.
-- `hybrid`: registers the real A0 YOLO structure detector when weights and
-  dependencies are available, then keeps downstream FFB/Ganoderma/Growth/UAV
-  predictors on safe mock fallback until their own model branches land.
-- `real`: requires the A0 YOLO predictor to load successfully. Downstream oil
-  palm predictors still advertise `mode=mock` until they are implemented.
+- `hybrid`: registers real A0 and/or Ganoderma predictors when their weights and
+  dependencies are available, then keeps missing FFB/Growth/UAV tasks on safe
+  mock fallback. This is the recommended Ganoderma v1 deployment mode.
+- `real`: requires the currently integrated real A0 and Ganoderma predictors to
+  load successfully.
 
 Current oil palm image role routing:
 
@@ -133,9 +136,26 @@ The first trained A0 YOLO baseline is documented under
 Current A0 YOLO labels are `fruit_bunch`, `trunk_base`, and `crown_region`.
 `unknown` is an inference status, not a trained bbox class.
 
+Ganoderma v1 can now run as a real ResNet18 classifier for
+`image_role=trunk_base` in `hybrid` or `real` mode. It loads a PyTorch
+`state_dict` from `OIL_PALM_GANODERMA_MODEL_PATH`, uses the two active classes
+recorded in `models/oil_palm/ganoderma_risk/metrics.json`, and returns only
+`healthy` or `suspected_risk`. `other_stress_unknown` remains a reserved future
+label. Positive outputs are risk-screening signals only; `confirmed` is not a
+model diagnosis label.
+
+Minimal Ganoderma v1 runtime example:
+
+```bash
+CROP_PROFILE=oil_palm \
+OIL_PALM_MODEL_MODE=hybrid \
+OIL_PALM_GANODERMA_MODEL_PATH=/opt/ai-agriculture/models/oil_palm/ganoderma_risk/best.pth \
+uvicorn ai_engine.main:app --host 0.0.0.0 --port 8000
+```
+
 ## Response Contract
 
-Oil palm mock and future real predictors should preserve this envelope:
+Oil palm mock and real predictors should preserve this envelope:
 
 - `status`
 - `results[]`

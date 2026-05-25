@@ -525,7 +525,7 @@ class TestPipelineMode:
     def test_pipeline_hybrid_mode_safely_uses_mock_predictors(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Hybrid mode falls back safely when A0 real assets are unavailable."""
+        """Hybrid mode falls back safely when real assets are unavailable."""
         monkeypatch.setenv(
             "OIL_PALM_FFB_MODEL_PATH",
             str(MODELS_OIL_PALM / "ffb_maturity" / "labels.json"),
@@ -533,6 +533,10 @@ class TestPipelineMode:
         monkeypatch.setenv(
             "OIL_PALM_A0_MODEL_PATH",
             str(MODELS_OIL_PALM / "a0_image_routing" / "missing_best.pt"),
+        )
+        monkeypatch.setenv(
+            "OIL_PALM_GANODERMA_MODEL_PATH",
+            str(MODELS_OIL_PALM / "ganoderma_risk" / "missing_best.pth"),
         )
         pipeline_mod = self._reload_pipeline(monkeypatch, "hybrid")
 
@@ -553,7 +557,7 @@ class TestPipelineMode:
             image_role="fruit",
         )
         assert result["metadata"]["model_mode"] == "hybrid"
-        assert "foundation branch" in result["metadata"]["model_mode_note"]
+        assert "safe mock fallback" in result["metadata"]["model_mode_note"]
         assert result["model_version"].endswith("_mock_v1")
 
     def test_pipeline_real_mode_fails_fast(self, monkeypatch: pytest.MonkeyPatch) -> None:

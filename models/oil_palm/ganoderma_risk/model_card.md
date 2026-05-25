@@ -8,7 +8,7 @@
 | Task | Image classification (risk screening) |
 | Crop | Oil Palm |
 | Framework | ResNet18 |
-| Current Status | **offline trained v1; ready for runtime integration preparation** |
+| Current Status | **offline trained v1; AI Engine runtime supported** |
 | Model Version | `oil_palm_ganoderma_resnet18_v1.0.0_offline` |
 
 ## Intended Use
@@ -133,13 +133,25 @@ Weights remain outside Git.
 
 ## Runtime Status
 
-This branch records offline training metadata only. AI Engine still uses the
-safe mock Ganoderma predictor until a runtime branch adds a real predictor and
-loads weights through `OIL_PALM_GANODERMA_MODEL_PATH`.
+AI Engine can load this classifier when `CROP_PROFILE=oil_palm` and
+`OIL_PALM_MODEL_MODE=hybrid` or `real` are set. Mount the ignored weight file
+and point `OIL_PALM_GANODERMA_MODEL_PATH` at it:
+
+```bash
+OIL_PALM_GANODERMA_MODEL_PATH=/opt/ai-agriculture/models/oil_palm/ganoderma_risk/best.pth
+OIL_PALM_GANODERMA_LABELS_FILE=models/oil_palm/ganoderma_risk/labels.json
+OIL_PALM_GANODERMA_METRICS_FILE=models/oil_palm/ganoderma_risk/metrics.json
+OIL_PALM_GANODERMA_DEVICE=cpu
+```
+
+Cloud enables the tree-profile path by setting
+`AI_OIL_PALM_ANALYZE_URL=http://ai-engine:8000/api/v1/oil-palm/analyze`.
+Confirmed `trunk_base` session images then call this runtime after the A0
+confirmation mask is created.
 
 ## Changelog
 
 | Version | Date | Notes |
 |---------|------|-------|
-| `oil_palm_ganoderma_resnet18_v1.0.0_offline` | 2026-05 | Offline ResNet18 handoff details recorded; runtime integration pending. |
+| `oil_palm_ganoderma_resnet18_v1.0.0_offline` | 2026-05 | AI Engine runtime loader added; weights still mounted outside Git. |
 | `oil_palm_ganoderma_mock_v1` | 2026-05 | Mock predictor established. No real weights. |

@@ -100,6 +100,7 @@ Recommended variables:
 - `CLOUD_BIND_ADDR` (example: `0.0.0.0:9000`)
 - `AI_PREDICT_URL` (example: `http://ai-engine:8000/api/v1/predict`)
 - `AI_OIL_PALM_A0_DETECT_URL` (optional, example: `http://ai-engine:8000/api/v1/oil-palm/a0/detect`)
+- `AI_OIL_PALM_ANALYZE_URL` (optional, example: `http://ai-engine:8000/api/v1/oil-palm/analyze`)
 - `OPENCLAW_URL` (example: `http://openclaw:3000`)
 - `TOKEN_STORE_PATH`, `REGISTRY_PATH`, `TELEMETRY_STORE_PATH`
 - `IMAGE_STORE_PATH`, `IMAGE_INDEX_PATH`, `IMAGE_DB_ERROR_STORE_PATH`
