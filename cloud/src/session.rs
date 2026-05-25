@@ -556,6 +556,23 @@ pub(crate) fn handle_confirm_session_image(
         &masked.saved_path,
         &selected_ids,
     );
+    if downstream.failed {
+        let _ = fs::remove_file(&masked.saved_path);
+        respond_json(
+            request,
+            downstream.http_status,
+            &serde_json::json!({
+                "status": "error",
+                "message": "downstream analysis failed; confirmation was not saved and can be retried",
+                "analysis": downstream.payload,
+                "retryable": true,
+                "selected_candidate_ids": selected_ids,
+                "rejected_candidate_ids": rejected_ids
+            })
+            .to_string(),
+        );
+        return;
+    }
     let updated_metadata = merge_confirmation_metadata(
         metadata,
         &selected_ids,
@@ -1330,6 +1347,35 @@ mod tests {
             outcome.payload["model_version"].as_str(),
             Some("oil_palm_ganoderma_runtime_unavailable")
         );
+    }
+
+    #[test]
+    fn downstream_failure_payload_is_retryable_runtime_error() {
+        let shared = super::downstream_shared_metadata(
+            "trunk_base",
+            "OP-000001",
+            7,
+            "source_upload",
+            "masked_upload",
+            &["a0_trunk_base_001".to_string()],
+        );
+        let payload = super::downstream_error_payload(
+            shared,
+            "ai_engine_error",
+            Some("http://ai-engine:8000/api/v1/oil-palm/analyze"),
+            "temporary outage",
+        );
+
+        assert_eq!(payload["status"].as_str(), Some("error"));
+        assert_eq!(
+            payload["metadata"]["downstream_source"].as_str(),
+            Some("ai_engine_error")
+        );
+        assert_eq!(
+            payload["metadata"]["downstream_runtime_error"].as_str(),
+            Some("temporary outage")
+        );
+        assert_eq!(payload["metadata"]["tree_code"].as_str(), Some("OP-000001"));
     }
 
     #[test]

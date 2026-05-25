@@ -254,7 +254,62 @@ pub(crate) fn analyze_oil_palm_from_bytes(
             trim_for_log(&text)
         ));
     }
+    validate_oil_palm_analyze_response(&json, image_role)?;
     Ok(json)
+}
+
+fn validate_oil_palm_analyze_response(json: &Value, image_role: &str) -> Result<(), String> {
+    if !json.is_object() {
+        return Err("oil palm analyze response must be a JSON object".to_string());
+    }
+    if json.get("status").and_then(|v| v.as_str()) != Some("success") {
+        return Err("oil palm analyze response must include status=success".to_string());
+    }
+    if json.get("model_version").and_then(|v| v.as_str()).is_none() {
+        return Err("oil palm analyze response missing model_version".to_string());
+    }
+
+    let results = json
+        .get("results")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "oil palm analyze response missing results[]".to_string())?;
+    let first = results
+        .first()
+        .ok_or_else(|| "oil palm analyze response has empty results[]".to_string())?;
+    let task = first
+        .get("task")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "oil palm analyze result missing task".to_string())?;
+    if let Some(expected_task) = expected_oil_palm_task_for_role(image_role) {
+        if task != expected_task {
+            return Err(format!(
+                "oil palm analyze result task mismatch: expected {expected_task}, got {task}"
+            ));
+        }
+    }
+    if first.get("label").and_then(|v| v.as_str()).is_none() {
+        return Err("oil palm analyze result missing label".to_string());
+    }
+    if first.get("confidence").and_then(|v| v.as_f64()).is_none() {
+        return Err("oil palm analyze result missing numeric confidence".to_string());
+    }
+    if first.get("geometry").and_then(|v| v.as_object()).is_none() {
+        return Err("oil palm analyze result missing geometry object".to_string());
+    }
+    if json.get("metadata").and_then(|v| v.as_object()).is_none() {
+        return Err("oil palm analyze response missing metadata object".to_string());
+    }
+    Ok(())
+}
+
+fn expected_oil_palm_task_for_role(image_role: &str) -> Option<&'static str> {
+    match image_role {
+        "fruit" => Some("ffb_maturity"),
+        "trunk_base" => Some("ganoderma_risk"),
+        "crown" => Some("growth_vigor"),
+        "uav_tile" => Some("uav_tree_crown"),
+        _ => None,
+    }
 }
 
 
@@ -541,4 +596,58 @@ fn trim_for_log(text: &str) -> String {
 
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    #[test]
+    fn validate_oil_palm_analyze_response_accepts_ganoderma_envelope() {
+        let payload = json!({
+            "status": "success",
+            "results": [{
+                "task": "ganoderma_risk",
+                "label": "suspected_risk",
+                "confidence": 0.82,
+                "geometry": {"type": "whole_image"}
+            }],
+            "geometry": [{"type": "whole_image"}],
+            "metadata": {"diagnosis_status": "not_confirmed"},
+            "model_version": "oil_palm_ganoderma_test_v1"
+        });
+
+        assert!(super::validate_oil_palm_analyze_response(&payload, "trunk_base").is_ok());
+    }
+
+    #[test]
+    fn validate_oil_palm_analyze_response_rejects_wrong_200_payload() {
+        let payload = json!({
+            "status": "ok",
+            "message": "not an AI envelope"
+        });
+
+        let err = super::validate_oil_palm_analyze_response(&payload, "trunk_base")
+            .expect_err("mispointed 200 response should be rejected");
+        assert!(err.contains("status=success"));
+    }
+
+    #[test]
+    fn validate_oil_palm_analyze_response_rejects_wrong_task() {
+        let payload = json!({
+            "status": "success",
+            "results": [{
+                "task": "ffb_maturity",
+                "label": "ripe",
+                "confidence": 0.72,
+                "geometry": {"type": "bbox"}
+            }],
+            "metadata": {},
+            "model_version": "oil_palm_wrong_endpoint_v1"
+        });
+
+        let err = super::validate_oil_palm_analyze_response(&payload, "trunk_base")
+            .expect_err("wrong image_role task should be rejected");
+        assert!(err.contains("task mismatch"));
+    }
 }
