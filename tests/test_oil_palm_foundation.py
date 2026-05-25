@@ -69,6 +69,25 @@ class TestManifests:
             data = json.load(f)
         assert data["task"] == task
 
+    def test_ganoderma_v1_manifest_records_handoff_counts(self) -> None:
+        manifest_path = MANIFEST_DIR / "ganoderma_risk.json"
+        assert manifest_path.exists(), "Ganoderma v1 manifest should be recorded"
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["task"] == "ganoderma_risk"
+        assert data["version"] == "v1"
+        assert data["class_order"] == {"0": "healthy", "1": "suspected_risk"}
+        assert data["active_training_labels"] == ["healthy", "suspected_risk"]
+        assert data["reserved_labels"] == ["other_stress_unknown"]
+
+        counts = data["counts"]
+        assert counts["train"] == {"healthy": 414, "suspected_risk": 337, "total": 751}
+        assert counts["val"] == {"healthy": 88, "suspected_risk": 70, "total": 158}
+        assert counts["test"] == {"healthy": 92, "suspected_risk": 75, "total": 167}
+        assert counts["total"] == {"healthy": 594, "suspected_risk": 482, "all": 1076}
+        assert counts["train"]["total"] + counts["val"]["total"] + counts["test"]["total"] == 1076
+
 
 # ---------------------------------------------------------------------------
 # Labels tests
@@ -178,9 +197,53 @@ class TestMetrics:
             assert field in data, f"Trained metrics {task} missing required field: {field}"
         assert data["task"] == task
         assert data["dataset_manifest"].endswith(".json")
+        manifest_path = PROJECT_ROOT / data["dataset_manifest"]
+        assert manifest_path.exists(), f"Metrics {task} references missing manifest"
         assert isinstance(data["metrics"], dict)
         assert isinstance(data["training"], dict)
         assert isinstance(data["inference"], dict)
+
+    def test_ganoderma_trained_metrics_record_v1_contract(self) -> None:
+        metrics_path = MODELS_OIL_PALM / "ganoderma_risk" / "metrics.json"
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["dataset_version"] == "v1"
+        assert data["dataset_manifest"] == "datasets/oil_palm/manifests/ganoderma_risk.json"
+        assert data["class_order"] == {"0": "healthy", "1": "suspected_risk"}
+        assert data["active_training_labels"] == ["healthy", "suspected_risk"]
+        assert "other_stress_unknown" not in data["active_training_labels"]
+        assert data["runtime_interpretation"]["diagnosis_policy"].endswith(
+            "not agronomic diagnosis."
+        )
+
+        training = data["training"]
+        assert training["dataset_sizes"] == {
+            "train": 751,
+            "val": 158,
+            "test": 167,
+            "total": 1076,
+        }
+        assert training["split_class_counts"]["train"] == {
+            "healthy": 414,
+            "suspected_risk": 337,
+        }
+        assert training["split_class_counts"]["val"] == {
+            "healthy": 88,
+            "suspected_risk": 70,
+        }
+        assert training["split_class_counts"]["test"] == {
+            "healthy": 92,
+            "suspected_risk": 75,
+        }
+        assert training["class_weights"] == {
+            "healthy": 0.9263,
+            "suspected_risk": 1.0864,
+        }
+
+        assert data["metrics"]["source"] == "test_set"
+        assert data["metrics"]["best_val_accuracy"] == 0.9684
+        assert data["metrics"]["per_class"]["suspected_risk"]["false_negative_count"] == 6
 
     def test_a0_trained_metrics_are_recorded(self) -> None:
         metrics_path = MODELS_OIL_PALM / "a0_image_routing" / "metrics.json"
