@@ -34,7 +34,7 @@ Environment=CLOUD_TOOL_TIMEOUT_SEC=${CLOUD_TOOL_TIMEOUT_SEC}
 Environment=CLOUD_TOOL_CONTEXT_MAX_CHARS=${CLOUD_TOOL_CONTEXT_MAX_CHARS}
 Environment=OPENCLAW_DEFAULT_PLANTATION_ID=${OPENCLAW_DEFAULT_PLANTATION_ID}
 Environment=CLOUD_TOOL_AUTH_BEARER=${CLOUD_TOOL_AUTH_BEARER}
-ExecStart=/usr/bin/python3 ${SCRIPT_PATH} --host 127.0.0.1 --port 3000
+ExecStart=/usr/bin/python3 ${SCRIPT_PATH} --host 127.0.0.1 --port 3000 --workers 1 --timeout-sec 30 --no-warmup
 Restart=always
 RestartSec=2
 StandardOutput=append:${INSTALL_ROOT}/log/openclaw_chat_adapter.log

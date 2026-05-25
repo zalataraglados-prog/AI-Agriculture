@@ -3,11 +3,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const options = document.getElementById('plantation-options');
     const params = new URLSearchParams(window.location.search);
     const preferredId = params.get('plantation_id');
+    const state = {
+        plantations: [],
+        currentPlantationId: preferredId ? Number(preferredId) : null,
+        stats: {},
+        priority: [],
+        blocks: []
+    };
 
-    // --- Dropdown Interaction ---
+    function t(key, params = {}) {
+        if (window.OP_I18N) return window.OP_I18N.t(key, params);
+        return Object.entries(params).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, value), key);
+    }
+
     function closeAll() {
         options.classList.remove('show');
         dropdown.classList.remove('active');
+        options.closest('.filter-group')?.classList.remove('dropdown-open');
     }
 
     document.addEventListener('click', closeAll);
@@ -19,140 +31,173 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!wasOpen) {
             options.classList.add('show');
             dropdown.classList.add('active');
+            options.closest('.filter-group')?.classList.add('dropdown-open');
         }
     };
 
-    await loadPlantations(preferredId);
-});
+    async function selectPlantation(plantation, pushUrl = true) {
+        state.currentPlantationId = Number(plantation.id);
+        document.getElementById('plantation-text').textContent = plantationLabel(plantation);
+        closeAll();
+        renderPlantationOptions();
+        await loadDashboard(plantation.id);
 
-async function loadPlantations(preferredId) {
-    const options = document.getElementById('plantation-options');
-    const text = document.getElementById('plantation-text');
+        if (pushUrl) {
+            const url = new URL(window.location);
+            url.searchParams.set('plantation_id', plantation.id);
+            window.history.pushState({}, '', url);
+        }
+    }
 
-    try {
-        const res = await fetch('/api/v1/plantations');
-        const data = await res.json();
-        const list = data.plantations || [];
+    function plantationLabel(plantation) {
+        return `${plantation.name} (#${plantation.id})`;
+    }
 
+    function renderPlantationOptions() {
         options.innerHTML = '';
-        list.forEach(p => {
+        state.plantations.forEach((plantation) => {
             const div = document.createElement('div');
             div.className = 'option-item';
-            div.textContent = `${p.name} (#${p.id})`;
-            if (String(p.id) === String(preferredId)) {
+            div.textContent = plantationLabel(plantation);
+            if (Number(plantation.id) === Number(state.currentPlantationId)) {
                 div.classList.add('selected');
-                text.textContent = div.textContent;
-                loadDashboard(p.id);
             }
             div.onclick = (e) => {
                 e.stopPropagation();
-                document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
-                div.classList.add('selected');
-                text.textContent = div.textContent;
-                options.classList.remove('show');
-                const dropdown = document.getElementById('plantation-dropdown');
-                dropdown.classList.remove('active');
-                loadDashboard(p.id);
-                // Update URL without reload
-                const url = new URL(window.location);
-                url.searchParams.set('plantation_id', p.id);
-                window.history.pushState({}, '', url);
+                selectPlantation(plantation);
             };
             options.appendChild(div);
         });
+    }
 
-        // If no preference but we have data, select first by default
-        if (!preferredId && list.length > 0) {
-            const first = options.firstChild;
-            first.click();
+    async function loadPlantations() {
+        const text = document.getElementById('plantation-text');
+
+        try {
+            const res = await fetch('/api/v1/plantations');
+            const data = await res.json();
+            state.plantations = data.plantations || [];
+            renderPlantationOptions();
+
+            if (!state.plantations.length) {
+                text.textContent = t('no_plantations');
+                renderStats({});
+                renderPriority([]);
+                renderBlocks([]);
+                return;
+            }
+
+            const selected = state.plantations.find((p) => Number(p.id) === Number(state.currentPlantationId)) || state.plantations[0];
+            await selectPlantation(selected, false);
+        } catch (e) {
+            console.error('Failed to load plantations', e);
+            text.textContent = t('error_loading_plantations');
         }
-    } catch (e) {
-        console.error('Failed to load plantations', e);
-        text.textContent = 'Error loading plantations';
     }
-}
 
-async function loadDashboard(plantationId) {
-    if (!plantationId) return;
-    const [dashboardRes, blocksRes] = await Promise.all([
-        fetch(`/api/v1/plantations/${plantationId}/dashboard`),
-        fetch(`/api/v1/plantations/${plantationId}/blocks/report`)
-    ]);
-    const dashboardData = await dashboardRes.json();
-    const blocksData = await blocksRes.json();
-    
-    const dashboard = dashboardData.dashboard || {};
-    const report = blocksData.report || {};
-    
-    renderStats(dashboard.stats || {});
-    renderPriority(dashboard.priority_trees || []);
-    renderBlocks(report.blocks || []);
-}
+    async function loadDashboard(plantationId) {
+        if (!plantationId) return;
+        try {
+            const [dashboardRes, blocksRes] = await Promise.all([
+                fetch(`/api/v1/plantations/${plantationId}/dashboard`),
+                fetch(`/api/v1/plantations/${plantationId}/blocks/report`)
+            ]);
+            const dashboardData = await dashboardRes.json();
+            const blocksData = await blocksRes.json();
 
-function renderStats(stats) {
-    const grid = document.getElementById('stats-grid');
-    const cards = [
-        ['Total Trees', stats.total_trees],
-        ['Active', stats.active_trees],
-        ['Complete', stats.complete_assessments],
-        ['Harvest', stats.harvest_recommended],
-        ['Disease Risk', stats.disease_risk],
-        ['Missing Evidence', stats.missing_evidence]
-    ];
-    grid.innerHTML = cards.map(([label, value]) => `
-        <div class="stat-card">
-            <span>${label}</span>
-            <strong>${value ?? 0}</strong>
-        </div>
-    `).join('');
-}
+            const dashboard = dashboardData.dashboard || {};
+            const report = blocksData.report || {};
 
-function renderPriority(items) {
-    const el = document.getElementById('priority-list');
-    if (!items || !items.length) {
-        el.textContent = 'No priority trees';
-        return;
+            state.stats = dashboard.stats || {};
+            state.priority = dashboard.priority_trees || [];
+            state.blocks = report.blocks || [];
+
+            renderStats(state.stats);
+            renderPriority(state.priority);
+            renderBlocks(state.blocks);
+        } catch (e) {
+            console.error('Failed to load dashboard', e);
+            renderStats({});
+            renderPriority([]);
+            renderBlocks([]);
+        }
     }
-    el.innerHTML = items.map(item => `
-        <div class="tree-item">
-            <div>
-                <strong>${item.tree_code}</strong>
-                <div style="color:#94a3b8;font-size:0.82rem;">${item.summary}</div>
+
+    function renderStats(stats) {
+        const grid = document.getElementById('stats-grid');
+        const cards = [
+            ['stat_total_trees', stats.total_trees],
+            ['stat_active', stats.active_trees],
+            ['stat_complete', stats.complete_assessments],
+            ['stat_harvest', stats.harvest_recommended],
+            ['stat_disease_risk', stats.disease_risk],
+            ['stat_missing_evidence', stats.missing_evidence]
+        ];
+        grid.innerHTML = cards.map(([labelKey, value]) => `
+            <div class="stat-card">
+                <span>${t(labelKey)}</span>
+                <strong>${value ?? 0}</strong>
             </div>
-            <a class="btn small" href="tree_profile.html?code=${item.tree_code}">${item.recommended_action}</a>
-        </div>
-    `).join('');
-}
-
-function renderBlocks(blocks) {
-    const el = document.getElementById('block-report');
-    if (!blocks || !blocks.length) {
-        el.innerHTML = '<div class="status-box">No block data</div>';
-        return;
+        `).join('');
     }
-    el.innerHTML = `
-        <table class="report-table">
-            <thead>
-                <tr>
-                    <th>Block</th>
-                    <th>Trees</th>
-                    <th>Harvest</th>
-                    <th>Disease Risk</th>
-                    <th>Missing Evidence</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${blocks.map(block => `
-                    <tr>
-                        <td>${block.block_id}</td>
-                        <td>${block.total_trees}</td>
-                        <td>${block.harvest_recommended}</td>
-                        <td>${block.disease_risk}</td>
-                        <td>${block.missing_evidence}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
-}
 
+    function renderPriority(items) {
+        const el = document.getElementById('priority-list');
+        if (!items || !items.length) {
+            el.textContent = t('no_priority_trees');
+            return;
+        }
+        el.innerHTML = items.map((item) => `
+            <div class="tree-item">
+                <div>
+                    <strong>${item.tree_code}</strong>
+                    <div style="color:#94a3b8;font-size:0.82rem;">${item.summary || '-'}</div>
+                </div>
+                <a class="btn small" href="tree_profile.html?code=${encodeURIComponent(item.tree_code)}">${item.recommended_action || t('view_profile')}</a>
+            </div>
+        `).join('');
+    }
+
+    function renderBlocks(blocks) {
+        const el = document.getElementById('block-report');
+        if (!blocks || !blocks.length) {
+            el.innerHTML = `<div class="status-box">${t('no_block_data')}</div>`;
+            return;
+        }
+        el.innerHTML = `
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>${t('block')}</th>
+                        <th>${t('trees')}</th>
+                        <th>${t('harvest')}</th>
+                        <th>${t('disease_risk')}</th>
+                        <th>${t('missing_evidence')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${blocks.map((block) => `
+                        <tr>
+                            <td>${block.block_id}</td>
+                            <td>${block.total_trees}</td>
+                            <td>${block.harvest_recommended}</td>
+                            <td>${block.disease_risk}</td>
+                            <td>${block.missing_evidence}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    document.addEventListener('op:i18n-change', () => {
+        renderPlantationOptions();
+        const selected = state.plantations.find((p) => Number(p.id) === Number(state.currentPlantationId));
+        if (selected) document.getElementById('plantation-text').textContent = plantationLabel(selected);
+        renderStats(state.stats);
+        renderPriority(state.priority);
+        renderBlocks(state.blocks);
+    });
+
+    await loadPlantations();
+});

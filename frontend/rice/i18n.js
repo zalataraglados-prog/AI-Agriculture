@@ -6,7 +6,7 @@ window.I18N = (() => {
 
     const DICT = {
         zh: {
-            nav_home: '首页', nav_charts: '图表', nav_health: '设备健康', nav_refresh: '刷新系统',
+            nav_home: '首页', nav_charts: '图表', nav_health: '设备健康', nav_refresh: '刷新系统', nav_portal: '入口门户',
             sys_running: '系统运行中', cloud_status: '云端服务器状态', support_online: '在线协助中',
             chat_placeholder: '发送指令...', chat_main_placeholder: '在此输入深度指令或技术咨询...',
             crop_select: '作物种类选择', loc_select: '位置选择', all_locations: '全部位置',
@@ -46,7 +46,7 @@ window.I18N = (() => {
             accepted: '已接收',
         },
         en: {
-            nav_home: 'Dashboard', nav_charts: 'Analytics', nav_health: 'System Health', nav_refresh: 'Refresh System',
+            nav_home: 'Dashboard', nav_charts: 'Analytics', nav_health: 'System Health', nav_refresh: 'Refresh System', nav_portal: 'Portal',
             sys_running: 'System Active', cloud_status: 'Cloud Server Node Status', support_online: 'Online Assisting',
             chat_placeholder: 'Send command...', chat_main_placeholder: 'Enter deep commands or technical inquiries...',
             crop_select: 'Select Crop', loc_select: 'Select Location', all_locations: 'All Locations',
@@ -86,7 +86,7 @@ window.I18N = (() => {
             accepted: 'accepted',
         },
         ms: {
-            nav_home: 'Laman Utama', nav_charts: 'Analisis', nav_health: 'Kesihatan Sistem', nav_refresh: 'Segar Semula Sistem',
+            nav_home: 'Laman Utama', nav_charts: 'Analisis', nav_health: 'Kesihatan Sistem', nav_refresh: 'Segar Semula Sistem', nav_portal: 'Portal',
             sys_running: 'Sistem Aktif', cloud_status: 'Status Pelayan Awan', support_online: 'Bantuan Dalam Talian',
             chat_placeholder: 'Hantar arahan...', chat_main_placeholder: 'Masukkan arahan mendalam atau pertanyaan teknikal...',
             crop_select: 'Pilih Tanaman', loc_select: 'Pilih Lokasi', all_locations: 'Semua Lokasi',

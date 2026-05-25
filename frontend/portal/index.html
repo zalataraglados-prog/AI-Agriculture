@@ -45,6 +45,49 @@
             z-index: 1;
         }
 
+        .topbar {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 3;
+        }
+
+        .lang-switcher {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 38px;
+            padding: 0 0.75rem;
+            border: 1px solid var(--glass-border);
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.72);
+            color: var(--text);
+            backdrop-filter: blur(14px);
+        }
+
+        .lang-switcher span {
+            color: var(--primary);
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .lang-switcher select {
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .lang-switcher option {
+            background: #0f172a;
+            color: var(--text);
+        }
+
         .header {
             margin-bottom: 4rem;
             animation: fadeInDown 1s ease-out;
@@ -188,35 +231,124 @@
         @media (max-width: 768px) {
             h1 { font-size: 2.5rem; }
             .grid { grid-template-columns: 1fr; }
+            .topbar {
+                position: static;
+                display: flex;
+                justify-content: center;
+                width: 100%;
+                margin: 1rem 0 0;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="topbar">
+        <label class="lang-switcher" aria-label="Language">
+            <span data-i18n="language_label">语言</span>
+            <select id="languageSelect">
+                <option value="zh">ZH</option>
+                <option value="en">EN</option>
+                <option value="ms">MS</option>
+            </select>
+        </label>
+    </div>
+
     <div class="container">
         <header class="header">
-            <h1>智慧农业管理平台</h1>
-            <p class="subtitle">基于 AI 的模块化农业管理系统，支持多种作物的生长监测与病害预警。<br>AI-powered modular management system for diverse crop cultivation.</p>
+            <h1 data-i18n="hero_title">智慧农业管理平台</h1>
+            <p class="subtitle" data-i18n="hero_subtitle">面向多作物的 AI 农业平台：连接传感器、图像、UAV、树档案和分析助手，让现场数据沉淀为可追踪的生产决策。</p>
         </header>
 
         <div class="grid">
             <a href="/rice/rice_dashboard.html" class="card">
-                <span class="status">运行中 / Operational</span>
+                <span class="status" data-i18n="rice_status">运行中</span>
                 <div class="icon-wrapper">🌾</div>
-                <h2>水稻管理平台</h2>
-                <div class="en-title">Rice Platform</div>
-                <p>基于 ResNet18 的高级病害分类系统。监测叶片健康，获取 AI 驱动的耕作建议。</p>
-                <div class="btn">进入控制台</div>
+                <h2 data-i18n="rice_title">水稻管理平台</h2>
+                <div class="en-title" data-i18n="rice_kicker">Rice Platform</div>
+                <p data-i18n="rice_desc">连接传感器看板、图像上传和水稻叶片病害识别链路，辅助查看田块状态、历史数据与巡检建议。</p>
+                <div class="btn" data-i18n="rice_cta">进入控制台</div>
             </a>
 
             <a href="/oil_palm/index.html" class="card oil-palm">
-                <span class="status beta">即将推出 / Coming Soon</span>
+                <span class="status beta" data-i18n="oil_status">树级资产 MVP</span>
                 <div class="icon-wrapper">🌴</div>
-                <h2>油棕管理平台</h2>
-                <div class="en-title">Oil Palm Platform</div>
-                <p>利用 YOLOv8 进行目标检测与生长阶段分析。专为大规模种植园管理而设计。</p>
-                <div class="btn">查看蓝图</div>
+                <h2 data-i18n="oil_title">油棕管理平台</h2>
+                <div class="en-title" data-i18n="oil_kicker">Oil Palm Platform</div>
+                <p data-i18n="oil_desc">已支持 UAV 任务、正射图登记、候选树冠复核、tree_code 树档案、观察会话和种植园评估；模型分析仍清晰保留 mock 与真实替换点。</p>
+                <div class="btn" data-i18n="oil_cta">进入平台</div>
             </a>
         </div>
     </div>
+    <script>
+        const DICT = {
+            zh: {
+                language_label: '语言',
+                hero_title: '智慧农业管理平台',
+                hero_subtitle: '面向多作物的 AI 农业平台：连接传感器、图像、UAV、树档案和分析助手，让现场数据沉淀为可追踪的生产决策。',
+                rice_status: '运行中',
+                rice_title: '水稻管理平台',
+                rice_kicker: 'Rice Platform',
+                rice_desc: '连接传感器看板、图像上传和水稻叶片病害识别链路，辅助查看田块状态、历史数据与巡检建议。',
+                rice_cta: '进入控制台',
+                oil_status: '树级资产 MVP',
+                oil_title: '油棕管理平台',
+                oil_kicker: 'Oil Palm Platform',
+                oil_desc: '已支持 UAV 任务、正射图登记、候选树冠复核、tree_code 树档案、观察会话和种植园评估；模型分析仍清晰保留 mock 与真实替换点。',
+                oil_cta: '进入平台',
+                page_title: '智慧农业门户 | Smart Agriculture Portal'
+            },
+            en: {
+                language_label: 'Language',
+                hero_title: 'Smart Agriculture Portal',
+                hero_subtitle: 'A multi-crop AI agriculture platform connecting sensors, images, UAV workflows, tree profiles, and analysis assistance into traceable production decisions.',
+                rice_status: 'Operational',
+                rice_title: 'Rice Management Platform',
+                rice_kicker: 'Rice Platform',
+                rice_desc: 'Use sensor dashboards, image upload, and the rice leaf disease inference path to review field status, historical data, and inspection guidance.',
+                rice_cta: 'Open Console',
+                oil_status: 'Tree Asset MVP',
+                oil_title: 'Oil Palm Management Platform',
+                oil_kicker: 'Oil Palm Platform',
+                oil_desc: 'Supports UAV missions, orthomosaic registration, crown-candidate review, tree_code profiles, observation sessions, and plantation assessment, with mock analysis clearly separated from future real models.',
+                oil_cta: 'Open Platform',
+                page_title: 'Smart Agriculture Portal'
+            },
+            ms: {
+                language_label: 'Bahasa',
+                hero_title: 'Portal Pertanian Pintar',
+                hero_subtitle: 'Platform AI pertanian pelbagai tanaman yang menghubungkan penderia, imej, aliran kerja UAV, profil pokok, dan bantuan analisis kepada keputusan pengeluaran yang boleh dijejaki.',
+                rice_status: 'Beroperasi',
+                rice_title: 'Platform Pengurusan Padi',
+                rice_kicker: 'Rice Platform',
+                rice_desc: 'Gunakan papan pemuka penderia, muat naik imej, dan laluan inferens penyakit daun padi untuk menyemak status ladang, data sejarah, dan panduan pemeriksaan.',
+                rice_cta: 'Buka Konsol',
+                oil_status: 'MVP Aset Pokok',
+                oil_title: 'Platform Pengurusan Kelapa Sawit',
+                oil_kicker: 'Oil Palm Platform',
+                oil_desc: 'Menyokong misi UAV, pendaftaran ortomosaik, semakan calon kanopi, profil tree_code, sesi pemerhatian, dan penilaian ladang; analisis mock kekal dipisahkan daripada model sebenar masa depan.',
+                oil_cta: 'Buka Platform',
+                page_title: 'Portal Pertanian Pintar'
+            }
+        };
+
+        const select = document.getElementById('languageSelect');
+        let currentLang = localStorage.getItem('agri_lang') || 'zh';
+
+        function applyLanguage(lang) {
+            if (!DICT[lang]) lang = 'zh';
+            currentLang = lang;
+            localStorage.setItem('agri_lang', lang);
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
+            document.title = DICT[lang].page_title;
+            select.value = lang;
+            document.querySelectorAll('[data-i18n]').forEach((el) => {
+                const key = el.getAttribute('data-i18n');
+                if (DICT[lang][key]) el.textContent = DICT[lang][key];
+            });
+        }
+
+        select.addEventListener('change', () => applyLanguage(select.value));
+        applyLanguage(currentLang);
+    </script>
 </body>
 </html>

@@ -2,19 +2,15 @@
     'use strict';
 
     var orthoId = getQueryParam('ortho_id');
-    if (!orthoId) {
-        document.getElementById('map').innerHTML = '<div class="error-box">Missing ?ortho_id= parameter</div>';
-        return;
-    }
-
     var map = null;
     var imageOverlay = null;
     var detectionMarkers = {};
-    var selectedDetId = null;
+    var selectedDetection = null;
     var manualMode = false;
     var orthoWidth = 0;
     var orthoHeight = 0;
     var orthoResolution = 0;
+    var lastStatus = { key: 'waiting_orthomosaic', params: {} };
 
     var STATUS_COLORS = {
         pending: '#f59e0b',
@@ -22,6 +18,17 @@
         rejected: '#ef4444',
         corrected: '#6366f1'
     };
+
+    function t(key, params) {
+        if (window.OP_I18N) return window.OP_I18N.t(key, params || {});
+        return Object.entries(params || {}).reduce(function (out, entry) {
+            return out.replaceAll('{' + entry[0] + '}', entry[1]);
+        }, key);
+    }
+
+    function unknownError(message) {
+        return message || t('unknown_error');
+    }
 
     function getQueryParam(name) {
         var params = new URLSearchParams(window.location.search);
@@ -40,8 +47,15 @@
         }).then(function (r) { return r.json(); });
     }
 
-    function setStatus(msg) {
-        document.getElementById('action-status').textContent = msg;
+    function setStatus(key, params) {
+        lastStatus = { key: key, params: params || {} };
+        document.getElementById('action-status').textContent = t(key, params || {});
+    }
+
+    function updateManualButton() {
+        document.getElementById('btn-manual-mode').textContent = manualMode
+            ? t('cancel_manual_mode')
+            : t('add_tree_manually');
     }
 
     function generatePlaceholderImage(w, h) {
@@ -73,9 +87,9 @@
 
         ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.font = Math.max(12, gridSize * 0.2) + 'px monospace';
-        for (var x = 0; x < w; x += 200) {
-            for (var y = 0; y < h; y += 200) {
-                ctx.fillText(x + ',' + y, x * scaleX + 2, y * scaleY + gridSize * 0.5);
+        for (var labelX = 0; labelX < w; labelX += 200) {
+            for (var labelY = 0; labelY < h; labelY += 200) {
+                ctx.fillText(labelX + ',' + labelY, labelX * scaleX + 2, labelY * scaleY + gridSize * 0.5);
             }
         }
 
@@ -99,15 +113,16 @@
             attributionControl: false
         });
 
-        // 优先使用真实图片，如果没有则使用占位图
         var imgUrl = realImgUrl || generatePlaceholderImage(w, h);
         var bounds = [[0, 0], [h, w]];
         imageOverlay = L.imageOverlay(imgUrl, bounds).addTo(map);
         map.fitBounds(bounds);
 
         map.on('mousemove', function (e) {
-            document.getElementById('coords-display').textContent =
-                'X: ' + e.latlng.lng.toFixed(1) + '  Y: ' + e.latlng.lat.toFixed(1);
+            document.getElementById('coords-display').textContent = t('coords_xy', {
+                x: e.latlng.lng.toFixed(1),
+                y: e.latlng.lat.toFixed(1)
+            });
         });
 
         map.on('click', function (e) {
@@ -126,7 +141,7 @@
     function loadOrthoInfo() {
         apiGet('/orthomosaics/' + orthoId).then(function (data) {
             if (data.status !== 'ok' || !data.orthomosaic) {
-                setStatus('Failed to load orthomosaic info');
+                setStatus('failed_load_ortho');
                 return;
             }
             var o = data.orthomosaic;
@@ -140,22 +155,22 @@
             document.getElementById('btn-detect-palms').disabled = false;
             loadDetections();
         }).catch(function (err) {
-            setStatus('Error loading ortho: ' + err.message);
+            setStatus('error_loading_ortho', { message: err.message });
         });
     }
 
     function loadDetections() {
         apiGet('/orthomosaics/' + orthoId + '/detections').then(function (data) {
             if (data.status !== 'ok') {
-                setStatus('Failed to load detections');
+                setStatus('failed_load_detections');
                 return;
             }
             var detections = data.detections || [];
             document.getElementById('info-det-count').textContent = detections.length;
             renderDetections(detections);
-            setStatus(detections.length + ' detections loaded');
+            setStatus('detections_loaded', { count: detections.length });
         }).catch(function (err) {
-            setStatus('Error loading detections: ' + err.message);
+            setStatus('error_loading_data', { message: err.message });
         });
     }
 
@@ -188,15 +203,15 @@
             });
 
             circle.on('click', function () {
-                selectDetection(det);
+                selectDetection(det, true);
             });
 
             detectionMarkers[det.id] = circle;
         });
     }
 
-    function selectDetection(det) {
-        selectedDetId = det.id;
+    function selectDetection(det, panToMarker) {
+        selectedDetection = det;
 
         Object.keys(detectionMarkers).forEach(function (key) {
             detectionMarkers[key].setStyle({ weight: 2 });
@@ -204,7 +219,7 @@
 
         if (detectionMarkers[det.id]) {
             detectionMarkers[det.id].setStyle({ weight: 4, fillOpacity: 1 });
-            map.panTo(detectionMarkers[det.id].getLatLng());
+            if (panToMarker) map.panTo(detectionMarkers[det.id].getLatLng());
         }
 
         document.getElementById('detection-detail').style.display = 'block';
@@ -220,13 +235,13 @@
         if (det.review_status === 'pending') {
             var confirmBtn = document.createElement('button');
             confirmBtn.className = 'btn success small';
-            confirmBtn.textContent = 'Confirm';
+            confirmBtn.textContent = t('confirm');
             confirmBtn.onclick = function () { confirmDetection(det.id); };
             actionsDiv.appendChild(confirmBtn);
 
             var rejectBtn = document.createElement('button');
             rejectBtn.className = 'btn danger small';
-            rejectBtn.textContent = 'Reject';
+            rejectBtn.textContent = t('reject');
             rejectBtn.onclick = function () { rejectDetection(det.id); };
             actionsDiv.appendChild(rejectBtn);
         } else if (det.review_status === 'confirmed') {
@@ -235,13 +250,13 @@
             linkBtn.style.textDecoration = 'none';
             linkBtn.style.display = 'inline-block';
             linkBtn.style.color = 'white';
-            linkBtn.textContent = 'View Tree Profile';
+            linkBtn.textContent = t('view_profile');
             if (det.tree_code) {
-                linkBtn.href = 'tree_profile.html?code=' + det.tree_code;
+                linkBtn.href = 'tree_profile.html?code=' + encodeURIComponent(det.tree_code);
             } else {
                 linkBtn.href = '#';
-                linkBtn.onclick = function() {
-                    alert('Tree profile not linked yet');
+                linkBtn.onclick = function () {
+                    alert(t('tree_profile_not_linked'));
                     return false;
                 };
             }
@@ -252,32 +267,36 @@
     function confirmDetection(detId) {
         apiPost('/detections/' + detId + '/confirm').then(function (data) {
             if (data.status === 'ok' && data.tree_code) {
-                setStatus('Confirmed! Tree: ' + data.tree_code);
+                setStatus('confirmed_tree', { code: data.tree_code });
                 loadDetections();
                 document.getElementById('detection-detail').style.display = 'none';
-                selectedDetId = null;
+                selectedDetection = null;
             } else {
-                setStatus('Confirm failed: ' + (data.message || 'unknown error'));
+                setStatus('confirm_failed', { message: unknownError(data.message) });
             }
+        }).catch(function (err) {
+            setStatus('confirm_failed', { message: err.message });
         });
     }
 
     function rejectDetection(detId) {
         apiPost('/detections/' + detId + '/reject').then(function (data) {
             if (data.status === 'ok') {
-                setStatus('Detection rejected');
+                setStatus('detection_rejected');
                 loadDetections();
                 document.getElementById('detection-detail').style.display = 'none';
-                selectedDetId = null;
+                selectedDetection = null;
             } else {
-                setStatus('Reject failed: ' + (data.message || 'unknown error'));
+                setStatus('reject_failed', { message: unknownError(data.message) });
             }
+        }).catch(function (err) {
+            setStatus('reject_failed', { message: err.message });
         });
     }
 
     function handleManualPlace(cx, cy) {
         disableManualMode();
-        setStatus('Placing tree at (' + cx.toFixed(0) + ', ' + cy.toFixed(0) + ')...');
+        setStatus('placing_tree', { x: cx.toFixed(0), y: cy.toFixed(0) });
 
         apiPost('/orthomosaics/' + orthoId + '/detections/manual', {
             crown_center_x: cx,
@@ -286,11 +305,13 @@
             crown_height: 40
         }).then(function (data) {
             if (data.status === 'ok') {
-                setStatus('Manual tree added, detection #' + data.detection_id);
+                setStatus('manual_tree_added', { id: data.detection_id });
                 loadDetections();
             } else {
-                setStatus('Manual add failed: ' + (data.message || 'unknown error'));
+                setStatus('manual_add_failed', { message: unknownError(data.message) });
             }
+        }).catch(function (err) {
+            setStatus('manual_add_failed', { message: err.message });
         });
     }
 
@@ -298,16 +319,21 @@
         manualMode = true;
         document.getElementById('map').style.cursor = 'crosshair';
         document.getElementById('manual-hint').style.display = 'block';
-        document.getElementById('btn-manual-mode').textContent = 'Cancel Manual Mode';
         document.getElementById('btn-manual-mode').classList.add('btn-danger');
+        updateManualButton();
     }
 
     function disableManualMode() {
         manualMode = false;
         document.getElementById('map').style.cursor = '';
         document.getElementById('manual-hint').style.display = 'none';
-        document.getElementById('btn-manual-mode').textContent = 'Add Tree Manually';
         document.getElementById('btn-manual-mode').classList.remove('btn-danger');
+        updateManualButton();
+    }
+
+    if (!orthoId) {
+        document.getElementById('map').innerHTML = '<div class="error-box">' + t('missing_ortho_id') + '</div>';
+        return;
     }
 
     document.getElementById('btn-manual-mode').addEventListener('click', function () {
@@ -319,14 +345,19 @@
     });
 
     document.getElementById('btn-detect-palms').addEventListener('click', function () {
-        setStatus('Running mock detection...');
+        setStatus('running_mock_detection');
         apiPost('/orthomosaics/' + orthoId + '/detect-palms').then(function (data) {
             if (data.status === 'ok') {
-                setStatus(data.detections_created + ' detections created from ' + data.tiles_processed + ' tiles');
+                setStatus('detections_created_from_tiles', {
+                    count: data.detections_created,
+                    tiles: data.tiles_processed
+                });
                 loadDetections();
             } else {
-                setStatus('Detection failed: ' + (data.message || 'unknown error'));
+                setStatus('detection_failed', { message: unknownError(data.message) });
             }
+        }).catch(function (err) {
+            setStatus('detection_failed', { message: err.message });
         });
     });
 
@@ -334,5 +365,12 @@
         loadDetections();
     });
 
+    document.addEventListener('op:i18n-change', function () {
+        setStatus(lastStatus.key, lastStatus.params);
+        updateManualButton();
+        if (selectedDetection) selectDetection(selectedDetection, false);
+    });
+
+    updateManualButton();
     loadOrthoInfo();
 })();

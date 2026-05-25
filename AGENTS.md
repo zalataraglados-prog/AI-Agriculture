@@ -591,6 +591,11 @@ OpenClaw 是分析助手，不是数据库，也不是业务事实源。
 *   **禁止重名二进制**：不要在不同目录下保留同名的 `cloud` 二进制，应统一使用版本化或唯一命名的 `ai-agri-cloud-receiver`。
 *   **Systemd 协同**：若使用系统服务，必须确保 `systemd` 配置文件中的环境变量与开发环境 `.env` 同步。
 
+### 17.5 资源受限环境下的部署策略 (Resource Constraints & Network Mirrors)
+*   **Conda vs Docker**：在资源受限（如内存 < 4G、系统盘极小）的单机云服务器上，目前偏向采用“容器化数据库 + 宿主机原生运行 AI Engine（基于 Conda/Python）”的策略，以避免直接在低配机器上构建动辄数 GB 的 PyTorch 镜像导致 OOM (Exit 137) 或磁盘写满。未来若资源充裕或采用多台服务器分布式架构，再考虑全面 Docker 化。
+*   **国内网络镜像源**：在国内服务器部署时，务必第一时间配置国内镜像源（如 `pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple`），否则极易遇到下载速度仅十几 KB/s 或超时中断的问题。
+*   **PyTorch CPU 版瘦身**：若部署节点无显卡，务必显式使用 `--index-url https://download.pytorch.org/whl/cpu` 安装 CPU-only 版本的 PyTorch，避免拉取高达 1GB 以上附带 CUDA 运行库的默认包。
+
 ## 18. 最终判断标准
 
 一个修改是好修改，当且仅当它让项目更接近：
