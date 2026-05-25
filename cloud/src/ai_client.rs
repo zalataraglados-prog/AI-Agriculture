@@ -187,6 +187,76 @@ pub(crate) fn detect_oil_palm_a0_from_bytes(
     Ok(json)
 }
 
+pub(crate) fn analyze_oil_palm_from_bytes(
+    client: &Client,
+    analyze_url: &str,
+    image_bytes: &[u8],
+    filename: Option<&str>,
+    image_type: &str,
+    image_role: &str,
+    tree_code: Option<&str>,
+    session_id: Option<&str>,
+) -> Result<Value, String> {
+    if image_bytes.is_empty() {
+        return Err("image bytes are empty".to_string());
+    }
+
+    let content_type = match image_type {
+        "png" => "image/png",
+        _ => "image/jpeg",
+    };
+    let part = reqwest::blocking::multipart::Part::bytes(image_bytes.to_vec())
+        .file_name(filename.unwrap_or("session-downstream.png").to_string())
+        .mime_str(content_type)
+        .map_err(|e| format!("failed to build multipart file part: {e}"))?;
+
+    let mut form = reqwest::blocking::multipart::Form::new()
+        .part("file", part)
+        .text("image_role", image_role.to_string());
+    if let Some(value) = tree_code.filter(|v| !v.is_empty()) {
+        form = form.text("tree_code", value.to_string());
+    }
+    if let Some(value) = session_id.filter(|v| !v.is_empty()) {
+        form = form.text("session_id", value.to_string());
+    }
+
+    let response = client
+        .post(analyze_url)
+        .multipart(form)
+        .send()
+        .map_err(|e| format!("failed to call oil palm analyze API {}: {e}", analyze_url))?;
+    let status = response.status();
+    let text = response
+        .text()
+        .map_err(|e| format!("failed to read oil palm analyze response body: {e}"))?;
+    if !status.is_success() {
+        return Err(format!(
+            "oil palm analyze API returned {} with body: {}",
+            status,
+            trim_for_log(&text)
+        ));
+    }
+
+    let json: Value = serde_json::from_str(&text).map_err(|e| {
+        format!(
+            "failed to parse oil palm analyze JSON response: {e}; body={}",
+            trim_for_log(&text)
+        )
+    })?;
+    if json
+        .get("status")
+        .and_then(|v| v.as_str())
+        .map(|v| v == "error")
+        .unwrap_or(false)
+    {
+        return Err(format!(
+            "oil palm analyze status=error: {}",
+            trim_for_log(&text)
+        ));
+    }
+    Ok(json)
+}
+
 
 
 fn parse_ai_response(text: &str, elapsed_ms: i32) -> Result<AiInferenceOutput, String> {

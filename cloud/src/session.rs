@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use reqwest::blocking::Client;
 use tiny_http::{Request, Response};
 
-use crate::ai_client::detect_oil_palm_a0_from_bytes;
+use crate::ai_client::{analyze_oil_palm_from_bytes, detect_oil_palm_a0_from_bytes};
 use crate::db::DbManager;
 use crate::image_upload::{parse_boundary, parse_multipart_file, save_image_file, ImageUploadTag};
 use crate::time_util::now_rfc3339;
@@ -366,6 +366,8 @@ pub(crate) fn handle_confirm_session_image(
     session_id: &str,
     image_id: &str,
     image_store_path: &str,
+    ai_oil_palm_analyze_url: Option<&str>,
+    ai_http_client: &Client,
     db: Arc<Mutex<DbManager>>,
 ) {
     let sid = session_id.parse().unwrap_or(0);
@@ -543,11 +545,15 @@ pub(crate) fn handle_confirm_session_image(
         error_message: None,
     };
 
-    let downstream = mock_analysis_for_role(
+    let downstream = downstream_analysis_for_role(
+        ai_http_client,
+        ai_oil_palm_analyze_url,
         &image_role,
         &tree_code,
+        sid,
         &upload_id,
         &masked.upload_id,
+        &masked.saved_path,
         &selected_ids,
     );
     let updated_metadata = merge_confirmation_metadata(
@@ -563,17 +569,22 @@ pub(crate) fn handle_confirm_session_image(
         .map_err(|_| "db lock failed".to_string())
         .and_then(|mut g| {
             g.insert_image_upload(&db_record)?;
-            g.update_session_image_analysis(sid, iid, downstream.clone(), updated_metadata.clone())
+            g.update_session_image_analysis(
+                sid,
+                iid,
+                downstream.payload.clone(),
+                updated_metadata.clone(),
+            )
         });
 
     match result {
         Ok(image) => respond_json(
             request,
-            200,
+            downstream.http_status,
             &serde_json::json!({
-                "status": "ok",
+                "status": if downstream.failed { "error" } else { "ok" },
                 "image": image,
-                "analysis": downstream,
+                "analysis": downstream.payload,
                 "masked_upload_id": masked.upload_id,
                 "masked_image_url": format!("/api/v1/image/file?upload_id={}", masked.upload_id),
                 "selected_candidate_ids": selected_ids,
@@ -586,6 +597,116 @@ pub(crate) fn handle_confirm_session_image(
             500,
             &serde_json::json!({"status":"error","message":e}).to_string(),
         ),
+    }
+}
+
+struct DownstreamAnalysis {
+    payload: serde_json::Value,
+    http_status: u16,
+    failed: bool,
+}
+
+fn downstream_analysis_for_role(
+    client: &Client,
+    analyze_url: Option<&str>,
+    image_role: &str,
+    tree_code: &str,
+    session_id: i32,
+    source_upload_id: &str,
+    masked_upload_id: &str,
+    masked_saved_path: &str,
+    selected_candidate_ids: &[String],
+) -> DownstreamAnalysis {
+    let shared_metadata = downstream_shared_metadata(
+        image_role,
+        tree_code,
+        session_id,
+        source_upload_id,
+        masked_upload_id,
+        selected_candidate_ids,
+    );
+
+    if image_role != "trunk_base" {
+        return DownstreamAnalysis {
+            payload: mock_analysis_for_role(
+                image_role,
+                tree_code,
+                source_upload_id,
+                masked_upload_id,
+                selected_candidate_ids,
+            ),
+            http_status: 200,
+            failed: false,
+        };
+    }
+
+    let Some(url) = analyze_url else {
+        let mut payload = mock_analysis_for_role(
+            image_role,
+            tree_code,
+            source_upload_id,
+            masked_upload_id,
+            selected_candidate_ids,
+        );
+        annotate_downstream_metadata(
+            &mut payload,
+            shared_metadata,
+            "local_mock_no_ai_url",
+            None,
+            None,
+        );
+        return DownstreamAnalysis {
+            payload,
+            http_status: 200,
+            failed: false,
+        };
+    };
+
+    let image_bytes = match fs::read(masked_saved_path) {
+        Ok(value) => value,
+        Err(e) => {
+            return DownstreamAnalysis {
+                payload: downstream_error_payload(
+                    shared_metadata,
+                    "local_file_error",
+                    Some(url),
+                    &format!("failed to read masked image for Ganoderma analysis: {e}"),
+                ),
+                http_status: 500,
+                failed: true,
+            };
+        }
+    };
+
+    match analyze_oil_palm_from_bytes(
+        client,
+        url,
+        &image_bytes,
+        Some("session-trunk-base-mask.png"),
+        "png",
+        image_role,
+        Some(tree_code),
+        Some(&session_id.to_string()),
+    ) {
+        Ok(mut payload) => {
+            annotate_downstream_metadata(
+                &mut payload,
+                shared_metadata,
+                "ai_engine",
+                Some(url),
+                None,
+            );
+            DownstreamAnalysis {
+                payload,
+                http_status: 200,
+                failed: false,
+            }
+        }
+        Err(e) => DownstreamAnalysis {
+            payload: downstream_error_payload(shared_metadata, "ai_engine_error", Some(url), &e),
+            http_status: 502,
+            failed: true,
+        },
     }
 }
 
@@ -648,6 +769,81 @@ fn mock_analysis_for_role(
             "model_version": "oil_palm_mock_session_v1"
         }),
     }
+}
+
+fn downstream_shared_metadata(
+    image_role: &str,
+    tree_code: &str,
+    session_id: i32,
+    source_upload_id: &str,
+    masked_upload_id: &str,
+    selected_candidate_ids: &[String],
+) -> serde_json::Value {
+    serde_json::json!({
+        "crop": "oil_palm",
+        "tree_code": tree_code,
+        "session_id": session_id,
+        "image_role": image_role,
+        "source_upload_id": source_upload_id,
+        "masked_upload_id": masked_upload_id,
+        "selected_candidate_ids": selected_candidate_ids,
+        "mask_source": A0_MASK_SOURCE
+    })
+}
+
+fn annotate_downstream_metadata(
+    payload: &mut serde_json::Value,
+    shared_metadata: serde_json::Value,
+    source: &str,
+    analyze_url: Option<&str>,
+    error: Option<&str>,
+) {
+    if !payload.is_object() {
+        *payload = serde_json::json!({
+            "status": "error",
+            "results": [],
+            "geometry": [],
+            "metadata": {},
+            "model_version": "oil_palm_downstream_invalid_response"
+        });
+    }
+    let existing_metadata = payload["metadata"].clone();
+    payload["metadata"] = merge_json(shared_metadata, existing_metadata);
+    if let Some(obj) = payload["metadata"].as_object_mut() {
+        obj.insert("downstream_source".to_string(), serde_json::json!(source));
+        if let Some(url) = analyze_url {
+            obj.insert("downstream_analyze_url".to_string(), serde_json::json!(url));
+        }
+        if let Some(message) = error {
+            obj.insert(
+                "downstream_runtime_error".to_string(),
+                serde_json::json!(message),
+            );
+        }
+    }
+}
+
+fn downstream_error_payload(
+    shared_metadata: serde_json::Value,
+    source: &str,
+    analyze_url: Option<&str>,
+    error: &str,
+) -> serde_json::Value {
+    let mut payload = serde_json::json!({
+        "status": "error",
+        "results": [],
+        "geometry": [],
+        "metadata": {},
+        "model_version": "oil_palm_ganoderma_runtime_unavailable"
+    });
+    annotate_downstream_metadata(
+        &mut payload,
+        shared_metadata,
+        source,
+        analyze_url,
+        Some(error),
+    );
+    payload
 }
 
 fn detect_a0_or_mock(
@@ -1077,5 +1273,110 @@ mod tests {
         assert!(y0 < y1);
         assert!(x1 <= 100);
         assert!(y1 <= 80);
+    }
+
+    #[test]
+    fn downstream_trunk_base_without_ai_url_keeps_explicit_mock_source() {
+        let client = reqwest::blocking::Client::new();
+        let selected = vec!["a0_trunk_base_001".to_string()];
+        let outcome = super::downstream_analysis_for_role(
+            &client,
+            None,
+            "trunk_base",
+            "OP-000001",
+            7,
+            "source_upload",
+            "masked_upload",
+            "unused-path",
+            &selected,
+        );
+
+        assert!(!outcome.failed);
+        assert_eq!(outcome.http_status, 200);
+        assert_eq!(
+            outcome.payload["metadata"]["downstream_source"].as_str(),
+            Some("local_mock_no_ai_url")
+        );
+        assert_eq!(
+            outcome.payload["metadata"]["risk_language"].as_str(),
+            Some("suspected_not_confirmed")
+        );
+    }
+
+    #[test]
+    fn downstream_configured_ai_url_reports_error_without_mock_fallback() {
+        let client = reqwest::blocking::Client::new();
+        let selected = vec!["a0_trunk_base_001".to_string()];
+        let outcome = super::downstream_analysis_for_role(
+            &client,
+            Some("http://127.0.0.1:9/api/v1/oil-palm/analyze"),
+            "trunk_base",
+            "OP-000001",
+            7,
+            "source_upload",
+            "masked_upload",
+            "missing-masked-file.png",
+            &selected,
+        );
+
+        assert!(outcome.failed);
+        assert_eq!(outcome.http_status, 500);
+        assert_eq!(outcome.payload["status"].as_str(), Some("error"));
+        assert_eq!(
+            outcome.payload["metadata"]["downstream_source"].as_str(),
+            Some("local_file_error")
+        );
+        assert_eq!(
+            outcome.payload["model_version"].as_str(),
+            Some("oil_palm_ganoderma_runtime_unavailable")
+        );
+    }
+
+    #[test]
+    fn downstream_metadata_annotation_preserves_ai_probabilities() {
+        let mut payload = serde_json::json!({
+            "status": "success",
+            "results": [{
+                "task": "ganoderma_risk",
+                "label": "suspected_risk",
+                "confidence": 0.82,
+                "geometry": {"type":"whole_image"}
+            }],
+            "geometry": [{"type":"whole_image"}],
+            "metadata": {
+                "probabilities": {"healthy":0.18,"suspected_risk":0.82},
+                "diagnosis_status": "not_confirmed"
+            },
+            "model_version": "oil_palm_ganoderma_test_v1"
+        });
+        let shared = super::downstream_shared_metadata(
+            "trunk_base",
+            "OP-000001",
+            7,
+            "source_upload",
+            "masked_upload",
+            &["a0_trunk_base_001".to_string()],
+        );
+        super::annotate_downstream_metadata(
+            &mut payload,
+            shared,
+            "ai_engine",
+            Some("http://ai-engine:8000/api/v1/oil-palm/analyze"),
+            None,
+        );
+
+        assert_eq!(
+            payload["metadata"]["downstream_source"].as_str(),
+            Some("ai_engine")
+        );
+        assert_eq!(payload["metadata"]["tree_code"].as_str(), Some("OP-000001"));
+        assert_eq!(
+            payload["metadata"]["probabilities"]["suspected_risk"].as_f64(),
+            Some(0.82)
+        );
+        assert_eq!(
+            payload["metadata"]["diagnosis_status"].as_str(),
+            Some("not_confirmed")
+        );
     }
 }
