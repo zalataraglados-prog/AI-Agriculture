@@ -26,16 +26,16 @@ See [labels.json](./labels.json): `oil_palm_crown`.
 
 ## Training Data
 
-Training preparation is ready for the first Roboflow YOLO export.
+Training preparation is ready for Roboflow project `doyles-workspace/uva_crown`,
+version 1, downloaded as COCO and converted to project YOLO layout.
 
-- Dataset version: `roboflow_uav_tree_crown_2026_05_26`
-- Images: 1050
-- Bboxes: 2411
-- Original split: train only
-- Planned generated split: train 735 / val 158 / test 157
+- Dataset version: `roboflow_uva_crown_v1_2026_05_26`
+- Images: 1785
+- Bboxes: 3400+
+- Roboflow split: train 1470 / val 158 / test 157
 - Labels: `oil_palm_crown`
-- Source health/status metadata is not used; no health classes are present in
-  the annotations.
+- Roboflow-side augmentation has already been applied, so the first project
+  training config disables extra augmentation.
 
 See:
 
@@ -60,12 +60,13 @@ metrics template. After Colab training, record test-set metrics in
   tree species, or health status.
 - Performance depends on UAV altitude, GSD, and orthomosaic stitching quality.
 - Adjacent tile overlap may cause duplicate detections; Cloud NMS handles this.
-- The current Roboflow export has no mission IDs; the initial split is
-  best-effort rather than fully mission-grouped.
+- The current Roboflow export has no mission IDs; the source split can be
+  preserved, but mission-level leakage auditing is still not possible.
 
 ## Changelog
 
 | Version | Date | Notes |
 |---------|------|-------|
 | mock_v1 | 2026-05 | Mock predictor established. No real weights. |
-| training_prep | 2026-05-26 | Added Roboflow YOLO importer, dataset prep CLI, training config, and Colab handoff plan. Runtime still uses mock fallback. |
+| training_prep | 2026-05-26 | Added Roboflow COCO importer, dataset prep CLI, training config, and Colab handoff plan. Runtime still uses mock fallback. |
+| dataset_v1_fix | 2026-05-26 | Updated preparation for `uva_crown` v1 with real bbox annotations, preserved Roboflow train/valid/test split, and disabled extra training augmentation. |

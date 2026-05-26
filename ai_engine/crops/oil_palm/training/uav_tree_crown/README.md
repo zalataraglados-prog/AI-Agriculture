@@ -20,9 +20,8 @@ See `models/oil_palm/uav_tree_crown/labels.json`.
 
 - `oil_palm_crown`
 
-The Roboflow metadata mentions `Healthy-BSR-Non-BSR`, but the reviewed export
-contains 100% `oil_palm_crown` instances. Health/status labels are not part of
-this UAV model.
+Source categories are normalized to `oil_palm_crown`. Health/status labels are
+not part of this UAV model.
 
 ## Data Source
 
@@ -39,18 +38,18 @@ Ignored generated data:
 - `datasets/oil_palm/uav_tree_crown/yolo/`
 - `models/oil_palm/uav_tree_crown/runs/`
 
-Expected source stats from the provided Roboflow export:
+Expected source stats from Roboflow project `doyles-workspace/uva_crown`,
+version 1:
 
-- Images: 1050
-- Annotations: 2411
-- Original splits: train only
-- Generated split target: train 735 / val 158 / test 157
+- Images: 1785
+- Annotations: 3400+ bboxes
+- Roboflow split: train 1470 / val 158 / test 157
 
 ## Dataset Preparation
 
 ```bash
 python -m ai_engine.crops.oil_palm.training.uav_tree_crown.prepare_dataset \
-  --source-root <roboflow-export-root> \
+  --source-root <roboflow-coco-export-root> \
   --copy-raw \
   --overwrite
 ```
@@ -58,10 +57,14 @@ python -m ai_engine.crops.oil_palm.training.uav_tree_crown.prepare_dataset \
 If `--source-root` is omitted, the script reads `OIL_PALM_UAV_SOURCE_ROOT` or
 falls back to `datasets/oil_palm/uav_tree_crown/raw/`.
 
-The importer accepts both common Roboflow YOLO shapes:
+The importer expects Roboflow COCO folders such as:
 
-- `train/<image>.jpg` and `train/<image>.txt`
-- `train/images/<image>.jpg` and `train/labels/<image>.txt`
+- `train/_annotations.coco.json`
+- `valid/_annotations.coco.json`
+- `test/_annotations.coco.json`
+
+It converts COCO bboxes to project YOLO format under
+`datasets/oil_palm/uav_tree_crown/yolo/` and preserves the Roboflow split.
 
 Use `--dry-run` to parse and summarize without writing generated data.
 
@@ -79,10 +82,11 @@ Recommended first baseline:
 
 - Model: `yolov8n.pt`
 - Image size: `640`
-- Epochs: `120`
-- Early stopping patience: `30`
+- Epochs: `100`
+- Early stopping patience: `20`
 - Batch: `16` on Colab GPU, reduce if memory is tight
-- Augmentation: moderate rotation/scale/flip/HSV/mosaic for aerial imagery
+- Augmentation: disabled for v1 because Roboflow-side augmentation has already
+  been applied
 
 ## Evaluation
 
@@ -93,9 +97,9 @@ artifact storage.
 
 ## Notes
 
-- Current source has no mission IDs, so the v1 split is best-effort by filename.
+- Current source has no mission IDs, but it does provide train/valid/test splits.
 - Future datasets should include plantation/block/mission identifiers so splits
-  can be grouped by mission and avoid spatial leakage.
+  can be audited by mission and avoid spatial leakage.
 - Adjacent tiles may overlap; Cloud-side NMS and confirmation remain required.
 - GSD, altitude, and orthomosaic stitching quality should be recorded with each
   future source dataset.

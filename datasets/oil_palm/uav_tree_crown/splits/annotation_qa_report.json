@@ -1,18 +1,23 @@
 {
   "task": "uav_tree_crown",
-  "dataset_version": "roboflow_uav_tree_crown_2026_05_26",
+  "dataset_version": "roboflow_uva_crown_v1_2026_05_26",
   "checks": {
     "labels_match_project_standard": true,
     "single_project_class_only": true,
     "source_health_labels_used": false,
-    "original_download_has_val_split": false,
-    "original_download_has_test_split": false,
+    "source_split_preserved": true,
+    "extra_local_split_generated": false,
+    "extra_training_augmentation_required": false,
+    "original_download_has_val_split": true,
+    "original_download_has_test_split": true,
     "mission_grouping_available": false,
     "license_status": "Unknown"
   },
   "notes": [
-    "The original export has all files under train/ and requires a generated train/val/test split.",
-    "The dataset metadata mentioned Healthy-BSR-Non-BSR, but all 2411 instances are oil_palm_crown.",
-    "Future UAV datasets should include mission IDs to support leakage-safe grouped splitting."
+    "Roboflow project doyles-workspace/uva_crown version 1 is downloaded as COCO and converted to project YOLO layout.",
+    "The source now provides train/valid/test: 1470/158/157 images.",
+    "The dataset has 3400+ bbox annotations.",
+    "Roboflow-side augmentation has already been applied, so the first training config disables additional augmentation.",
+    "Future UAV datasets should include mission IDs to support leakage-safe grouped analysis."
   ]
 }

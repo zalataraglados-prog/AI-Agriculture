@@ -2,39 +2,41 @@
 
 ## Status
 
-Training preparation ready. The real image/label files are expected to come
-from the Roboflow export and remain outside Git under the ignored `raw/` and
-`yolo/` layers.
+Training preparation ready. The real image/annotation files are expected to
+come from Roboflow project `doyles-workspace/uva_crown`, version 1, downloaded
+as COCO. Raw exports and generated YOLO files remain outside Git under the
+ignored `raw/` and `yolo/` layers.
 
 ## Labels
 
 0. `oil_palm_crown`
 
-The dataset metadata mentioned `Healthy-BSR-Non-BSR`, but the reviewed export
-contains 100% `oil_palm_crown` instances. UAV v1 is therefore a single-class
-crown detector, not a health-status classifier.
+UAV v1 is a single-class crown detector, not a health-status classifier. Source
+categories are normalized to `oil_palm_crown`.
 
 ## Expected Counts
 
-- Images: 1050
-- Annotations: 2411
-- Split target: train 735 / val 158 / test 157
-- Label counts: `{"oil_palm_crown": 2411}`
+- Images: 1785
+- Annotations: 3400+ bboxes
+- Roboflow split: train 1470 / val 158 / test 157
+- Label counts: `{"oil_palm_crown": "3400+"}`
 
 ## Sources And License
 
-- Source: Roboflow UAV oil palm crown export
-- URL without private key: `https://app.roboflow.com/ds/zKMDyUsHc9`
+- Source: Roboflow project `doyles-workspace/uva_crown`, version 1
+- URL without private key: `https://app.roboflow.com/doyles-workspace/uva_crown`
 - License: `Unknown` until source permissions are verified
 
-Do not commit the Roboflow key, raw images, generated YOLO files, or model
+Do not commit the Roboflow API key, raw images, generated YOLO files, or model
 weights. The Colab notebook on the Desktop may contain the private export
 command because it is outside this Git repository.
 
 ## Notes
 
-- Split method: deterministic 70/15/15 split, seed `42`.
-- Current source limitation: no validation/test split and no mission IDs.
+- Split method: preserve Roboflow train/valid/test.
+- Current source limitation: no mission IDs in the export metadata.
+- Roboflow-side augmentation has already been applied; project training config
+  disables additional augmentation for the first baseline.
 - Future dataset versions should include plantation/block/mission identifiers
   so highly similar UAV tiles do not leak across train/val/test.
 - The model detects per-tile crowns only. Cloud handles tile offsets, global

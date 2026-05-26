@@ -72,10 +72,10 @@ Future per-task branches will enable these path variables:
 
 `models/oil_palm/uav_tree_crown/training_config.example.yaml` records the first
 UAV YOLO baseline defaults. The prepared Roboflow dataset metadata lives in
-`datasets/oil_palm/manifests/uav_tree_crown.json`; the source has 1050 images
-and 2411 single-class crown boxes, with train/val/test generated from a
-train-only export. Runtime still uses the UAV mock predictor until a trained
-weight is evaluated and integrated.
+`datasets/oil_palm/manifests/uav_tree_crown.json`; the source is Roboflow
+`doyles-workspace/uva_crown` version 1 with 1785 images and 3400+ single-class
+crown boxes. Its train/valid/test split is preserved. Runtime still uses the
+UAV mock predictor until a trained weight is evaluated and integrated.
 
 The first trained A0 baseline records its local ignored artifact path in
 `models/oil_palm/a0_image_routing/inference_config.yaml`. Runtime code can load

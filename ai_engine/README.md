@@ -137,11 +137,11 @@ Current A0 YOLO labels are `fruit_bunch`, `trunk_base`, and `crown_region`.
 `unknown` is an inference status, not a trained bbox class.
 
 UAV tree crown training preparation is available under
-`ai_engine/crops/oil_palm/training/uav_tree_crown/`. It converts the train-only
-Roboflow YOLO export into project YOLO layout with a generated 70/15/15 split.
-The prepared metadata is tracked in
-`datasets/oil_palm/manifests/uav_tree_crown.json`; runtime still uses the UAV
-mock predictor until evaluated weights are integrated.
+`ai_engine/crops/oil_palm/training/uav_tree_crown/`. It converts the Roboflow
+COCO export for `doyles-workspace/uva_crown` version 1 into project YOLO layout
+while preserving the Roboflow train/valid/test split. The prepared metadata is
+tracked in `datasets/oil_palm/manifests/uav_tree_crown.json`; runtime still uses
+the UAV mock predictor until evaluated weights are integrated.
 
 Ganoderma v1 can now run as a real ResNet18 classifier for
 `image_role=trunk_base` in `hybrid` or `real` mode. It loads a PyTorch

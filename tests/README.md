@@ -9,8 +9,8 @@
 - `test_oil_palm_a0_dataset.py` validates the A0 Roboflow COCO adapter,
   grouped split output, YOLO label ranges, duplicate skipping, and training
   dry-run argument construction.
-- `test_oil_palm_uav_dataset.py` validates the UAV Roboflow YOLO adapter,
-  train-only split generation, single-class crown remapping, bbox clipping, and
+- `test_oil_palm_uav_dataset.py` validates the UAV Roboflow COCO adapter,
+  source split preservation, single-class crown remapping, bbox clipping, and
   training dry-run argument construction.
 
 用于存放 AI 模块测试代码。
