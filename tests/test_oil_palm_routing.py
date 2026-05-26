@@ -11,6 +11,7 @@ from PIL import Image
 from ai_engine.common.schemas.prediction import PredictionEnvelope
 from ai_engine.common.predictors.base import PredictorContext
 from ai_engine.crops.oil_palm.inference.a0_yolo_predictor import A0YoloPredictor
+from ai_engine.crops.oil_palm.inference.uav_yolo_predictor import UAVYoloPredictor
 from ai_engine.crops.oil_palm.inference.api import router
 
 
@@ -198,6 +199,56 @@ def test_a0_yolo_predictor_reports_role_mismatch(tmp_path, monkeypatch):
     assert payload["metadata"]["detected_roles"] == ["trunk_base"]
 
 
+def test_uav_yolo_predictor_maps_boxes_to_tree_crown_envelope(tmp_path, monkeypatch):
+    _install_fake_ultralytics(monkeypatch, cls_values=[0], conf_values=[0.94])
+    labels = tmp_path / "labels.json"
+    labels.write_text('["oil_palm_crown"]', encoding="utf-8")
+    config = tmp_path / "inference_config.yaml"
+    config.write_text(
+        "model_version: oil_palm_uav_test_v1\n"
+        "input_size: 128\n"
+        "confidence_threshold: 0.5\n"
+        "iou_threshold: 0.7\n"
+        "max_detections: 10\n",
+        encoding="utf-8",
+    )
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"fake weights")
+
+    predictor = UAVYoloPredictor(
+        weights_path=weights,
+        labels_path=labels,
+        config_path=config,
+    )
+    payload = predictor.predict(
+        _valid_png_bytes(),
+        PredictorContext(
+            crop="oil_palm",
+            task="uav_tree_crown",
+            image_role="uav_tile",
+            metadata={"mission_id": "UM-000001"},
+        ),
+    )
+
+    envelope = PredictionEnvelope.model_validate(payload)
+    assert envelope.model_version == "oil_palm_uav_test_v1"
+    assert envelope.metadata["mock"] is False
+    assert envelope.metadata["detections_count"] == 1
+    assert envelope.metadata["review_status"] == "requires_human_confirmation"
+    assert envelope.metadata["coordinate_scope"] == "tile_normalized"
+    assert envelope.metadata["mission_id"] == "UM-000001"
+    assert envelope.results[0].task == "uav_tree_crown"
+    assert envelope.results[0].label == "oil_palm_crown"
+    assert envelope.results[0].confidence == 0.94
+    assert envelope.results[0].geometry == {
+        "type": "bbox",
+        "x": 0.1,
+        "y": 0.2,
+        "w": 0.4,
+        "h": 0.6,
+    }
+
+
 def test_oil_palm_hybrid_mode_registers_real_a0_when_available(
     tmp_path,
     monkeypatch,
@@ -215,6 +266,10 @@ def test_oil_palm_hybrid_mode_registers_real_a0_when_available(
         "OIL_PALM_GANODERMA_MODEL_PATH",
         str(tmp_path / "missing_ganoderma_weights.pth"),
     )
+    monkeypatch.setenv(
+        "OIL_PALM_UAV_CROWN_MODEL_PATH",
+        str(tmp_path / "missing_uav_weights.pt"),
+    )
     monkeypatch.delenv("OIL_PALM_A0_CONFIG_FILE", raising=False)
 
     import importlib
@@ -229,6 +284,52 @@ def test_oil_palm_hybrid_mode_registers_real_a0_when_available(
     assert {item["mode"] for item in capabilities if item["task"] != "a0_structure_detection"} == {
         "mock"
     }
+
+
+def test_oil_palm_hybrid_mode_registers_real_uav_when_available(
+    tmp_path,
+    monkeypatch,
+):
+    _install_fake_ultralytics(monkeypatch, cls_values=[0], conf_values=[0.93])
+    labels = tmp_path / "labels.json"
+    labels.write_text('["oil_palm_crown"]', encoding="utf-8")
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"fake weights")
+
+    monkeypatch.setenv("OIL_PALM_MODEL_MODE", "hybrid")
+    monkeypatch.setenv("OIL_PALM_UAV_CROWN_MODEL_PATH", str(weights))
+    monkeypatch.setenv("OIL_PALM_UAV_CROWN_LABELS_FILE", str(labels))
+    monkeypatch.setenv(
+        "OIL_PALM_A0_MODEL_PATH",
+        str(tmp_path / "missing_a0_weights.pt"),
+    )
+    monkeypatch.setenv(
+        "OIL_PALM_GANODERMA_MODEL_PATH",
+        str(tmp_path / "missing_ganoderma_weights.pth"),
+    )
+    monkeypatch.delenv("OIL_PALM_UAV_CROWN_CONFIG_FILE", raising=False)
+
+    import importlib
+    import ai_engine.crops.oil_palm.pipeline as pipeline_mod
+
+    pipeline_mod = importlib.reload(pipeline_mod)
+    pipeline = pipeline_mod.build_default_oil_palm_pipeline()
+
+    capabilities = pipeline.registry.capabilities("oil_palm")
+    uav = [item for item in capabilities if item["task"] == "uav_tree_crown"]
+    assert uav[0]["mode"] == "real"
+    assert {item["mode"] for item in capabilities if item["task"] != "uav_tree_crown"} == {
+        "mock"
+    }
+
+    payload = pipeline.analyze(
+        image_bytes=_valid_png_bytes(),
+        image_role="uav_tile",
+        metadata={"mission_id": "UM-000001"},
+    )
+    assert payload["metadata"]["mock"] is False
+    assert payload["metadata"]["mission_id"] == "UM-000001"
+    assert payload["results"][0]["label"] == "oil_palm_crown"
 
 
 def test_ganoderma_resnet_predictor_returns_suspected_risk_envelope(
@@ -313,6 +414,10 @@ def test_oil_palm_hybrid_mode_registers_real_ganoderma_when_available(
     monkeypatch.setenv("OIL_PALM_GANODERMA_LABELS_FILE", str(labels))
     monkeypatch.setenv("OIL_PALM_GANODERMA_METRICS_FILE", str(metrics))
     monkeypatch.delenv("OIL_PALM_A0_MODEL_PATH", raising=False)
+    monkeypatch.setenv(
+        "OIL_PALM_UAV_CROWN_MODEL_PATH",
+        str(tmp_path / "missing_uav_weights.pt"),
+    )
 
     import importlib
     import ai_engine.crops.oil_palm.pipeline as pipeline_mod

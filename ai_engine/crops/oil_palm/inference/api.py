@@ -65,7 +65,7 @@ def oil_palm_route() -> dict:
             ),
             CapabilityItem(
                 capability="image_role_routing",
-                v1_scope="role routing for fruit/trunk_base/crown/uav_tile plus A0 structure detection and configured Ganoderma runtime",
+                v1_scope="role routing for fruit/trunk_base/crown/uav_tile plus configured A0/Ganoderma/UAV runtimes",
                 input_contract="multipart image file + image_role + optional tree_code/session_id",
                 output_fields=["status", "results[]", "geometry[]", "metadata", "model_version"],
                 metric="role-specific confidence / route_status",
