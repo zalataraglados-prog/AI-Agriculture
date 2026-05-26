@@ -14,9 +14,30 @@ def test_uav_roboflow_coco_importer_preserves_source_splits(tmp_path: Path) -> N
     )
 
     raw_root = tmp_path / "uva_crown-1"
-    _write_coco_split(raw_root, "train", image_count=7, start_id=1, source_label="oil_palm_crown")
-    _write_coco_split(raw_root, "valid", image_count=2, start_id=101, source_label="Healthy-BSR-Non-BSR")
-    _write_coco_split(raw_root, "test", image_count=1, start_id=201, source_label="oil_palm_crown")
+    _write_coco_split(
+        raw_root,
+        "train",
+        image_count=7,
+        start_id=1,
+        source_label="oil_palm_crown",
+        license_name="CC BY 4.0",
+    )
+    _write_coco_split(
+        raw_root,
+        "valid",
+        image_count=2,
+        start_id=101,
+        source_label="Healthy-BSR-Non-BSR",
+        license_name="CC BY 4.0",
+    )
+    _write_coco_split(
+        raw_root,
+        "test",
+        image_count=1,
+        start_id=201,
+        source_label="oil_palm_crown",
+        license_name="CC BY 4.0",
+    )
 
     output_root = tmp_path / "datasets" / "oil_palm" / "uav_tree_crown"
     importer = UAVRoboflowCocoImporter(
@@ -73,8 +94,111 @@ def test_uav_roboflow_coco_importer_preserves_source_splits(tmp_path: Path) -> N
     assert qa_report["checks"]["extra_local_split_generated"] is False
     assert qa_report["checks"]["extra_training_augmentation_required"] is False
     assert qa_report["checks"]["clipped_bboxes"] == 10
+    assert qa_report["checks"]["license_status"] == "CC BY 4.0"
     assert (output_root / "dataset_card.md").exists()
     assert (output_root.parent / "manifests" / "uav_tree_crown.json").exists()
+
+
+def test_uav_coco_importer_syncs_effective_counts_after_skipping_invalid_bbox(
+    tmp_path: Path,
+) -> None:
+    from ai_engine.crops.oil_palm.training.data_importers.import_uav_roboflow_coco import (
+        UAVRoboflowCocoImporter,
+    )
+
+    raw_root = tmp_path / "uva_crown-1"
+    _write_coco_split(
+        raw_root,
+        "train",
+        image_count=1,
+        start_id=1,
+        source_label="oil_palm_crown",
+        license_name="CC BY 4.0",
+        include_invalid_bbox=True,
+    )
+    output_root = tmp_path / "datasets" / "oil_palm" / "uav_tree_crown"
+
+    result = UAVRoboflowCocoImporter(
+        raw_dir=raw_root,
+        output_dir=output_root,
+        dataset_version="test_uav_coco_invalid_bbox",
+        overwrite=True,
+    ).convert()
+
+    assert result.labels_mapped == {"oil_palm_crown": 2}
+
+    summary = json.loads(
+        (output_root / "splits" / "uav_dataset_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["source_annotation_count"] == 3
+    assert summary["annotation_count"] == 2
+    assert summary["split_annotation_counts"] == {"train": 2}
+    assert summary["label_counts"] == {"oil_palm_crown": 2}
+    assert summary["skipped_annotations"] == 1
+
+    split_manifest = json.loads(
+        (output_root / "splits" / "split_manifest.json").read_text(encoding="utf-8")
+    )
+    assert split_manifest["counts"]["annotations"] == 2
+    assert split_manifest["entries"][0]["annotation_count"] == 2
+
+    qa_report = json.loads(
+        (output_root / "splits" / "annotation_qa_report.json").read_text(encoding="utf-8")
+    )
+    assert qa_report["checks"]["license_status"] == "CC BY 4.0"
+    assert qa_report["checks"]["skipped_annotations_after_clipping"] == 1
+
+
+def test_uav_yolo_importer_syncs_effective_counts_after_skipping_invalid_bbox(
+    tmp_path: Path,
+) -> None:
+    from ai_engine.crops.oil_palm.training.data_importers.import_uav_roboflow_yolo import (
+        UAVRoboflowYoloImporter,
+    )
+
+    raw_root = tmp_path / "uav-yolo"
+    image_dir = raw_root / "train" / "images"
+    label_dir = raw_root / "train" / "labels"
+    image_dir.mkdir(parents=True)
+    label_dir.mkdir(parents=True)
+    Image.new("RGB", (100, 100), color=(30, 90, 120)).save(image_dir / "tile_001.jpg")
+    (label_dir / "tile_001.txt").write_text(
+        "0 0.500000 0.500000 0.200000 0.200000\n"
+        "0 1.500000 1.500000 0.100000 0.100000\n",
+        encoding="utf-8",
+    )
+    (raw_root / "train" / "data.yaml").write_text(
+        "names:\n  0: oil_palm_crown\n",
+        encoding="utf-8",
+    )
+    output_root = tmp_path / "datasets" / "oil_palm" / "uav_tree_crown"
+
+    result = UAVRoboflowYoloImporter(
+        raw_dir=raw_root,
+        output_dir=output_root,
+        dataset_version="test_uav_yolo_invalid_bbox",
+        overwrite=True,
+    ).convert()
+
+    assert result.labels_mapped == {"oil_palm_crown": 1}
+
+    generated_label = next((output_root / "yolo" / "labels" / "train").glob("*.txt"))
+    assert len(generated_label.read_text(encoding="utf-8").splitlines()) == 1
+
+    summary = json.loads(
+        (output_root / "splits" / "uav_dataset_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["source_annotation_count"] == 2
+    assert summary["annotation_count"] == 1
+    assert summary["split_annotation_counts"] == {"train": 1}
+    assert summary["label_counts"] == {"oil_palm_crown": 1}
+    assert summary["skipped_annotations"] == 1
+
+    split_manifest = json.loads(
+        (output_root / "splits" / "split_manifest.json").read_text(encoding="utf-8")
+    )
+    assert split_manifest["counts"]["annotations"] == 1
+    assert split_manifest["entries"][0]["annotation_count"] == 1
 
 
 def test_uav_prepare_dataset_dry_run_uses_coco_importer(tmp_path: Path, capsys) -> None:
@@ -152,6 +276,8 @@ def _write_coco_split(
     image_count: int,
     start_id: int,
     source_label: str,
+    license_name: str = "Unknown",
+    include_invalid_bbox: bool = False,
 ) -> None:
     split_dir = raw_root / split
     split_dir.mkdir(parents=True)
@@ -192,6 +318,18 @@ def _write_coco_split(
                 "segmentation": [],
             }
         )
+        if include_invalid_bbox:
+            annotations.append(
+                {
+                    "id": image_id * 10 + 2,
+                    "image_id": image_id,
+                    "category_id": 1,
+                    "bbox": [150, 150, 10, 10],
+                    "iscrowd": 0,
+                    "area": 100,
+                    "segmentation": [],
+                }
+            )
 
     coco = {
         "info": {
@@ -201,7 +339,7 @@ def _write_coco_split(
             "url": "https://example.test/roboflow/uva_crown",
             "date_created": "2026-05-26T00:00:00+00:00",
         },
-        "licenses": [{"id": 1, "url": "", "name": "Unknown"}],
+        "licenses": [{"id": 1, "url": "", "name": license_name}],
         "categories": [
             {"id": 0, "name": "root", "supercategory": "none"},
             {"id": 1, "name": source_label, "supercategory": "root"},

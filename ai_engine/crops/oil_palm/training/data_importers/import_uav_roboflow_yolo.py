@@ -64,6 +64,7 @@ class UAVImportSummary:
     split_seed: int
     split_grouping: str
     image_count: int = 0
+    source_annotation_count: int = 0
     annotation_count: int = 0
     split_counts: dict[str, int] = field(default_factory=dict)
     split_annotation_counts: dict[str, int] = field(default_factory=dict)
@@ -86,6 +87,7 @@ class UAVImportSummary:
             "split_seed": self.split_seed,
             "split_grouping": self.split_grouping,
             "image_count": self.image_count,
+            "source_annotation_count": self.source_annotation_count,
             "annotation_count": self.annotation_count,
             "split_counts": self.split_counts,
             "split_annotation_counts": self.split_annotation_counts,
@@ -146,10 +148,10 @@ class UAVRoboflowYoloImporter(BaseImporter):
             self._prepare_output_directories()
             if self.copy_raw:
                 self._copy_raw_source()
-            clipped, skipped = self._write_yolo_dataset(samples)
-            summary.clipped_bboxes = clipped
-            summary.skipped_annotations = skipped
-            summary.annotation_count = sum(summary.label_counts.values()) - skipped
+            clipped_bboxes, skipped_annotations = self._write_yolo_dataset(samples)
+            summary.clipped_bboxes = clipped_bboxes
+            summary.skipped_annotations = skipped_annotations
+            _sync_effective_annotation_counts(summary, samples)
             self._write_metadata(summary, samples)
 
         return ImportResult(
@@ -274,6 +276,7 @@ class UAVRoboflowYoloImporter(BaseImporter):
             split_seed=self.seed,
             split_grouping=self.split_grouping,
             image_count=len(samples),
+            source_annotation_count=annotation_count,
             annotation_count=annotation_count,
             split_counts=dict(sorted(split_counts.items())),
             split_annotation_counts=dict(sorted(split_annotation_counts.items())),
@@ -352,6 +355,7 @@ class UAVRoboflowYoloImporter(BaseImporter):
             shutil.copy2(sample.source_image_path, image_out)
 
             lines: list[str] = []
+            valid_annotations: list[UAVAnnotation] = []
             for annotation in sample.annotations:
                 clipped, was_clipped = _clip_normalized_bbox(annotation.bbox_xywh)
                 if was_clipped:
@@ -365,7 +369,15 @@ class UAVRoboflowYoloImporter(BaseImporter):
                     f"{x_center:.6f} {y_center:.6f} "
                     f"{width:.6f} {height:.6f}"
                 )
+                valid_annotations.append(
+                    UAVAnnotation(
+                        bbox_xywh=clipped,
+                        source_class_id=annotation.source_class_id,
+                        source_label=annotation.source_label,
+                    )
+                )
             label_out.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+            sample.annotations = valid_annotations
 
         self._write_data_yaml(yolo_root)
         return clipped_count, skipped_count
@@ -627,6 +639,21 @@ def _split_manifest(summary: UAVImportSummary, samples: list[UAVSample]) -> dict
     }
 
 
+def _sync_effective_annotation_counts(
+    summary: UAVImportSummary,
+    samples: list[UAVSample],
+) -> None:
+    split_annotation_counts = Counter()
+    for sample in samples:
+        split_annotation_counts[sample.split] += len(sample.annotations)
+
+    annotation_count = sum(split_annotation_counts.values())
+    summary.annotation_count = annotation_count
+    summary.split_annotation_counts = dict(sorted(split_annotation_counts.items()))
+    summary.label_counts = {"oil_palm_crown": annotation_count}
+    summary.empty_label_images = sum(1 for sample in samples if not sample.annotations)
+
+
 def _qa_report(summary: UAVImportSummary) -> dict[str, Any]:
     return {
         "task": "uav_tree_crown",
@@ -694,7 +721,8 @@ single-class crown detector.
 ## Counts
 
 - Images: {summary.image_count}
-- Annotations: {summary.annotation_count}
+- Source annotations: {summary.source_annotation_count}
+- Effective YOLO annotations: {summary.annotation_count}
 - Split counts: {json.dumps(summary.split_counts, ensure_ascii=False)}
 - Label counts: {json.dumps(summary.label_counts, ensure_ascii=False)}
 - Empty-label images: {summary.empty_label_images}
@@ -756,6 +784,7 @@ def _manifest(summary: UAVImportSummary) -> dict[str, Any]:
             "val": summary.split_counts.get("val", 0),
             "test": summary.split_counts.get("test", 0),
             "total": summary.image_count,
+            "source_annotations": summary.source_annotation_count,
             "annotations": summary.annotation_count,
             "labels": summary.label_counts,
         },

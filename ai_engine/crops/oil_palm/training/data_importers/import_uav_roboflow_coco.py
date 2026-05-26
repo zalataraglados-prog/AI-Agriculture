@@ -61,6 +61,7 @@ class UAVCocoImportSummary:
     labels: list[str]
     split_strategy: str
     image_count: int = 0
+    source_annotation_count: int = 0
     annotation_count: int = 0
     split_counts: dict[str, int] = field(default_factory=dict)
     split_annotation_counts: dict[str, int] = field(default_factory=dict)
@@ -81,6 +82,7 @@ class UAVCocoImportSummary:
             "labels": self.labels,
             "split_strategy": self.split_strategy,
             "image_count": self.image_count,
+            "source_annotation_count": self.source_annotation_count,
             "annotation_count": self.annotation_count,
             "split_counts": self.split_counts,
             "split_annotation_counts": self.split_annotation_counts,
@@ -132,11 +134,10 @@ class UAVRoboflowCocoImporter(BaseImporter):
             self._prepare_output_directories()
             if self.copy_raw:
                 self._copy_raw_source()
-            clipped, skipped = self._write_yolo_dataset(samples)
-            summary.clipped_bboxes = clipped
-            summary.skipped_annotations = skipped
-            summary.annotation_count = sum(summary.label_counts.values()) - skipped
-            summary.label_counts["oil_palm_crown"] = summary.annotation_count
+            clipped_bboxes, skipped_annotations = self._write_yolo_dataset(samples)
+            summary.clipped_bboxes = clipped_bboxes
+            summary.skipped_annotations = skipped_annotations
+            _sync_effective_annotation_counts(summary, samples)
             self._write_metadata(summary, samples)
 
         return ImportResult(
@@ -265,12 +266,18 @@ class UAVRoboflowCocoImporter(BaseImporter):
                 source_class_counts[str(annotation.source_category_id)] += 1
 
         annotation_count = sum(len(sample.annotations) for sample in samples)
+        license_status = _license_status(source_packages)
+        license_note = (
+            "License is recorded as Unknown until Roboflow/source permissions are documented."
+            if license_status == "Unknown"
+            else f"Source metadata reports {license_status}."
+        )
         notes = [
             "Generated from Roboflow COCO export version uva_crown/1.",
             "Source train/valid/test splits are preserved; no extra split is generated.",
             "All source categories are normalized to the single project label oil_palm_crown.",
             "Roboflow-side augmentation has already been applied, so project training config disables additional augmentation for the first baseline.",
-            "License is recorded as Unknown until Roboflow/source permissions are documented.",
+            license_note,
         ]
         return UAVCocoImportSummary(
             dataset_version=self.dataset_version,
@@ -279,6 +286,7 @@ class UAVRoboflowCocoImporter(BaseImporter):
             labels=UAV_LABELS,
             split_strategy="preserve_roboflow_train_valid_test",
             image_count=len(samples),
+            source_annotation_count=annotation_count,
             annotation_count=annotation_count,
             split_counts=dict(sorted(split_counts.items())),
             split_annotation_counts=dict(sorted(split_annotation_counts.items())),
@@ -350,6 +358,7 @@ class UAVRoboflowCocoImporter(BaseImporter):
             shutil.copy2(sample.source_image_path, image_out)
 
             lines: list[str] = []
+            valid_annotations: list[UAVCocoAnnotation] = []
             for annotation in sample.annotations:
                 clipped, was_clipped = _clip_bbox(annotation.bbox_xywh, sample.width, sample.height)
                 if was_clipped:
@@ -367,8 +376,16 @@ class UAVRoboflowCocoImporter(BaseImporter):
                     f"{x_center:.6f} {y_center:.6f} "
                     f"{norm_width:.6f} {norm_height:.6f}"
                 )
+                valid_annotations.append(
+                    UAVCocoAnnotation(
+                        bbox_xywh=clipped,
+                        source_category_id=annotation.source_category_id,
+                        source_label=annotation.source_label,
+                    )
+                )
 
             label_out.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+            sample.annotations = valid_annotations
 
         self._write_data_yaml(yolo_root)
         return clipped_count, skipped_count
@@ -514,6 +531,21 @@ def _license_name(licenses: list[dict[str, Any]]) -> str:
     return licenses[0].get("name") or "Unknown"
 
 
+def _license_status(source_packages: list[dict[str, Any]]) -> str:
+    licenses = sorted(
+        {
+            str(source.get("license") or "Unknown").strip() or "Unknown"
+            for source in source_packages
+        }
+    )
+    known = [license_name for license_name in licenses if license_name != "Unknown"]
+    if not known:
+        return "Unknown"
+    if len(known) == 1 and len(licenses) == 1:
+        return known[0]
+    return "Mixed: " + ", ".join(licenses)
+
+
 def _metadata_path(path: str | Path) -> str:
     resolved = Path(path).resolve()
     try:
@@ -582,6 +614,21 @@ def _split_manifest(
     }
 
 
+def _sync_effective_annotation_counts(
+    summary: UAVCocoImportSummary,
+    samples: list[UAVCocoSample],
+) -> None:
+    split_annotation_counts = Counter()
+    for sample in samples:
+        split_annotation_counts[sample.split] += len(sample.annotations)
+
+    annotation_count = sum(split_annotation_counts.values())
+    summary.annotation_count = annotation_count
+    summary.split_annotation_counts = dict(sorted(split_annotation_counts.items()))
+    summary.label_counts = {"oil_palm_crown": annotation_count}
+    summary.empty_label_images = sum(1 for sample in samples if not sample.annotations)
+
+
 def _qa_report(summary: UAVCocoImportSummary) -> dict[str, Any]:
     return {
         "task": "uav_tree_crown",
@@ -596,7 +643,7 @@ def _qa_report(summary: UAVCocoImportSummary) -> dict[str, Any]:
             "empty_label_images": summary.empty_label_images,
             "clipped_bboxes": summary.clipped_bboxes,
             "skipped_annotations_after_clipping": summary.skipped_annotations,
-            "license_status": "Unknown",
+            "license_status": _license_status(summary.source_packages),
         },
         "notes": summary.notes,
     }
@@ -628,12 +675,13 @@ def _write_sources_csv(path: Path, summary: UAVCocoImportSummary) -> None:
                     "license": source.get("license") or "Unknown",
                     "images": source["images"],
                     "annotations": source["annotations"],
-                    "notes": "Roboflow COCO export; private API key omitted; license pending verification",
+                    "notes": "Roboflow COCO export; private API key omitted",
                 }
             )
 
 
 def _dataset_card(summary: UAVCocoImportSummary) -> str:
+    license_status = _license_status(summary.source_packages)
     return f"""# UAV Tree Crown Dataset
 
 ## Status
@@ -651,7 +699,8 @@ label. This model does not classify health, disease, growth, maturity, or yield.
 ## Counts
 
 - Images: {summary.image_count}
-- Annotations: {summary.annotation_count}
+- Source annotations: {summary.source_annotation_count}
+- Effective YOLO annotations: {summary.annotation_count}
 - Split counts: {json.dumps(summary.split_counts, ensure_ascii=False)}
 - Label counts: {json.dumps(summary.label_counts, ensure_ascii=False)}
 - Empty-label images: {summary.empty_label_images}
@@ -660,8 +709,8 @@ label. This model does not classify health, disease, growth, maturity, or yield.
 ## Sources And License
 
 Source exports are stored outside Git and can be copied into the ignored `raw/`
-layer when `--copy-raw` is used. License is currently recorded as `Unknown`;
-verify source permissions before publishing trained weights.
+layer when `--copy-raw` is used. License status: `{license_status}` as reported
+by source metadata; verify source permissions before publishing trained weights.
 
 ## Notes
 
@@ -715,6 +764,7 @@ def _manifest(summary: UAVCocoImportSummary) -> dict[str, Any]:
             "val": summary.split_counts.get("val", 0),
             "test": summary.split_counts.get("test", 0),
             "total": summary.image_count,
+            "source_annotations": summary.source_annotation_count,
             "annotations": summary.annotation_count,
             "labels": summary.label_counts,
         },
