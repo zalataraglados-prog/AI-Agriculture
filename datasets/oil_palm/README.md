@@ -28,20 +28,24 @@ Ignored training data:
 
 ## Current UAV Dataset Preparation
 
-`uav_tree_crown` is ready for the first Roboflow COCO-to-YOLO training run. The
-source root is supplied with `--source-root` or `OIL_PALM_UAV_SOURCE_ROOT`; raw
-exports and generated YOLO files are not committed.
+`uav_tree_crown` now has a first trained YOLOv8n baseline from the Roboflow
+COCO-to-YOLO workflow. The source root is supplied with `--source-root` or
+`OIL_PALM_UAV_SOURCE_ROOT`; raw exports and generated YOLO files are not
+committed.
 
 - Dataset version: `roboflow_uva_crown_v1_2026_05_26`
 - Labels: `oil_palm_crown`
 - Images: 1785
-- Bboxes: 3400+
+- Source bboxes: 4111
+- Effective YOLO bboxes: 4110
 - Roboflow split: train 1470 / val 158 / test 157
-- License: `Unknown` until source-specific permissions are verified
+- License: `CC BY 4.0` as reported by source metadata
 - Note: UAV v1 remains single-class crown localization. It is not a
   health-status classifier.
 - Roboflow-side augmentation has already been applied, so additional training
   augmentation is disabled for the first baseline.
+- First baseline test metrics: mAP50 0.9717, mAP50-95 0.7834, precision 0.9582,
+  recall 0.9378.
 
 Tracked metadata:
 

@@ -143,6 +143,11 @@ while preserving the Roboflow train/valid/test split. The prepared metadata is
 tracked in `datasets/oil_palm/manifests/uav_tree_crown.json`; runtime still uses
 the UAV mock predictor until evaluated weights are integrated.
 
+The first UAV YOLOv8n baseline is documented under
+`models/oil_palm/uav_tree_crown/`: `metrics.json` records Colab handoff metrics,
+`inference_config.yaml` records intended runtime settings, and
+`runs/uav_yolo_tree_crown_detector_v1/weights/best.pt` is ignored by Git.
+
 Ganoderma v1 can now run as a real ResNet18 classifier for
 `image_role=trunk_base` in `hybrid` or `real` mode. It loads a PyTorch
 `state_dict` from `OIL_PALM_GANODERMA_MODEL_PATH`, uses the two active classes

@@ -2,10 +2,10 @@
 
 ## Status
 
-Training preparation ready. The real image/annotation files are expected to
-come from Roboflow project `doyles-workspace/uva_crown`, version 1, downloaded
-as COCO. Raw exports and generated YOLO files remain outside Git under the
-ignored `raw/` and `yolo/` layers.
+First YOLOv8n baseline trained from Roboflow project
+`doyles-workspace/uva_crown`, version 1, downloaded as COCO and converted into
+the project YOLO layout. Raw exports and generated YOLO files remain outside Git
+under the ignored `raw/` and `yolo/` layers.
 
 ## Labels
 
@@ -17,15 +17,27 @@ categories are normalized to `oil_palm_crown`.
 ## Expected Counts
 
 - Images: 1785
-- Annotations: 3400+ bboxes
+- Source annotations: 4111 bboxes
+- Effective YOLO annotations: 4110 bboxes
 - Roboflow split: train 1470 / val 158 / test 157
-- Label counts: `{"oil_palm_crown": "3400+"}`
+- Label counts: `{"oil_palm_crown": 4110}`
+- Conversion note: one invalid bbox was skipped
 
 ## Sources And License
 
 - Source: Roboflow project `doyles-workspace/uva_crown`, version 1
 - URL without private key: `https://app.roboflow.com/doyles-workspace/uva_crown`
-- License: `Unknown` until source permissions are verified
+- License: `CC BY 4.0` as reported by source metadata
+
+## Training Result
+
+- Model version: `oil_palm_uav_yolo_tree_crown_detector_v1`
+- Framework: YOLOv8
+- Test mAP50: 0.9717
+- Test mAP50-95: 0.7834
+- Test precision: 0.9582
+- Test recall: 0.9378
+- Validation mAP50: 0.9766
 
 Do not commit the Roboflow API key, raw images, generated YOLO files, or model
 weights. The Colab notebook on the Desktop may contain the private export

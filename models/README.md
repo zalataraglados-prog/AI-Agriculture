@@ -16,13 +16,18 @@ wiring is implemented.
 
 ## Current UAV Training Prep
 
-`models/oil_palm/uav_tree_crown/` now contains the first UAV YOLO training
-configuration:
+`models/oil_palm/uav_tree_crown/` now contains the first UAV YOLO baseline
+metadata:
 
 - `training_config.example.yaml` records Colab-ready YOLOv8n defaults and
   disables extra augmentation because the Roboflow export is already augmented.
+- `metrics.json` records the Colab handoff metrics for
+  `oil_palm_uav_yolo_tree_crown_detector_v1`.
+- `inference_config.yaml` records the intended ignored weight path for future
+  runtime wiring.
 - `model_card.md` documents the single-class crown-detection scope.
-- `metrics.example.json` remains the template until the first training run.
+- `runs/uav_yolo_tree_crown_detector_v1/` contains local training artifacts and
+  weights, but this directory is ignored by Git.
 
 The prepared dataset metadata is tracked under
 `datasets/oil_palm/manifests/uav_tree_crown.json`; raw COCO exports, generated

@@ -46,7 +46,7 @@ models/oil_palm/
 | Task | Type | Suggested framework | Current status | Labels |
 | --- | --- | --- | --- | --- |
 | `ffb_maturity` | object detection + maturity class | YOLO family | mock | 6 |
-| `uav_tree_crown` | object detection | YOLOv8 | training prep ready; runtime mock | 1 |
+| `uav_tree_crown` | object detection | YOLOv8 | trained baseline artifact; runtime mock | 1 |
 | `ganoderma_risk` | image classification | ResNet18 | trained v1; AI Engine runtime supported | 3 |
 | `a0_image_routing` | structure detection + routing | YOLOv8 | trained baseline artifact; AI Engine runtime supported | 3 |
 
@@ -73,9 +73,13 @@ Future per-task branches will enable these path variables:
 `models/oil_palm/uav_tree_crown/training_config.example.yaml` records the first
 UAV YOLO baseline defaults. The prepared Roboflow dataset metadata lives in
 `datasets/oil_palm/manifests/uav_tree_crown.json`; the source is Roboflow
-`doyles-workspace/uva_crown` version 1 with 1785 images and 3400+ single-class
-crown boxes. Its train/valid/test split is preserved. Runtime still uses the
-UAV mock predictor until a trained weight is evaluated and integrated.
+`doyles-workspace/uva_crown` version 1 with 1785 images and 4110 effective
+single-class crown boxes after one invalid source bbox was skipped. Its
+train/valid/test split is preserved.
+
+The first trained UAV baseline records its local ignored artifact path in
+`models/oil_palm/uav_tree_crown/inference_config.yaml`. Runtime still uses the
+UAV mock predictor until a real UAV predictor is implemented, wired, and tested.
 
 The first trained A0 baseline records its local ignored artifact path in
 `models/oil_palm/a0_image_routing/inference_config.yaml`. Runtime code can load

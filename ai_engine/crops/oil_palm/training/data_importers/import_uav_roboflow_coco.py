@@ -136,6 +136,7 @@ class UAVRoboflowCocoImporter(BaseImporter):
             summary.clipped_bboxes = clipped
             summary.skipped_annotations = skipped
             summary.annotation_count = sum(summary.label_counts.values()) - skipped
+            summary.label_counts["oil_palm_crown"] = summary.annotation_count
             self._write_metadata(summary, samples)
 
         return ImportResult(

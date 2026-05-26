@@ -1,0 +1,64 @@
+{
+  "model_version": "oil_palm_uav_yolo_tree_crown_detector_v1",
+  "framework": "YOLOv8",
+  "task": "uav_tree_crown",
+  "dataset_version": "roboflow_uva_crown_v1_2026_05_26",
+  "dataset_manifest": "datasets/oil_palm/manifests/uav_tree_crown.json",
+  "labels": [
+    "oil_palm_crown"
+  ],
+  "artifacts": {
+    "weights": "models/oil_palm/uav_tree_crown/runs/uav_yolo_tree_crown_detector_v1/weights/best.pt",
+    "last_weights": "models/oil_palm/uav_tree_crown/runs/uav_yolo_tree_crown_detector_v1/weights/last.pt",
+    "results_csv": "models/oil_palm/uav_tree_crown/runs/uav_yolo_tree_crown_detector_v1/results.csv"
+  },
+  "metrics": {
+    "source": "test_set",
+    "mAP50": 0.9717268353949424,
+    "mAP50_95": 0.7834235762218646,
+    "precision": 0.9582295867862352,
+    "recall": 0.9378378378378378,
+    "per_class": {
+      "oil_palm_crown": {
+        "ap50": 0.9717268353949424,
+        "precision": 0.9582295867862352,
+        "recall": 0.9378378378378378
+      }
+    }
+  },
+  "validation_metrics": {
+    "mAP50": 0.9765763236733379,
+    "mAP50_95": 0.7770053834132322,
+    "precision": 0.9046785822417246,
+    "recall": 0.9490839424104895
+  },
+  "inference": {
+    "input_size": [
+      640,
+      640
+    ],
+    "device": "colab_gpu"
+  },
+  "training": {
+    "config": "models/oil_palm/uav_tree_crown/training_config.example.yaml",
+    "epochs_configured": 100,
+    "batch_size_configured": 16,
+    "seed": 42,
+    "split": "preserved_roboflow_train_valid_test",
+    "dataset_sizes": {
+      "test": 157,
+      "train": 1470,
+      "val": 158
+    },
+    "source_annotations": 4111,
+    "effective_yolo_annotations": 4110,
+    "skipped_annotations": 1,
+    "augmentation": "disabled because Roboflow-side augmentation was already applied"
+  },
+  "notes": [
+    "Weights are not committed to Git.",
+    "UAV model detects per-tile crowns only; Cloud handles global coordinates, NMS, confirmation, and tree_code creation.",
+    "Roboflow-side augmentation was already applied; additional training augmentation was disabled for this baseline.",
+    "Review source license before publishing trained weights."
+  ]
+}
