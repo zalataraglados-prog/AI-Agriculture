@@ -1,0 +1,24 @@
+{
+  "task": "uav_tree_crown",
+  "dataset_version": "roboflow_uva_crown_v1_2026_05_26",
+  "checks": {
+    "labels_match_project_standard": true,
+    "single_project_class_only": true,
+    "source_health_labels_used": false,
+    "source_split_preserved": true,
+    "extra_local_split_generated": false,
+    "extra_training_augmentation_required": false,
+    "empty_label_images": 0,
+    "clipped_bboxes": 0,
+    "skipped_annotations_after_clipping": 1,
+    "license_status": "CC BY 4.0"
+  },
+  "notes": [
+    "Generated from Roboflow COCO export version uva_crown/1.",
+    "Source train/valid/test splits are preserved; no extra split is generated.",
+    "All source categories are normalized to the single project label oil_palm_crown.",
+    "Roboflow-side augmentation has already been applied, so project training config disables additional augmentation for the first baseline.",
+    "Source metadata reports CC BY 4.0.",
+    "One invalid bbox was skipped during YOLO conversion."
+  ]
+}

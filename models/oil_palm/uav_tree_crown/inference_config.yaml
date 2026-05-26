@@ -1,0 +1,13 @@
+model_version: oil_palm_uav_yolo_tree_crown_detector_v1
+task: uav_tree_crown
+framework: YOLOv8
+labels_file: models/oil_palm/uav_tree_crown/labels.json
+weights: models/oil_palm/uav_tree_crown/runs/uav_yolo_tree_crown_detector_v1/weights/best.pt
+input_size: 640
+confidence_threshold: 0.5
+iou_threshold: 0.7
+max_detections: 1000
+notes:
+  - UAV v1 detects oil_palm_crown candidates in orthomosaic tiles only.
+  - Cloud remains responsible for tile offsets, global coordinates, NMS, human confirmation, and tree_code creation.
+  - Runtime predictor integration is pending; AI Engine should stay on mock fallback until explicitly wired.

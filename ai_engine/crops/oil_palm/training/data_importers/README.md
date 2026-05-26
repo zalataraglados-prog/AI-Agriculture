@@ -18,6 +18,8 @@ import_{task}_{source_short_name}.py
 - `import_ffb_roboflow.py` — Roboflow FFB 数据集转换器
 - `import_ganoderma_csv_dataset.py` — CSV 格式 Ganoderma 数据集转换器
 - `import_uav_coco_dataset.py` — COCO 格式 UAV 树冠数据集转换器
+- `import_uav_roboflow_coco.py` — Roboflow COCO 格式 UAV 树冠数据集转换器
+- `import_uav_roboflow_yolo.py` — Roboflow YOLO 格式 UAV 树冠数据集转换器
 
 ## 实现规范
 

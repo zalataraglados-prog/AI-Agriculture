@@ -1,0 +1,78 @@
+{
+  "dataset_version": "roboflow_uva_crown_v1_2026_05_26",
+  "source_root": "uva_crown-1",
+  "output_root": "datasets/oil_palm/uav_tree_crown",
+  "labels": [
+    "oil_palm_crown"
+  ],
+  "split_strategy": "preserve_roboflow_train_valid_test",
+  "image_count": 1785,
+  "source_annotation_count": 4111,
+  "annotation_count": 4110,
+  "split_counts": {
+    "test": 157,
+    "train": 1470,
+    "val": 158
+  },
+  "split_annotation_counts": {
+    "test": 370,
+    "train": 3400,
+    "val": 341
+  },
+  "label_counts": {
+    "oil_palm_crown": 4110
+  },
+  "empty_label_images": 0,
+  "clipped_bboxes": 0,
+  "skipped_annotations": 1,
+  "source_class_counts": {
+    "1": 4111
+  },
+  "source_labels_seen": {
+    "0": "Healthy-BSR-Non-BSR",
+    "1": "oil_palm_crown"
+  },
+  "source_packages": [
+    {
+      "name": "roboflow_uav_crown_train",
+      "split": "train",
+      "project_split": "train",
+      "annotation_path": "uva_crown-1/train/_annotations.coco.json",
+      "images": 1470,
+      "annotations": 3400,
+      "license": "CC BY 4.0",
+      "roboflow_url": "https://public.roboflow.com/object-detection/undefined",
+      "date_created": "2026-05-26T05:13:17+00:00"
+    },
+    {
+      "name": "roboflow_uav_crown_valid",
+      "split": "valid",
+      "project_split": "val",
+      "annotation_path": "uva_crown-1/valid/_annotations.coco.json",
+      "images": 158,
+      "annotations": 341,
+      "license": "CC BY 4.0",
+      "roboflow_url": "https://public.roboflow.com/object-detection/undefined",
+      "date_created": "2026-05-26T05:13:17+00:00"
+    },
+    {
+      "name": "roboflow_uav_crown_test",
+      "split": "test",
+      "project_split": "test",
+      "annotation_path": "uva_crown-1/test/_annotations.coco.json",
+      "images": 157,
+      "annotations": 370,
+      "license": "CC BY 4.0",
+      "roboflow_url": "https://public.roboflow.com/object-detection/undefined",
+      "date_created": "2026-05-26T05:13:17+00:00"
+    }
+  ],
+  "notes": [
+    "Generated from Roboflow COCO export version uva_crown/1.",
+    "Source train/valid/test splits are preserved; no extra split is generated.",
+    "All source categories are normalized to the single project label oil_palm_crown.",
+    "Roboflow-side augmentation has already been applied, so project training config disables additional augmentation for the first baseline.",
+    "Source metadata reports CC BY 4.0.",
+    "One invalid bbox was skipped during YOLO conversion, leaving 4110 effective training annotations from 4111 source bboxes."
+  ]
+}

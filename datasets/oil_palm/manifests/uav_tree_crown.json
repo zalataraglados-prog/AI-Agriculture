@@ -1,0 +1,74 @@
+{
+  "task": "uav_tree_crown",
+  "version": "roboflow_uva_crown_v1_2026_05_26",
+  "description": "UAV tile oil palm crown detection dataset generated from Roboflow COCO export",
+  "internal_training_standard": {
+    "format": "yolo_detection",
+    "source_format": "roboflow_coco",
+    "annotation_type": "bbox",
+    "image_size": null,
+    "coordinate_system": "normalized_xywh"
+  },
+  "sources": [
+    {
+      "name": "roboflow_uav_crown_train",
+      "format": "roboflow_coco",
+      "annotation_path": "uva_crown-1/train/_annotations.coco.json",
+      "license": "CC BY 4.0",
+      "url": "https://app.roboflow.com/doyles-workspace/uva_crown",
+      "images": 1470,
+      "annotations": 3400,
+      "importer": "import_uav_roboflow_coco.py"
+    },
+    {
+      "name": "roboflow_uav_crown_valid",
+      "format": "roboflow_coco",
+      "annotation_path": "uva_crown-1/valid/_annotations.coco.json",
+      "license": "CC BY 4.0",
+      "url": "https://app.roboflow.com/doyles-workspace/uva_crown",
+      "images": 158,
+      "annotations": 341,
+      "importer": "import_uav_roboflow_coco.py"
+    },
+    {
+      "name": "roboflow_uav_crown_test",
+      "format": "roboflow_coco",
+      "annotation_path": "uva_crown-1/test/_annotations.coco.json",
+      "license": "CC BY 4.0",
+      "url": "https://app.roboflow.com/doyles-workspace/uva_crown",
+      "images": 157,
+      "annotations": 370,
+      "importer": "import_uav_roboflow_coco.py"
+    }
+  ],
+  "label_map": {
+    "0": "oil_palm_crown"
+  },
+  "label_notes": "Single-class crown detection. Source categories are normalized to oil_palm_crown; health/status labels are not part of UAV v1.",
+  "split_strategy": {
+    "method": "preserve_roboflow_train_valid_test",
+    "ratios": null,
+    "seed": null,
+    "constraint": "Roboflow train/valid/test split is preserved."
+  },
+  "expected_counts": {
+    "train": 1470,
+    "val": 158,
+    "test": 157,
+    "total": 1785,
+    "source_annotations": 4111,
+    "annotations": 4110,
+    "labels": {
+      "oil_palm_crown": 4110
+    }
+  },
+  "importer_directory": "ai_engine/crops/oil_palm/training/data_importers/",
+  "notes": [
+    "Generated from Roboflow COCO export version uva_crown/1.",
+    "Source train/valid/test splits are preserved; no extra split is generated.",
+    "All source categories are normalized to the single project label oil_palm_crown.",
+    "Roboflow-side augmentation has already been applied, so project training config disables additional augmentation for the first baseline.",
+    "Source metadata reports CC BY 4.0.",
+    "One invalid bbox was skipped during YOLO conversion, leaving 4110 effective training annotations from 4111 source bboxes."
+  ]
+}

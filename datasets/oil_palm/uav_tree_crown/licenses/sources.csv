@@ -1,0 +1,4 @@
+dataset_version,source_name,source_path,roboflow_url,license,images,annotations,notes
+roboflow_uva_crown_v1_2026_05_26,Roboflow UAV Oil Palm Crown Export train,<external>/uva_crown-1/train/_annotations.coco.json,https://app.roboflow.com/doyles-workspace/uva_crown,CC BY 4.0,1470,3400,Private Roboflow API key omitted
+roboflow_uva_crown_v1_2026_05_26,Roboflow UAV Oil Palm Crown Export valid,<external>/uva_crown-1/valid/_annotations.coco.json,https://app.roboflow.com/doyles-workspace/uva_crown,CC BY 4.0,158,341,Private Roboflow API key omitted
+roboflow_uva_crown_v1_2026_05_26,Roboflow UAV Oil Palm Crown Export test,<external>/uva_crown-1/test/_annotations.coco.json,https://app.roboflow.com/doyles-workspace/uva_crown,CC BY 4.0,157,370,Private Roboflow API key omitted
