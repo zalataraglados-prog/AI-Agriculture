@@ -75,6 +75,10 @@ CROP_PROFILE=oil_palm uvicorn ai_engine.main:app --reload --host 0.0.0.0 --port 
 | `OIL_PALM_GANODERMA_METRICS_FILE` | Ganoderma metrics/model metadata file | `models/oil_palm/ganoderma_risk/metrics.json` |
 | `OIL_PALM_GANODERMA_DEVICE` | Ganoderma runtime device: `cpu`, `cuda`, or `auto` | `cpu` |
 | `OIL_PALM_GANODERMA_MODEL_VERSION` | Optional Ganoderma model version override | metrics `model_version` |
+| `OIL_PALM_UAV_CROWN_MODEL_PATH` | UAV crown YOLO weights path | `models/oil_palm/uav_tree_crown/runs/uav_yolo_tree_crown_detector_v1/weights/best.pt` |
+| `OIL_PALM_UAV_CROWN_LABELS_FILE` | UAV crown YOLO labels file | `models/oil_palm/uav_tree_crown/labels.json` |
+| `OIL_PALM_UAV_CROWN_CONFIG_FILE` | UAV crown inference config file | `models/oil_palm/uav_tree_crown/inference_config.yaml` |
+| `OIL_PALM_UAV_CROWN_CONFIDENCE_THRESHOLD` | UAV crown confidence threshold override | generic threshold or config |
 
 `OIL_PALM_A0_MODEL_PATH` can point at the trained A0 YOLO baseline recorded in
 `models/oil_palm/a0_image_routing/inference_config.yaml`.
@@ -102,16 +106,17 @@ Oil palm:
 
 ## Oil Palm Model Modes
 
-The service still defaults to mock predictors. A0 and Ganoderma can be enabled
-per task by mounting weights and switching `OIL_PALM_MODEL_MODE`.
+The service still defaults to mock predictors. A0, Ganoderma, and UAV crown can
+be enabled per task by mounting weights and switching `OIL_PALM_MODEL_MODE`.
 
 - `mock`: all tasks use mock predictors. This is the default and is safe for CI,
   demos, and environments without weights.
-- `hybrid`: registers real A0 and/or Ganoderma predictors when their weights and
-  dependencies are available, then keeps missing FFB/Growth/UAV tasks on safe
-  mock fallback. This is the recommended Ganoderma v1 deployment mode.
-- `real`: requires the currently integrated real A0 and Ganoderma predictors to
-  load successfully.
+- `hybrid`: registers real A0, Ganoderma, and/or UAV predictors when their
+  weights and dependencies are available, then keeps missing FFB/Growth tasks
+  and unconfigured predictors on safe mock fallback. This is the recommended
+  incremental deployment mode.
+- `real`: requires the currently integrated real A0, Ganoderma, and UAV
+  predictors to load successfully.
 
 Current oil palm image role routing:
 
@@ -155,6 +160,15 @@ recorded in `models/oil_palm/ganoderma_risk/metrics.json`, and returns only
 `healthy` or `suspected_risk`. `other_stress_unknown` remains a reserved future
 label. Positive outputs are risk-screening signals only; `confirmed` is not a
 model diagnosis label.
+
+UAV tree crown can now run as a real YOLOv8 detector for `image_role=uav_tile`
+in `hybrid` or `real` mode once the UAV feature branch provides
+`models/oil_palm/uav_tree_crown/inference_config.yaml` and the ignored
+`runs/uav_yolo_tree_crown_detector_v1/weights/best.pt` artifact. It returns
+tile-normalized `oil_palm_crown` bbox candidates with
+`review_status=requires_human_confirmation`; Cloud remains responsible for tile
+offsets, global coordinates, cross-tile NMS, confirmation, and `tree_code`
+assignment.
 
 Minimal Ganoderma v1 runtime example:
 

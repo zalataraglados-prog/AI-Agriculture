@@ -12,6 +12,9 @@ from ai_engine.crops.oil_palm.inference.a0_yolo_predictor import (
 from ai_engine.crops.oil_palm.inference.ganoderma_resnet_predictor import (
     build_ganoderma_resnet_predictor_from_env,
 )
+from ai_engine.crops.oil_palm.inference.uav_yolo_predictor import (
+    build_uav_yolo_predictor_from_env,
+)
 from ai_engine.crops.oil_palm.inference.mock_predictors import (
     A0StructureMockPredictor,
     FFBMockPredictor,
@@ -148,7 +151,7 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
     - mock:   All tasks use mock predictors. No real weights needed.
               Suitable for demo, CI, and environments without model files.
     - real:   Require configured real predictors for the currently integrated
-              A0 and Ganoderma runtime branches.
+              A0, Ganoderma, and UAV runtime branches.
     - hybrid: Use configured real predictors and keep missing per-task models on
               safe mock fallback.
     """
@@ -198,6 +201,23 @@ def build_default_oil_palm_pipeline() -> OilPalmPipeline:
                 ) from exc
             logger.warning(
                 "Ganoderma real predictor unavailable in hybrid mode; falling back "
+                "to mock: %s",
+                exc,
+            )
+
+        try:
+            real_predictors["uav_tree_crown"] = build_uav_yolo_predictor_from_env()
+            logger.info("  [uav_tree_crown] registered real YOLO predictor")
+        except Exception as exc:
+            if mode == "real":
+                raise RuntimeError(
+                    "OIL_PALM_MODEL_MODE=real requires a usable UAV crown YOLO "
+                    "predictor. Set OIL_PALM_UAV_CROWN_MODEL_PATH/"
+                    "OIL_PALM_UAV_CROWN_LABELS_FILE and install oil palm inference "
+                    "dependencies."
+                ) from exc
+            logger.warning(
+                "UAV crown real predictor unavailable in hybrid mode; falling back "
                 "to mock: %s",
                 exc,
             )

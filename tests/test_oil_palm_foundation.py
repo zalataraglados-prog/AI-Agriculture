@@ -538,6 +538,10 @@ class TestPipelineMode:
             "OIL_PALM_GANODERMA_MODEL_PATH",
             str(MODELS_OIL_PALM / "ganoderma_risk" / "missing_best.pth"),
         )
+        monkeypatch.setenv(
+            "OIL_PALM_UAV_CROWN_MODEL_PATH",
+            str(MODELS_OIL_PALM / "uav_tree_crown" / "missing_best.pt"),
+        )
         pipeline_mod = self._reload_pipeline(monkeypatch, "hybrid")
 
         pipeline = pipeline_mod.build_default_oil_palm_pipeline()
