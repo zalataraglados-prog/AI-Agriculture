@@ -1,4 +1,4 @@
-"""Prepare the UAV tree crown YOLO dataset from a Roboflow export."""
+"""Prepare the UAV tree crown YOLO dataset from a Roboflow COCO export."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import json
 import os
 from pathlib import Path
 
-from ai_engine.crops.oil_palm.training.data_importers.import_uav_roboflow_yolo import (
-    UAVRoboflowYoloImporter,
+from ai_engine.crops.oil_palm.training.data_importers.import_uav_roboflow_coco import (
+    UAVRoboflowCocoImporter,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -18,12 +18,12 @@ DEFAULT_SOURCE_ROOT = DEFAULT_OUTPUT_ROOT / "raw"
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Convert UAV Roboflow YOLO exports into project YOLO format.",
+        description="Convert UAV Roboflow COCO exports into project YOLO format.",
     )
     parser.add_argument(
         "--source-root",
         default=os.environ.get("OIL_PALM_UAV_SOURCE_ROOT", str(DEFAULT_SOURCE_ROOT)),
-        help="Directory containing the Roboflow YOLO train export.",
+        help="Directory containing the Roboflow COCO export with train/valid/test folders.",
     )
     parser.add_argument(
         "--output-root",
@@ -32,15 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--dataset-version",
-        default="roboflow_uav_tree_crown_2026_05_26",
+        default="roboflow_uva_crown_v1_2026_05_26",
         help="Version string written to manifest and metadata.",
-    )
-    parser.add_argument("--seed", type=int, default=42, help="Deterministic split seed.")
-    parser.add_argument(
-        "--split-grouping",
-        choices=["filename", "mission_hint"],
-        default="filename",
-        help="Best-effort split grouping strategy when mission IDs are unavailable.",
     )
     parser.add_argument(
         "--copy-raw",
@@ -62,12 +55,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    importer = UAVRoboflowYoloImporter(
+    importer = UAVRoboflowCocoImporter(
         raw_dir=args.source_root,
         output_dir=args.output_root,
         dataset_version=args.dataset_version,
-        seed=args.seed,
-        split_grouping=args.split_grouping,
         copy_raw=args.copy_raw,
         overwrite=args.overwrite,
         dry_run=args.dry_run,

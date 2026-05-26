@@ -5,12 +5,12 @@ train:
   data: datasets/oil_palm/uav_tree_crown/yolo/data.yaml
   project: models/oil_palm/uav_tree_crown/runs
   name: uav_yolo_tree_crown_detector_v1
-  epochs: 120
+  epochs: 100
   imgsz: 640
   batch: 16
   device: null
   workers: 4
-  patience: 30
+  patience: 20
   seed: 42
   optimizer: auto
   cache: false
@@ -18,18 +18,18 @@ train:
   pretrained: true
 
 augment:
-  degrees: 20
-  translate: 0.1
-  scale: 0.5
-  shear: 1
-  perspective: 0.0002
-  fliplr: 0.5
-  flipud: 0.5
-  hsv_h: 0.015
-  hsv_s: 0.4
-  hsv_v: 0.3
-  mosaic: 0.7
-  mixup: 0.05
+  degrees: 0
+  translate: 0.0
+  scale: 0.0
+  shear: 0
+  perspective: 0.0
+  fliplr: 0.0
+  flipud: 0.0
+  hsv_h: 0.0
+  hsv_s: 0.0
+  hsv_v: 0.0
+  mosaic: 0.0
+  mixup: 0.0
   copy_paste: 0.0
 
 outputs:
@@ -40,5 +40,6 @@ outputs:
 notes:
   - UAV v1 is a single-class oil_palm_crown detector.
   - Cloud remains responsible for tile offsets, global coordinates, NMS, and human confirmation.
-  - The first Roboflow export has no validation/test split, so preparation creates a deterministic 70/15/15 split.
+  - Roboflow version 1 already provides train/valid/test splits; preparation preserves them.
+  - Roboflow-side augmentation has already been applied, so additional Ultralytics augmentation is disabled for the first baseline.
   - Review license status before publishing trained weights.

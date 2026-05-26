@@ -1,4 +1,4 @@
-"""Tests for UAV tree crown Roboflow YOLO dataset preparation."""
+"""Tests for UAV tree crown Roboflow COCO dataset preparation."""
 
 from __future__ import annotations
 
@@ -8,39 +8,21 @@ from pathlib import Path
 from PIL import Image
 
 
-def test_uav_roboflow_importer_writes_project_yolo_layout(tmp_path: Path) -> None:
-    from ai_engine.crops.oil_palm.training.data_importers.import_uav_roboflow_yolo import (
-        UAVRoboflowYoloImporter,
+def test_uav_roboflow_coco_importer_preserves_source_splits(tmp_path: Path) -> None:
+    from ai_engine.crops.oil_palm.training.data_importers.import_uav_roboflow_coco import (
+        UAVRoboflowCocoImporter,
     )
 
-    raw_root = tmp_path / "roboflow_export"
-    train_dir = raw_root / "train"
-    train_dir.mkdir(parents=True)
-    (raw_root / "data.yaml").write_text(
-        "names:\n"
-        "  0: Healthy-BSR-Non-BSR\n"
-        "  1: oil_palm_crown\n",
-        encoding="utf-8",
-    )
-
-    for index in range(10):
-        image_name = f"tile_{index:02d}.jpg"
-        Image.new("RGB", (128, 128), color=(20 + index, 90, 40)).save(train_dir / image_name)
-        source_class = 1 if index % 2 else 0
-        label_lines = [
-            f"{source_class} 0.500000 0.500000 0.250000 0.250000",
-            f"{source_class} 1.050000 0.500000 0.200000 0.200000",
-        ]
-        (train_dir / f"tile_{index:02d}.txt").write_text(
-            "\n".join(label_lines) + "\n",
-            encoding="utf-8",
-        )
+    raw_root = tmp_path / "uva_crown-1"
+    _write_coco_split(raw_root, "train", image_count=7, start_id=1, source_label="oil_palm_crown")
+    _write_coco_split(raw_root, "valid", image_count=2, start_id=101, source_label="Healthy-BSR-Non-BSR")
+    _write_coco_split(raw_root, "test", image_count=1, start_id=201, source_label="oil_palm_crown")
 
     output_root = tmp_path / "datasets" / "oil_palm" / "uav_tree_crown"
-    importer = UAVRoboflowYoloImporter(
+    importer = UAVRoboflowCocoImporter(
         raw_dir=raw_root,
         output_dir=output_root,
-        dataset_version="test_uav",
+        dataset_version="test_uav_coco",
         overwrite=True,
     )
 
@@ -54,13 +36,25 @@ def test_uav_roboflow_importer_writes_project_yolo_layout(tmp_path: Path) -> Non
     assert "0: oil_palm_crown" in data_yaml
     assert "Healthy-BSR-Non-BSR" not in data_yaml
 
-    image_files = list((output_root / "yolo" / "images").rglob("*.jpg"))
-    label_files = list((output_root / "yolo" / "labels").rglob("*.txt"))
-    assert len(image_files) == 10
-    assert len(label_files) == 10
-    assert all(path.name.startswith("uav_crown_") for path in image_files)
+    split_manifest = json.loads(
+        (output_root / "splits" / "split_manifest.json").read_text(encoding="utf-8")
+    )
+    assert split_manifest["split_strategy"]["method"] == "preserve_roboflow_train_valid_test"
+    assert split_manifest["counts"]["splits"] == {"test": 1, "train": 7, "val": 2}
+    assert split_manifest["counts"]["annotations"] == 20
 
-    for label_file in label_files:
+    split_paths = {
+        split: set((output_root / "splits" / f"{split}.txt").read_text(encoding="utf-8").split())
+        for split in ("train", "val", "test")
+    }
+    assert len(split_paths["train"]) == 7
+    assert len(split_paths["val"]) == 2
+    assert len(split_paths["test"]) == 1
+    assert not (split_paths["train"] & split_paths["val"])
+    assert not (split_paths["train"] & split_paths["test"])
+    assert not (split_paths["val"] & split_paths["test"])
+
+    for label_file in (output_root / "yolo" / "labels").rglob("*.txt"):
         for line in label_file.read_text(encoding="utf-8").splitlines():
             parts = line.split()
             assert len(parts) == 5
@@ -70,58 +64,43 @@ def test_uav_roboflow_importer_writes_project_yolo_layout(tmp_path: Path) -> Non
             assert values[2] > 0.0
             assert values[3] > 0.0
 
-    split_manifest = json.loads(
-        (output_root / "splits" / "split_manifest.json").read_text(encoding="utf-8")
-    )
-    split_paths = {
-        split: set((output_root / "splits" / f"{split}.txt").read_text(encoding="utf-8").split())
-        for split in ("train", "val", "test")
-    }
-    assert split_manifest["counts"]["images"] == 10
-    assert split_manifest["counts"]["annotations"] == 20
-    assert not (split_paths["train"] & split_paths["val"])
-    assert not (split_paths["train"] & split_paths["test"])
-    assert not (split_paths["val"] & split_paths["test"])
-    assert all(split_paths[split] for split in ("train", "val", "test"))
-
     qa_report = json.loads(
         (output_root / "splits" / "annotation_qa_report.json").read_text(encoding="utf-8")
     )
     assert qa_report["checks"]["single_project_class_only"] is True
     assert qa_report["checks"]["source_health_labels_used"] is False
+    assert qa_report["checks"]["source_split_preserved"] is True
+    assert qa_report["checks"]["extra_local_split_generated"] is False
+    assert qa_report["checks"]["extra_training_augmentation_required"] is False
     assert qa_report["checks"]["clipped_bboxes"] == 10
     assert (output_root / "dataset_card.md").exists()
     assert (output_root.parent / "manifests" / "uav_tree_crown.json").exists()
 
 
-def test_uav_roboflow_importer_accepts_images_labels_layout(tmp_path: Path) -> None:
-    from ai_engine.crops.oil_palm.training.data_importers.import_uav_roboflow_yolo import (
-        UAVRoboflowYoloImporter,
-    )
+def test_uav_prepare_dataset_dry_run_uses_coco_importer(tmp_path: Path, capsys) -> None:
+    from ai_engine.crops.oil_palm.training.uav_tree_crown.prepare_dataset import main
 
-    raw_root = tmp_path / "roboflow_export"
-    image_dir = raw_root / "train" / "images"
-    label_dir = raw_root / "train" / "labels"
-    image_dir.mkdir(parents=True)
-    label_dir.mkdir(parents=True)
-    Image.new("RGB", (64, 64), color=(30, 120, 80)).save(image_dir / "ortho_tile.jpg")
-    (label_dir / "ortho_tile.txt").write_text(
-        "0 0.500000 0.500000 0.400000 0.400000\n",
-        encoding="utf-8",
-    )
-
+    raw_root = tmp_path / "uva_crown-1"
+    _write_coco_split(raw_root, "train", image_count=1, start_id=1, source_label="oil_palm_crown")
     output_root = tmp_path / "datasets" / "oil_palm" / "uav_tree_crown"
-    result = UAVRoboflowYoloImporter(
-        raw_dir=raw_root,
-        output_dir=output_root,
-        dataset_version="test_uav_nested",
-        overwrite=True,
-    ).convert()
 
-    assert result.images_processed == 1
-    assert result.labels_mapped == {"oil_palm_crown": 1}
-    assert (output_root / "yolo" / "images" / "train" / "uav_crown_000001.jpg").exists()
-    assert (output_root / "yolo" / "labels" / "train" / "uav_crown_000001.txt").exists()
+    exit_code = main([
+        "--source-root",
+        str(raw_root),
+        "--output-root",
+        str(output_root),
+        "--dataset-version",
+        "dry_run_uav",
+        "--dry-run",
+    ])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "ok"
+    assert payload["dry_run"] is True
+    assert payload["result"]["task"] == "uav_tree_crown"
+    assert payload["summary"]["split_strategy"] == "preserve_roboflow_train_valid_test"
+    assert not (output_root / "yolo").exists()
 
 
 def test_uav_train_yolo_dry_run_args_do_not_require_ultralytics(tmp_path: Path) -> None:
@@ -132,7 +111,7 @@ def test_uav_train_yolo_dry_run_args_do_not_require_ultralytics(tmp_path: Path) 
 
     data_yaml = tmp_path / "data.yaml"
     data_yaml.write_text(
-        "path: .\ntrain: images/train\nval: images/val\nnames:\n  0: oil_palm_crown\n",
+        "path: .\ntrain: images/train\nval: images/val\ntest: images/test\nnames:\n  0: oil_palm_crown\n",
         encoding="utf-8",
     )
     config = tmp_path / "training.yaml"
@@ -147,9 +126,9 @@ train:
   epochs: 1
   imgsz: 640
 augment:
-  degrees: 20
-  flipud: 0.5
-  mosaic: 0.7
+  degrees: 0
+  fliplr: 0.0
+  mosaic: 0.0
 """,
         encoding="utf-8",
     )
@@ -161,6 +140,76 @@ augment:
     assert args["name"] == "override_run"
     assert args["epochs"] == 1
     assert args["imgsz"] == 640
-    assert args["degrees"] == 20
-    assert args["flipud"] == 0.5
-    assert args["mosaic"] == 0.7
+    assert args["degrees"] == 0
+    assert args["fliplr"] == 0.0
+    assert args["mosaic"] == 0.0
+
+
+def _write_coco_split(
+    raw_root: Path,
+    split: str,
+    *,
+    image_count: int,
+    start_id: int,
+    source_label: str,
+) -> None:
+    split_dir = raw_root / split
+    split_dir.mkdir(parents=True)
+    images = []
+    annotations = []
+    for offset in range(image_count):
+        image_id = start_id + offset
+        file_name = f"{split}_{image_id}.jpg"
+        Image.new("RGB", (100, 100), color=(20 + offset, 90, 130)).save(split_dir / file_name)
+        images.append(
+            {
+                "id": image_id,
+                "license": 1,
+                "file_name": file_name,
+                "height": 100,
+                "width": 100,
+            }
+        )
+        annotations.append(
+            {
+                "id": image_id * 10,
+                "image_id": image_id,
+                "category_id": 1,
+                "bbox": [10, 10, 30, 30],
+                "iscrowd": 0,
+                "area": 900,
+                "segmentation": [],
+            }
+        )
+        annotations.append(
+            {
+                "id": image_id * 10 + 1,
+                "image_id": image_id,
+                "category_id": 1,
+                "bbox": [90, 50, 20, 20],
+                "iscrowd": 0,
+                "area": 400,
+                "segmentation": [],
+            }
+        )
+
+    coco = {
+        "info": {
+            "year": "2026",
+            "version": "test",
+            "description": "synthetic UAV crown test data",
+            "url": "https://example.test/roboflow/uva_crown",
+            "date_created": "2026-05-26T00:00:00+00:00",
+        },
+        "licenses": [{"id": 1, "url": "", "name": "Unknown"}],
+        "categories": [
+            {"id": 0, "name": "root", "supercategory": "none"},
+            {"id": 1, "name": source_label, "supercategory": "root"},
+        ],
+        "images": images,
+        "annotations": annotations,
+    }
+    (split_dir / "_annotations.coco.json").write_text(
+        json.dumps(coco, indent=2),
+        encoding="utf-8",
+    )
