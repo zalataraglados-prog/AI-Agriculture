@@ -1,0 +1,44 @@
+{
+  "dataset_version": "roboflow_uav_tree_crown_2026_05_26",
+  "source_root": "<external>/roboflow_uav_tree_crown/train",
+  "output_root": "datasets/oil_palm/uav_tree_crown",
+  "labels": [
+    "oil_palm_crown"
+  ],
+  "split_ratios": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "split_seed": 42,
+  "split_grouping": "filename",
+  "image_count": 1050,
+  "annotation_count": 2411,
+  "split_counts": {
+    "train": 735,
+    "val": 158,
+    "test": 157
+  },
+  "split_annotation_counts": {
+    "train": null,
+    "val": null,
+    "test": null
+  },
+  "label_counts": {
+    "oil_palm_crown": 2411
+  },
+  "empty_label_images": 0,
+  "clipped_bboxes": null,
+  "skipped_annotations": null,
+  "source_class_counts": {
+    "0": 2411
+  },
+  "source_labels_seen": {
+    "0": "oil_palm_crown"
+  },
+  "notes": [
+    "Pre-training summary based on provided Roboflow dataset inspection.",
+    "Run prepare_dataset.py after downloading the real export to regenerate exact split manifests and QA counts.",
+    "No health-status labels were present in the annotation files."
+  ]
+}

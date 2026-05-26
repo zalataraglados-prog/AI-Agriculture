@@ -26,6 +26,34 @@ Ignored training data:
 - `datasets/oil_palm/a0_image_routing/yolo/`
 - `datasets/oil_palm/a0_image_routing/raw/`
 
+## Current UAV Dataset Preparation
+
+`uav_tree_crown` is ready for the first Roboflow YOLO training run. The source
+root is supplied with `--source-root` or `OIL_PALM_UAV_SOURCE_ROOT`; raw exports
+and generated YOLO files are not committed.
+
+- Dataset version: `roboflow_uav_tree_crown_2026_05_26`
+- Labels: `oil_palm_crown`
+- Images: 1050
+- Bboxes: 2411
+- Original split: train only
+- Generated split target: train 735 / val 158 / test 157
+- License: `Unknown` until source-specific permissions are verified
+- Note: source metadata mentioned health/status categories, but annotations are
+  100% crown boxes, so UAV v1 remains single-class crown localization.
+
+Tracked metadata:
+
+- `datasets/oil_palm/manifests/uav_tree_crown.json`
+- `datasets/oil_palm/uav_tree_crown/dataset_card.md`
+- `datasets/oil_palm/uav_tree_crown/splits/`
+- `datasets/oil_palm/uav_tree_crown/licenses/sources.csv`
+
+Ignored training data:
+
+- `datasets/oil_palm/uav_tree_crown/yolo/`
+- `datasets/oil_palm/uav_tree_crown/raw/`
+
 本目录管理油棕各 AI 任务的数据集。
 
 ## 核心原则

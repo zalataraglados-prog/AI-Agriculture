@@ -1,0 +1,2 @@
+dataset_version,source_name,source_path,roboflow_url,license,images,annotations,notes
+roboflow_uav_tree_crown_2026_05_26,Roboflow UAV Oil Palm Crown Export,<external>/roboflow_uav_tree_crown/train,https://app.roboflow.com/ds/zKMDyUsHc9,Unknown,1050,2411,Private Roboflow export key omitted; verify license before publishing weights

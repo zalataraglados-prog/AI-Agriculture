@@ -14,6 +14,19 @@ baseline metadata:
 The runtime still uses the mock oil palm predictor until real YOLO predictor
 wiring is implemented.
 
+## Current UAV Training Prep
+
+`models/oil_palm/uav_tree_crown/` now contains the first UAV YOLO training
+configuration:
+
+- `training_config.example.yaml` records Colab-ready YOLOv8n defaults.
+- `model_card.md` documents the single-class crown-detection scope.
+- `metrics.example.json` remains the template until the first training run.
+
+The prepared dataset metadata is tracked under
+`datasets/oil_palm/manifests/uav_tree_crown.json`; raw images, generated YOLO
+files, model runs, and `.pt` weights remain ignored by Git.
+
 用于存放模型相关文件（权重、标签、配置、Model Card、指标模板）。
 
 ## 目录结构
