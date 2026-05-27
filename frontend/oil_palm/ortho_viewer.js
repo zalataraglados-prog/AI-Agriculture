@@ -345,8 +345,15 @@
     });
 
     document.getElementById('btn-detect-palms').addEventListener('click', function () {
-        setStatus('running_mock_detection');
-        apiPost('/orthomosaics/' + orthoId + '/detect-palms').then(function (data) {
+        setStatus('running_detection');
+        // Step 1: ensure tiles exist before running detection
+        apiPost('/orthomosaics/' + orthoId + '/tiles', {
+            tile_size: 1024,
+            tile_overlap: 0.15
+        }).then(function () {
+            // Step 2: run real or mock detection over tiles
+            return apiPost('/orthomosaics/' + orthoId + '/detect-palms');
+        }).then(function (data) {
             if (data.status === 'ok') {
                 setStatus('detections_created_from_tiles', {
                     count: data.detections_created,
