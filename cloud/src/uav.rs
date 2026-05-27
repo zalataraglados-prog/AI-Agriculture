@@ -23,16 +23,6 @@ fn env_f64(key: &str, default_value: f64) -> f64 {
         .unwrap_or(default_value)
 }
 
-fn mock_crown_bbox(local_cx: f64, local_cy: f64, crown_size: f64) -> serde_json::Value {
-    let half = crown_size / 2.0;
-    serde_json::json!({
-        "x": (local_cx - half).max(0.0),
-        "y": (local_cy - half).max(0.0),
-        "w": crown_size,
-        "h": crown_size
-    })
-}
-
 pub(crate) fn handle_missions_post(mut request: Request, db: Arc<Mutex<DbManager>>) {
     let mut body = Vec::new();
     let _ = request.as_reader().read_to_end(&mut body);
@@ -157,7 +147,14 @@ pub(crate) fn handle_tiles_post(mut request: Request, ortho_id: &str, db: Arc<Mu
     }
 }
 
-pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mutex<DbManager>>) {
+pub(crate) fn handle_detect_palms(
+    request: Request,
+    ortho_id: &str,
+    _image_store_path: &str,
+    ai_oil_palm_analyze_url: &str,
+    ai_http_client: &reqwest::blocking::Client,
+    db: Arc<Mutex<DbManager>>,
+) {
     let oid = ortho_id.parse().unwrap_or(0);
     let nms_threshold = env_f64("NMS_DISTANCE_THRESHOLD", 0.5);
 
@@ -171,60 +168,97 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
                     .ok_or("orthomosaic not found")?;
 
                 let mission_id: i32 = ortho["mission_id"].as_i64().unwrap_or(0) as i32;
+                let image_url = ortho["image_url"].as_str().unwrap_or("");
 
                 let tiles = g.query_tiles_by_orthomosaic(oid)?;
                 let tiles_processed = tiles.len() as i32;
 
-                let crown_size = 60.0; // mock crown size in pixels (~1m at 0.0167m/pixel)
+                // Load image to memory
+                let img_bytes = if image_url.starts_with("http") {
+                    reqwest::blocking::get(image_url)
+                        .map_err(|e| format!("failed to download image: {}", e))?
+                        .bytes()
+                        .map_err(|_| "failed to read body".to_string())?
+                        .to_vec()
+                } else {
+                    std::fs::read(image_url)
+                        .map_err(|e| format!("failed to read file {}: {}", image_url, e))?
+                };
 
-                // For each tile, generate 0-3 mock detections deterministically based on tile_id
+                let mut img = image::load_from_memory(&img_bytes)
+                    .map_err(|e| format!("failed to decode image: {}", e))?;
+
                 let mut raw_dets: Vec<(
                     f64, f64, f64, i32, serde_json::Value, serde_json::Value,
                 )> = Vec::new();
-                // (global_cx, global_cy, confidence, tile_id, bbox_tile, bbox_global)
 
                 for tile in &tiles {
                     let tile_id = tile["id"].as_i64().unwrap_or(0) as i32;
-                    let tw = tile["tile_width"].as_i64().unwrap_or(0) as f64;
-                    let th = tile["tile_height"].as_i64().unwrap_or(0) as f64;
+                    let tw = tile["tile_width"].as_i64().unwrap_or(0) as u32;
+                    let th = tile["tile_height"].as_i64().unwrap_or(0) as u32;
                     let gox = tile["global_offset_x"].as_i64().unwrap_or(0) as f64;
                     let goy = tile["global_offset_y"].as_i64().unwrap_or(0) as f64;
-                    let tx = tile["tile_x"].as_i64().unwrap_or(0) as u64;
-                    let ty = tile["tile_y"].as_i64().unwrap_or(0) as u64;
+                    let tx = tile["tile_x"].as_i64().unwrap_or(0) as u32;
+                    let ty = tile["tile_y"].as_i64().unwrap_or(0) as u32;
 
-                    if tw < crown_size || th < crown_size {
-                        // Too small for a detection, skip
+                    if tw < 32 || th < 32 {
                         continue;
                     }
 
-                    let margin = crown_size / 2.0;
-                    let avail_w = tw - crown_size;
-                    let avail_h = th - crown_size;
+                    // Crop tile
+                    let tile_img = image::imageops::crop(&mut img, tx, ty, tw, th).to_image();
+                    
+                    let mut buf = std::io::Cursor::new(Vec::new());
+                    tile_img.write_to(&mut buf, image::ImageFormat::Jpeg)
+                        .map_err(|e| format!("failed to encode tile {}: {}", tile_id, e))?;
+                    let tile_bytes = buf.into_inner();
 
-                    let hash_val = tx.wrapping_mul(31337).wrapping_add(ty.wrapping_mul(21701));
+                    let part = reqwest::blocking::multipart::Part::bytes(tile_bytes)
+                        .file_name(format!("tile_{}.jpg", tile_id))
+                        .mime_str("image/jpeg")
+                        .unwrap();
+                    let form = reqwest::blocking::multipart::Form::new()
+                        .part("file", part)
+                        .text("image_role", "uav_tile");
 
-                    let count = if avail_w > crown_size && avail_h > crown_size {
-                        ((hash_val % 3) + 1) as usize
-                    } else {
-                        0
-                    };
+                    // Fallback mock check handled inside AI engine if mock configured
+                    if let Ok(res) = ai_http_client.post(ai_oil_palm_analyze_url).multipart(form).send() {
+                        if let Ok(ai_json) = res.json::<serde_json::Value>() {
+                            if ai_json["status"].as_str() == Some("success") {
+                                if let Some(results) = ai_json["results"].as_array() {
+                                    for det in results {
+                                        let conf = det["confidence"].as_f64().unwrap_or(0.0);
+                                        let geom = &det["geometry"];
+                                        let nx = geom["x"].as_f64().unwrap_or(0.0);
+                                        let ny = geom["y"].as_f64().unwrap_or(0.0);
+                                        let nw = geom["w"].as_f64().unwrap_or(0.0);
+                                        let nh = geom["h"].as_f64().unwrap_or(0.0);
 
-                    for i in 0..count {
-                        let seed = hash_val.wrapping_add((i as u64).wrapping_mul(1299709));
-                        let frac_x = ((seed % 1000) as f64) / 1000.0;
-                        let frac_y = (((seed >> 16) % 1000) as f64) / 1000.0;
-                        let conf = 0.75 + (((seed >> 8) % 240) as f64) / 1000.0; // 0.75 - 0.99
+                                        let local_x = nx * (tw as f64);
+                                        let local_y = ny * (th as f64);
+                                        let w = nw * (tw as f64);
+                                        let h = nh * (th as f64);
 
-                        let local_cx = margin + frac_x * avail_w;
-                        let local_cy = margin + frac_y * avail_h;
+                                        let local_cx = local_x + w / 2.0;
+                                        let local_cy = local_y + h / 2.0;
+                                        
+                                        let global_cx = local_cx + gox;
+                                        let global_cy = local_cy + goy;
 
-                        let global_cx = local_cx + gox;
-                        let global_cy = local_cy + goy;
+                                        let bbox_tile = serde_json::json!({
+                                            "type": "bbox",
+                                            "coordinates": [local_cx, local_cy, w, h]
+                                        });
+                                        let bbox_global = serde_json::json!({
+                                            "type": "bbox",
+                                            "coordinates": [global_cx, global_cy, w, h]
+                                        });
 
-                        let bbox_tile = mock_crown_bbox(local_cx, local_cy, crown_size);
-                        let bbox_global = mock_crown_bbox(global_cx, global_cy, crown_size);
-
-                        raw_dets.push((global_cx, global_cy, conf, tile_id, bbox_tile, bbox_global));
+                                        raw_dets.push((global_cx, global_cy, conf, tile_id, bbox_tile, bbox_global));
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -257,7 +291,6 @@ pub(crate) fn handle_detect_palms(request: Request, ortho_id: &str, db: Arc<Mute
                     }
                 }
 
-                // Clear previous unconfirmed detections for this orthomosaic to prevent duplicates on retry
                 g.clear_pending_detections(oid)?;
 
                 // Insert surviving detections

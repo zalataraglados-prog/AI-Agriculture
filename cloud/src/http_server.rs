@@ -751,7 +751,14 @@ fn handle_api(
                 crate::uav::handle_match_to_tree(request, &det_id, db);
             } else if method == Method::Post && p.ends_with("/detect-palms") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
-                crate::uav::handle_detect_palms(request, &ortho_id, db);
+                crate::uav::handle_detect_palms(
+                    request,
+                    &ortho_id,
+                    &image_store_path,
+                    ai_oil_palm_analyze_url.as_deref().unwrap_or(""),
+                    &ai_http_client,
+                    db.clone(),
+                );
             } else if method == Method::Get && p.contains("/detections") {
                 let ortho_id = extract_path_segment(p, "/orthomosaics/").unwrap_or_default();
                 crate::uav::handle_get_detections(request, &ortho_id, db);
