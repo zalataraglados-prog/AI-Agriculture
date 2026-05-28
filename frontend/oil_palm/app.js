@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const $ = (id) => document.getElementById(id);
     const btnCreateMission = $('btn-create-mission');
     const btnRegisterOrtho = $('btn-register-ortho');
-    const btnMockDetections = $('btn-mock-detections');
+    const btnAiDetections = $('btn-ai-detections');
     const btnAutoMatch = $('btn-auto-match');
     const btnViewOrtho = $('btn-view-ortho');
     const missionStatus = $('mission-status');
@@ -51,6 +51,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (orthoId) btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
     }
 
+    async function parseJsonResponse(res) {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.status === 'error') {
+            throw new Error(unknownError(data.message || res.statusText));
+        }
+        return data;
+    }
+
+    function readImageDimensions(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({
+                width: img.naturalWidth || img.width,
+                height: img.naturalHeight || img.height
+            });
+            img.onerror = () => reject(new Error(t('error_prefix', { message: 'image load failed' })));
+            img.src = url;
+        });
+    }
+
     async function init() {
         try {
             const res = await fetch('/api/v1/uav/missions');
@@ -72,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (orthoData && orthoData.id) {
                 orthoId = orthoData.id;
                 setStatus(orthoStatus, 'ortho_current', { url: orthoData.image_url, id: orthoId });
-                btnMockDetections.disabled = false;
+                btnAiDetections.disabled = false;
                 buildOrthoLink();
                 await fetchDetections();
             }
@@ -115,40 +135,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
+            const dimensions = await readImageDimensions(orthoUrl).catch(() => ({
+                width: 658,
+                height: 438
+            }));
             const res = await fetch(`/api/v1/uav/missions/${missionId}/orthomosaic`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    width: 658,
-                    height: 438,
+                    width: dimensions.width,
+                    height: dimensions.height,
                     resolution: 0.1,
                     image_url: orthoUrl
                 })
             });
-            const data = await res.json();
+            const data = await parseJsonResponse(res);
             orthoId = data.orthomosaic_id;
             setStatus(orthoStatus, 'orthomosaic_registered', { id: orthoId });
-            btnMockDetections.disabled = false;
+            btnAiDetections.disabled = false;
             buildOrthoLink();
         } catch (e) {
             setStatus(orthoStatus, 'error_prefix', { message: e.message });
         }
     });
 
-    btnMockDetections.addEventListener('click', async () => {
+    btnAiDetections.addEventListener('click', async () => {
         try {
-            await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, {
+            setStatus(detectionStatus, 'running_detection');
+            const tileRes = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/tiles`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tile_size: 256, tile_overlap: 0.1 })
+                body: JSON.stringify({ tile_size: 1024, tile_overlap: 0.15 })
             });
+            await parseJsonResponse(tileRes);
 
-            const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detections/mock`, { method: 'POST' });
-            const data = await res.json();
-            setStatus(detectionStatus, 'detections_generated', { count: data.detections_created || 0 });
+            const res = await fetch(`/api/v1/uav/orthomosaics/${orthoId}/detect-palms`, { method: 'POST' });
+            const data = await parseJsonResponse(res);
+            setStatus(detectionStatus, 'detections_created_from_tiles', {
+                count: data.detections_created || 0,
+                tiles: data.tiles_processed || 0
+            });
             await fetchDetections();
         } catch (e) {
-            setStatus(detectionStatus, 'error_prefix', { message: e.message });
+            setStatus(detectionStatus, 'detection_failed', { message: e.message });
         }
     });
 
