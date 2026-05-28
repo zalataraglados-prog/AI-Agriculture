@@ -184,6 +184,30 @@ Frontend:
   downstream trunk-base Ganoderma analysis or fallback mock analysis.
 - `frontend/oil_palm/plantation_dashboard.html` displays plantation stats and block reports.
 
+## UAV AI crown detection
+
+The orthomosaic viewer uses this production-shaped flow:
+
+- `POST /api/v1/uav/orthomosaics/{orthomosaic_id}/tiles`
+  - creates the tile grid once and reuses existing tiles on repeated calls
+- `POST /api/v1/uav/orthomosaics/{orthomosaic_id}/detect-palms`
+  - requires `AI_OIL_PALM_ANALYZE_URL`
+  - crops each tile from the orthomosaic image, calls AI Engine with
+    `image_role=uav_tile`, restores tile-local bbox coordinates to
+    orthomosaic pixel coordinates, applies center-distance NMS, and writes
+    pending UAV detections for human confirmation
+  - returns an error when the AI URL, image path, or AI response contract is
+    invalid; it does not silently fall back to mock detections
+
+Use `POST /api/v1/uav/orthomosaics/{orthomosaic_id}/detections/mock` only when
+you explicitly want local mock detections.
+
+Current Cloud inference still decodes the orthomosaic image in process before
+cropping tiles. `UAV_ORTHOMOSAIC_MAX_DECODE_PIXELS` protects low-memory hosts
+from accidental OOM. Very large production orthomosaics should be served as
+physical tiles or Cloud-Optimized GeoTIFF/GDAL-backed reads before raising that
+limit.
+
 ## Agent chat proxy API
 
 - `POST /api/v1/chat`

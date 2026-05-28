@@ -12,6 +12,8 @@
 - `test_oil_palm_uav_dataset.py` validates the UAV Roboflow COCO adapter,
   source split preservation, single-class crown remapping, bbox clipping, and
   training dry-run argument construction.
+- `cd cloud && cargo test` also checks UAV tile coordinate restoration,
+  center-distance NMS behavior, and empty `uav_tile` AI responses.
 
 用于存放 AI 模块测试代码。
 
