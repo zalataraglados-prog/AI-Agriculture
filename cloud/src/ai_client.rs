@@ -269,10 +269,29 @@ fn validate_oil_palm_analyze_response(json: &Value, image_role: &str) -> Result<
         return Err("oil palm analyze response missing model_version".to_string());
     }
 
+    let metadata = json
+        .get("metadata")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| "oil palm analyze response missing metadata object".to_string())?;
+
     let results = json
         .get("results")
         .and_then(|v| v.as_array())
         .ok_or_else(|| "oil palm analyze response missing results[]".to_string())?;
+    if results.is_empty() {
+        if image_role == "uav_tile" {
+            if let Some(task) = metadata.get("task").and_then(|v| v.as_str()) {
+                if task != "uav_tree_crown" {
+                    return Err(format!(
+                        "oil palm analyze metadata task mismatch: expected uav_tree_crown, got {task}"
+                    ));
+                }
+            }
+            return Ok(());
+        }
+        return Err("oil palm analyze response has empty results[]".to_string());
+    }
+
     let first = results
         .first()
         .ok_or_else(|| "oil palm analyze response has empty results[]".to_string())?;
@@ -295,9 +314,6 @@ fn validate_oil_palm_analyze_response(json: &Value, image_role: &str) -> Result<
     }
     if first.get("geometry").and_then(|v| v.as_object()).is_none() {
         return Err("oil palm analyze result missing geometry object".to_string());
-    }
-    if json.get("metadata").and_then(|v| v.as_object()).is_none() {
-        return Err("oil palm analyze response missing metadata object".to_string());
     }
     Ok(())
 }
@@ -630,6 +646,19 @@ mod tests {
         let err = super::validate_oil_palm_analyze_response(&payload, "trunk_base")
             .expect_err("mispointed 200 response should be rejected");
         assert!(err.contains("status=success"));
+    }
+
+    #[test]
+    fn validate_oil_palm_analyze_response_accepts_empty_uav_tile_results() {
+        let payload = json!({
+            "status": "success",
+            "results": [],
+            "geometry": [],
+            "metadata": {"task": "uav_tree_crown", "coordinate_scope": "tile_normalized"},
+            "model_version": "oil_palm_uav_test_v1"
+        });
+
+        assert!(super::validate_oil_palm_analyze_response(&payload, "uav_tile").is_ok());
     }
 
     #[test]

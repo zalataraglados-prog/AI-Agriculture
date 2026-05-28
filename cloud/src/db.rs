@@ -1471,7 +1471,7 @@ impl DbManager {
 
     pub(crate) fn clear_pending_detections(&mut self, ortho_id: i32) -> Result<(), String> {
         self.client.execute(
-            "DELETE FROM uav_tree_detections WHERE orthomosaic_id = $1 AND matched_tree_id IS NULL",
+            "DELETE FROM uav_tree_detections WHERE orthomosaic_id = $1 AND matched_tree_id IS NULL AND review_status = 'pending'",
             &[&ortho_id],
         ).map_err(|e| format!("clear_pending_detections error: {}", e))?;
         Ok(())
