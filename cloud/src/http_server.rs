@@ -725,6 +725,11 @@ fn handle_api(
                 crate::uav::handle_missions_post(request, db);
             } else if method == Method::Get && p == "/api/v1/uav/missions" {
                 crate::uav::handle_missions_get(request, query, db);
+            } else if method == Method::Get && p == "/api/v1/uav/orthomosaics" {
+                crate::uav::handle_orthomosaics_get(request, query, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/uav/missions/") && p.ends_with("/orthomosaic") {
+                let mission_id = extract_path_segment(p, "/missions/").unwrap_or_default();
+                crate::uav::handle_mission_orthomosaic_get(request, &mission_id, db);
             } else if method == Method::Post && p.ends_with("/orthomosaic") {
                 let mission_id = extract_path_segment(p, "/missions/").unwrap_or_default();
                 crate::uav::handle_orthomosaic_post(request, &mission_id, db);
@@ -774,6 +779,9 @@ fn handle_api(
             } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/barcode") {
                 let tree_code = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::session::handle_tree_barcode(request, &tree_code, db);
+            } else if method == Method::Get && p.starts_with("/api/v1/trees/") && p.ends_with("/sessions") {
+                let tree_id = extract_path_segment(p, "/trees/").unwrap_or_default();
+                crate::session::handle_tree_sessions(request, &tree_id, db);
             } else if method == Method::Post && p.starts_with("/api/v1/trees/") && p.ends_with("/sessions") {
                 let tree_id = extract_path_segment(p, "/trees/").unwrap_or_default();
                 crate::session::handle_create_session(request, &tree_id, db);

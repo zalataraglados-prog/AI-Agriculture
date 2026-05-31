@@ -984,10 +984,17 @@ impl DbManager {
     }
 
     pub(crate) fn query_uav_missions_by_plantation(&mut self, pid: i32) -> Result<Vec<serde_json::Value>, String> {
-        let rows = self.client.query(
-            "SELECT id, mission_name, plantation_id, created_at FROM uav_missions WHERE plantation_id = $1 ORDER BY created_at DESC",
-            &[&pid]
-        ).map_err(|e| e.to_string())?;
+        let rows = if pid > 0 {
+            self.client.query(
+                "SELECT id, mission_name, plantation_id, created_at FROM uav_missions WHERE plantation_id = $1 ORDER BY created_at DESC",
+                &[&pid],
+            )
+        } else {
+            self.client.query(
+                "SELECT id, mission_name, plantation_id, created_at FROM uav_missions ORDER BY created_at DESC",
+                &[],
+            )
+        }.map_err(|e| e.to_string())?;
 
         let mut list = Vec::new();
         for row in rows {
@@ -1011,6 +1018,76 @@ impl DbManager {
             &[&mission_id, &width, &height, &resolution, &image_url],
         ).map_err(|e| format!("insert_uav_orthomosaic error: {}", e))?;
         Ok(row.get(0))
+    }
+
+    pub(crate) fn query_uav_orthomosaics(&mut self, plantation_id: i32, limit: i64) -> Result<Vec<serde_json::Value>, String> {
+        let limit = limit.max(1).min(200);
+        let rows = self.client.query(
+            "SELECT o.id, o.mission_id, m.mission_name, m.plantation_id, o.image_url, \
+                    o.width, o.height, o.resolution, o.created_at, COUNT(d.id) AS detection_count \
+             FROM uav_orthomosaics o \
+             JOIN uav_missions m ON o.mission_id = m.id \
+             LEFT JOIN uav_tree_detections d ON d.orthomosaic_id = o.id \
+             WHERE ($1 <= 0 OR m.plantation_id = $1) \
+             GROUP BY o.id, o.mission_id, m.mission_name, m.plantation_id, o.image_url, \
+                      o.width, o.height, o.resolution, o.created_at \
+             ORDER BY o.created_at DESC \
+             LIMIT $2",
+            &[&plantation_id, &limit],
+        ).map_err(|e| format!("query_uav_orthomosaics error: {}", e))?;
+
+        let mut out = Vec::new();
+        for r in rows {
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            out.push(serde_json::json!({
+                "id": r.get::<_, i32>("id"),
+                "mission_id": r.get::<_, i32>("mission_id"),
+                "mission_name": r.get::<_, String>("mission_name"),
+                "plantation_id": r.get::<_, i32>("plantation_id"),
+                "image_url": r.get::<_, String>("image_url"),
+                "width": r.get::<_, i32>("width"),
+                "height": r.get::<_, i32>("height"),
+                "resolution": r.get::<_, f64>("resolution"),
+                "detection_count": r.get::<_, i64>("detection_count"),
+                "created_at": created_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
+    }
+
+    pub(crate) fn get_latest_orthomosaic_by_mission(&mut self, mission_id: i32) -> Result<Option<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT o.id, o.mission_id, m.mission_name, m.plantation_id, o.image_url, \
+                    o.width, o.height, o.resolution, o.created_at, COUNT(d.id) AS detection_count \
+             FROM uav_orthomosaics o \
+             JOIN uav_missions m ON o.mission_id = m.id \
+             LEFT JOIN uav_tree_detections d ON d.orthomosaic_id = o.id \
+             WHERE o.mission_id = $1 \
+             GROUP BY o.id, o.mission_id, m.mission_name, m.plantation_id, o.image_url, \
+                      o.width, o.height, o.resolution, o.created_at \
+             ORDER BY o.created_at DESC \
+             LIMIT 1",
+            &[&mission_id],
+        ).map_err(|e| format!("get_latest_orthomosaic_by_mission error: {}", e))?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+
+        let r = &rows[0];
+        let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+        Ok(Some(serde_json::json!({
+            "id": r.get::<_, i32>("id"),
+            "orthomosaic_id": r.get::<_, i32>("id"),
+            "mission_id": r.get::<_, i32>("mission_id"),
+            "mission_name": r.get::<_, String>("mission_name"),
+            "plantation_id": r.get::<_, i32>("plantation_id"),
+            "image_url": r.get::<_, String>("image_url"),
+            "width": r.get::<_, i32>("width"),
+            "height": r.get::<_, i32>("height"),
+            "resolution": r.get::<_, f64>("resolution"),
+            "detection_count": r.get::<_, i64>("detection_count"),
+            "created_at": created_at.to_rfc3339()
+        })))
     }
 
     pub(crate) fn insert_uav_tile(&mut self, ortho_id: i32, tile_x: i32, tile_y: i32) -> Result<i32, String> {
@@ -1762,6 +1839,31 @@ impl DbManager {
             "status": r.get::<_, String>("status"),
             "created_at": created_at.to_rfc3339()
         })))
+    }
+
+    pub(crate) fn get_observation_sessions_by_tree_id(&mut self, tree_id: i32) -> Result<Vec<serde_json::Value>, String> {
+        let rows = self.client.query(
+            "SELECT id, tree_id, session_code, status, created_at, updated_at \
+             FROM observation_sessions \
+             WHERE tree_id = $1 \
+             ORDER BY created_at DESC",
+            &[&tree_id],
+        ).map_err(|e| format!("get_observation_sessions_by_tree_id error: {}", e))?;
+
+        let mut out = Vec::new();
+        for r in rows {
+            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_at");
+            let updated_at: chrono::DateTime<chrono::Utc> = r.get("updated_at");
+            out.push(serde_json::json!({
+                "id": r.get::<_, i32>("id"),
+                "tree_id": r.get::<_, i32>("tree_id"),
+                "session_code": r.get::<_, String>("session_code"),
+                "status": r.get::<_, String>("status"),
+                "created_at": created_at.to_rfc3339(),
+                "updated_at": updated_at.to_rfc3339()
+            }));
+        }
+        Ok(out)
     }
 
     pub(crate) fn insert_session_image(

@@ -124,6 +124,62 @@ pub(crate) fn handle_create_session(request: Request, tree_id: &str, db: Arc<Mut
     }
 }
 
+pub(crate) fn handle_tree_sessions(request: Request, tree_id: &str, db: Arc<Mutex<DbManager>>) {
+    let tid = tree_id.parse().unwrap_or(0);
+    let result = db
+        .lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| {
+            if g.get_tree_by_id(tid)?.is_none() {
+                return Err("tree not found".to_string());
+            }
+
+            let mut sessions = g.get_observation_sessions_by_tree_id(tid)?;
+            let images = g.get_session_images_by_tree_id(tid)?;
+            for session in sessions.iter_mut() {
+                let sid = session["id"].as_i64().unwrap_or(0);
+                let session_images = images
+                    .iter()
+                    .filter(|image| image["session_id"].as_i64().unwrap_or(-1) == sid)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if let Some(obj) = session.as_object_mut() {
+                    obj.insert("images".to_string(), serde_json::json!(session_images));
+                }
+            }
+
+            let active_session = sessions
+                .iter()
+                .find(|session| session["status"].as_str() == Some("active"))
+                .cloned();
+
+            Ok((sessions, active_session))
+        });
+
+    match result {
+        Ok((sessions, active_session)) => respond_json(
+            request,
+            200,
+            &serde_json::json!({
+                "status": "ok",
+                "sessions": sessions,
+                "active_session": active_session
+            })
+            .to_string(),
+        ),
+        Err(e) if e.contains("tree not found") => respond_json(
+            request,
+            404,
+            r#"{"status":"error","message":"tree not found"}"#,
+        ),
+        Err(e) => respond_json(
+            request,
+            500,
+            &serde_json::json!({"status":"error","message":e}).to_string(),
+        ),
+    }
+}
+
 pub(crate) fn handle_add_session_image(
     mut request: Request,
     session_id: &str,

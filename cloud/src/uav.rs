@@ -159,6 +159,51 @@ pub(crate) fn handle_missions_get(request: Request, query: &str, db: Arc<Mutex<D
     }
 }
 
+pub(crate) fn handle_orthomosaics_get(request: Request, query: &str, db: Arc<Mutex<DbManager>>) {
+    let params = crate::http_server::parse_query(query);
+    let plantation_id: i32 = params.get("plantation_id")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    let limit: i64 = params.get("limit")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(50);
+
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.query_uav_orthomosaics(plantation_id, limit));
+
+    match result {
+        Ok(orthomosaics) => respond_json(
+            request,
+            200,
+            &serde_json::json!({"status":"ok","orthomosaics":orthomosaics}).to_string(),
+        ),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
+pub(crate) fn handle_mission_orthomosaic_get(request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
+    let mid = mission_id.parse().unwrap_or(0);
+    let result = db.lock()
+        .map_err(|_| "db lock failed".to_string())
+        .and_then(|mut g| g.get_latest_orthomosaic_by_mission(mid));
+
+    match result {
+        Ok(Some(orthomosaic)) => respond_json(
+            request,
+            200,
+            &serde_json::json!({
+                "status": "ok",
+                "id": orthomosaic["id"],
+                "orthomosaic_id": orthomosaic["orthomosaic_id"],
+                "orthomosaic": orthomosaic
+            }).to_string(),
+        ),
+        Ok(None) => respond_json(request, 404, r#"{"status":"error","message":"orthomosaic not found"}"#),
+        Err(e) => respond_json(request, 500, &format!(r#"{{"status":"error","message":"{e}"}}"#)),
+    }
+}
+
 pub(crate) fn handle_orthomosaic_post(mut request: Request, mission_id: &str, db: Arc<Mutex<DbManager>>) {
     let mid = mission_id.parse().unwrap_or(0);
 
