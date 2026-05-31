@@ -479,11 +479,7 @@ fn process_tile_for_ai(
         tile.width,
         tile.height,
     ).to_image();
-
-    let mut buf = std::io::Cursor::new(Vec::new());
-    tile_img.write_to(&mut buf, image::ImageFormat::Jpeg)
-        .map_err(|e| format!("failed to encode tile {}: {e}", tile.id))?;
-    let tile_bytes = buf.into_inner();
+    let tile_bytes = encode_tile_as_jpeg(tile_img, tile.id)?;
 
     let ai_json = analyze_oil_palm_from_bytes(
         ai_http_client,
@@ -497,6 +493,15 @@ fn process_tile_for_ai(
     )?;
 
     detections_from_ai_response(&ai_json, tile)
+}
+
+fn encode_tile_as_jpeg(tile_img: image::RgbaImage, tile_id: i32) -> Result<Vec<u8>, String> {
+    let rgb_img = image::DynamicImage::ImageRgba8(tile_img).to_rgb8();
+    let mut buf = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(rgb_img)
+        .write_to(&mut buf, image::ImageFormat::Jpeg)
+        .map_err(|e| format!("failed to encode tile {tile_id}: {e}"))?;
+    Ok(buf.into_inner())
 }
 
 fn detections_from_ai_response(
@@ -1011,5 +1016,13 @@ mod tests {
         assert_eq!(kept.len(), 2);
         assert_eq!(kept[0].tile_id, 2);
         assert!(kept.iter().any(|det| det.tile_id == 3));
+    }
+
+    #[test]
+    fn encode_tile_as_jpeg_accepts_rgba_tiles() {
+        let rgba = image::RgbaImage::from_pixel(64, 64, image::Rgba([12, 34, 56, 180]));
+        let encoded = encode_tile_as_jpeg(rgba, 121).expect("rgba tile should encode as jpeg");
+
+        assert!(encoded.starts_with(&[0xFF, 0xD8, 0xFF]));
     }
 }
