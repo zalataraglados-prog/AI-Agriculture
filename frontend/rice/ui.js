@@ -830,6 +830,12 @@ window.UI = (() => {
                 }
 
                 fieldSpecs.forEach(({ fieldName, fieldSpec }) => {
+                    const normalizedField = `${fieldName || ''}`.trim().toLowerCase();
+                    if (!normalizedField) return;
+                    const categoryMetric = `${schema?.categoryMetric || ''}`.trim().toLowerCase();
+                    // Category metric is for classification/grouping, not time-series trend lines.
+                    if (categoryMetric && normalizedField === categoryMetric) return;
+
                     const numericTypes = ['number', 'float', 'f32', 'f64', 'u8', 'u16', 'u32', 'u64', 'i32', 'i64'];
                     if (!numericTypes.includes(`${fieldSpec.data_type || ''}`.toLowerCase())) return;
 
