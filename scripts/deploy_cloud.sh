@@ -212,7 +212,7 @@ fi
 if pgrep -f "$BIN_NAME" >/dev/null 2>&1; then
     log "Warning: Lingering $BIN_NAME processes found. Forcibly killing them..."
     pkill -9 -f "$BIN_NAME" || true
-    sleep 1
+    sleep 3
 fi
 
 ensure_port_available "$CLOUD_PORT" "cloud backend"
