@@ -52,6 +52,17 @@
                     <button id="btn-detect-palms" class="btn btn-block" disabled data-i18n="run_ai_detection">Run AI Detection</button>
                     <button id="btn-manual-mode" class="btn btn-outline btn-block" data-i18n="add_tree_manually">Add Tree Manually</button>
                     <button id="btn-refresh" class="btn btn-outline btn-block" data-i18n="refresh_detections">Refresh Detections</button>
+                    <div class="bulk-review">
+                        <div class="bulk-review-head">
+                            <span data-i18n="bulk_review">Bulk Review</span>
+                            <strong id="bulk-selection-count">0 / 0</strong>
+                        </div>
+                        <div class="bulk-review-actions">
+                            <button id="btn-select-all-pending" class="btn btn-outline small" disabled data-i18n="select_all_pending">Select All Pending</button>
+                            <button id="btn-clear-selection" class="btn btn-outline small" disabled data-i18n="clear_selection">Clear Selection</button>
+                            <button id="btn-confirm-selected" class="btn success small" disabled data-i18n="confirm_selected">Confirm Selected</button>
+                        </div>
+                    </div>
                     <div id="manual-hint" class="status-box" style="display:none;" data-i18n="manual_hint">
                         Click on the map to place a new tree. Right-click to cancel.
                     </div>

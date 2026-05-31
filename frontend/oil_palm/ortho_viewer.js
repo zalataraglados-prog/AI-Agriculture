@@ -6,6 +6,9 @@
     var imageOverlay = null;
     var detectionMarkers = {};
     var selectedDetection = null;
+    var detectionsCache = [];
+    var selectedDetectionIds = new Set();
+    var bulkConfirming = false;
     var manualMode = false;
     var orthoWidth = 0;
     var orthoHeight = 0;
@@ -50,6 +53,43 @@
     function setStatus(key, params) {
         lastStatus = { key: key, params: params || {} };
         document.getElementById('action-status').textContent = t(key, params || {});
+    }
+
+    function pendingDetections() {
+        return detectionsCache.filter(function (det) {
+            return det.review_status === 'pending';
+        });
+    }
+
+    function pruneSelection() {
+        var pendingIds = new Set(pendingDetections().map(function (det) {
+            return String(det.id);
+        }));
+        Array.from(selectedDetectionIds).forEach(function (id) {
+            if (!pendingIds.has(String(id))) selectedDetectionIds.delete(String(id));
+        });
+    }
+
+    function updateBulkControls() {
+        var pending = pendingDetections();
+        pruneSelection();
+        var selected = selectedDetectionIds.size;
+        document.getElementById('bulk-selection-count').textContent = selected + ' / ' + pending.length;
+        document.getElementById('btn-select-all-pending').disabled = bulkConfirming || pending.length === 0;
+        document.getElementById('btn-clear-selection').disabled = bulkConfirming || selected === 0;
+        document.getElementById('btn-confirm-selected').disabled = bulkConfirming || selected === 0;
+    }
+
+    function toggleDetectionSelection(detId) {
+        var id = String(detId);
+        if (selectedDetectionIds.has(id)) {
+            selectedDetectionIds.delete(id);
+        } else {
+            selectedDetectionIds.add(id);
+        }
+        renderDetections(detectionsCache);
+        if (selectedDetection) selectDetection(selectedDetection, false);
+        updateBulkControls();
     }
 
     function updateManualButton() {
@@ -165,10 +205,12 @@
                 setStatus('failed_load_detections');
                 return;
             }
-            var detections = data.detections || [];
-            document.getElementById('info-det-count').textContent = detections.length;
-            renderDetections(detections);
-            setStatus('detections_loaded', { count: detections.length });
+            detectionsCache = data.detections || [];
+            pruneSelection();
+            document.getElementById('info-det-count').textContent = detectionsCache.length;
+            renderDetections(detectionsCache);
+            updateBulkControls();
+            setStatus('detections_loaded', { count: detectionsCache.length });
         }).catch(function (err) {
             setStatus('error_loading_data', { message: err.message });
         });
@@ -185,15 +227,16 @@
             var cy = det.crown_center_y;
             if (cx === null || cy === null) return;
 
+            var isSelected = selectedDetectionIds.has(String(det.id));
             var color = STATUS_COLORS[det.review_status] || '#94a3b8';
             var opacity = det.review_status === 'confirmed' ? 0.6 : 0.85;
 
             var circle = L.circle([cy, cx], {
-                radius: 15,
+                radius: isSelected ? 20 : 15,
                 color: color,
                 fillColor: color,
-                fillOpacity: opacity,
-                weight: 2
+                fillOpacity: isSelected ? 1 : opacity,
+                weight: isSelected ? 5 : 2
             }).addTo(map);
 
             circle.bindTooltip('#' + det.id + ' ' + (det.confidence * 100).toFixed(0) + '%', {
@@ -208,17 +251,28 @@
 
             detectionMarkers[det.id] = circle;
         });
+        updateBulkControls();
     }
 
     function selectDetection(det, panToMarker) {
         selectedDetection = det;
 
         Object.keys(detectionMarkers).forEach(function (key) {
-            detectionMarkers[key].setStyle({ weight: 2 });
+            var isBulkSelected = selectedDetectionIds.has(String(key));
+            detectionMarkers[key].setStyle({
+                weight: isBulkSelected ? 5 : 2,
+                fillOpacity: isBulkSelected ? 1 : 0.85
+            });
+            if (detectionMarkers[key].setRadius) {
+                detectionMarkers[key].setRadius(isBulkSelected ? 20 : 15);
+            }
         });
 
         if (detectionMarkers[det.id]) {
             detectionMarkers[det.id].setStyle({ weight: 4, fillOpacity: 1 });
+            if (detectionMarkers[det.id].setRadius) {
+                detectionMarkers[det.id].setRadius(selectedDetectionIds.has(String(det.id)) ? 20 : 17);
+            }
             if (panToMarker) map.panTo(detectionMarkers[det.id].getLatLng());
         }
 
@@ -233,6 +287,14 @@
         actionsDiv.innerHTML = '';
 
         if (det.review_status === 'pending') {
+            var selectBtn = document.createElement('button');
+            selectBtn.className = selectedDetectionIds.has(String(det.id)) ? 'btn btn-outline small' : 'btn small';
+            selectBtn.textContent = selectedDetectionIds.has(String(det.id))
+                ? t('unselect_detection')
+                : t('select_detection');
+            selectBtn.onclick = function () { toggleDetectionSelection(det.id); };
+            actionsDiv.appendChild(selectBtn);
+
             var confirmBtn = document.createElement('button');
             confirmBtn.className = 'btn success small';
             confirmBtn.textContent = t('confirm');
@@ -267,6 +329,7 @@
     function confirmDetection(detId) {
         apiPost('/detections/' + detId + '/confirm').then(function (data) {
             if (data.status === 'ok' && data.tree_code) {
+                selectedDetectionIds.delete(String(detId));
                 setStatus('confirmed_tree', { code: data.tree_code });
                 loadDetections();
                 document.getElementById('detection-detail').style.display = 'none';
@@ -282,6 +345,7 @@
     function rejectDetection(detId) {
         apiPost('/detections/' + detId + '/reject').then(function (data) {
             if (data.status === 'ok') {
+                selectedDetectionIds.delete(String(detId));
                 setStatus('detection_rejected');
                 loadDetections();
                 document.getElementById('detection-detail').style.display = 'none';
@@ -291,6 +355,60 @@
             }
         }).catch(function (err) {
             setStatus('reject_failed', { message: err.message });
+        });
+    }
+
+    function selectAllPending() {
+        pendingDetections().forEach(function (det) {
+            selectedDetectionIds.add(String(det.id));
+        });
+        renderDetections(detectionsCache);
+        if (selectedDetection) selectDetection(selectedDetection, false);
+        updateBulkControls();
+    }
+
+    function clearSelection() {
+        selectedDetectionIds.clear();
+        renderDetections(detectionsCache);
+        if (selectedDetection) selectDetection(selectedDetection, false);
+        updateBulkControls();
+    }
+
+    function confirmSelectedDetections() {
+        var ids = Array.from(selectedDetectionIds);
+        if (!ids.length || bulkConfirming) {
+            setStatus('no_selected_detections');
+            return;
+        }
+        bulkConfirming = true;
+        updateBulkControls();
+        setStatus('bulk_confirming', { count: ids.length });
+
+        var confirmed = 0;
+        var failed = 0;
+        ids.reduce(function (chain, id) {
+            return chain.then(function () {
+                return apiPost('/detections/' + id + '/confirm').then(function (data) {
+                    if (data.status === 'ok') {
+                        confirmed += 1;
+                        selectedDetectionIds.delete(String(id));
+                    } else {
+                        failed += 1;
+                    }
+                }).catch(function () {
+                    failed += 1;
+                });
+            });
+        }, Promise.resolve()).then(function () {
+            bulkConfirming = false;
+            if (failed > 0) {
+                setStatus('bulk_confirm_partial', { confirmed: confirmed, failed: failed });
+            } else {
+                setStatus('bulk_confirmed', { count: confirmed });
+            }
+            loadDetections();
+            document.getElementById('detection-detail').style.display = 'none';
+            selectedDetection = null;
         });
     }
 
@@ -344,6 +462,10 @@
         }
     });
 
+    document.getElementById('btn-select-all-pending').addEventListener('click', selectAllPending);
+    document.getElementById('btn-clear-selection').addEventListener('click', clearSelection);
+    document.getElementById('btn-confirm-selected').addEventListener('click', confirmSelectedDetections);
+
     document.getElementById('btn-detect-palms').addEventListener('click', function () {
         setStatus('running_detection');
         // Step 1: ensure tiles exist before running detection
@@ -375,9 +497,11 @@
     document.addEventListener('op:i18n-change', function () {
         setStatus(lastStatus.key, lastStatus.params);
         updateManualButton();
+        updateBulkControls();
         if (selectedDetection) selectDetection(selectedDetection, false);
     });
 
     updateManualButton();
+    updateBulkControls();
     loadOrthoInfo();
 })();

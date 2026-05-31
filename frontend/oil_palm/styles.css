@@ -601,6 +601,42 @@ main {
     width: 100%;
 }
 
+.bulk-review {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid var(--glass-border);
+    border-radius: 11px;
+    background: rgba(2, 6, 23, 0.22);
+}
+
+.bulk-review-head,
+.bulk-review-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.bulk-review-head {
+    justify-content: space-between;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.bulk-review-head strong {
+    color: var(--text);
+    letter-spacing: 0;
+}
+
+.bulk-review-actions .btn {
+    flex: 1 1 120px;
+}
+
 .status-box {
     border-radius: 11px;
     padding: 12px 13px;
