@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sessionCode: null,
         sessionCreating: false,
         sessionUploading: false,
+        sessions: [],
         sessionImages: [],
         loadingMessage: null,
         barcodeMessage: null,
@@ -22,6 +23,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         a0Message: { key: 'a0_review_hint', params: {} },
         a0: null
     };
+
+    let updateSessionControls = () => {};
 
     function t(key, params = {}) {
         if (window.OP_I18N) return window.OP_I18N.t(key, params);
@@ -279,15 +282,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             return Boolean(fileInput.files && fileInput.files.length);
         }
 
-        function updateSessionControls() {
+        updateSessionControls = function () {
             const hasFile = hasSelectedFile();
-            startBtn.disabled = state.sessionCreating || state.sessionUploading || Boolean(state.sessionId) || !hasFile;
+            startBtn.disabled = state.sessionCreating || state.sessionUploading || Boolean(state.sessionId);
             uploadBtn.disabled = state.sessionCreating || state.sessionUploading || !state.sessionId || !hasFile || Boolean(state.a0);
-        }
+        };
 
         fileInput.addEventListener('change', () => {
-            if (!state.sessionId && !hasSelectedFile()) {
-                setSessionMessage('select_image_before_session');
+            if (!state.sessionId && hasSelectedFile()) {
+                setSessionMessage('start_session_before_upload');
             }
             updateSessionControls();
         });
@@ -296,11 +299,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!state.tree?.id) return;
             if (state.sessionId) {
                 setSessionMessage('session_already_active', { code: state.sessionCode || state.sessionId });
-                updateSessionControls();
-                return;
-            }
-            if (!hasSelectedFile()) {
-                setSessionMessage('select_image_before_session');
                 updateSessionControls();
                 return;
             }
@@ -314,7 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     state.sessionId = data.session.id;
                     state.sessionCode = data.session.session_code;
                     setSessionMessage('active_session', { code: data.session.session_code });
-                    await loadSessionImages(state.sessionId);
+                    await loadTreeSessions(state.tree.id);
                 } else {
                     setSessionMessage('session_failed', { message: unknownError(data.message) });
                 }
@@ -330,7 +328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const file = fileInput.files[0];
             const role = roleInput.value;
             if (!state.sessionId || !file) {
-                setSessionMessage(!state.sessionId ? 'select_image_before_session' : 'upload_select_image');
+                setSessionMessage(!state.sessionId ? 'start_session_before_upload' : 'upload_select_image');
                 updateSessionControls();
                 return;
             }
@@ -357,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (data.requires_confirmation) {
                         showA0Review(data.image, data.analysis);
                     } else {
-                        await loadSessionImages(state.sessionId);
+                        await loadTreeSessions(state.tree.id);
                         if (state.tree?.tree_code) await loadAssessment(state.tree.tree_code);
                     }
                 } else {
@@ -371,7 +369,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        setSessionMessage('select_image_before_session');
+        setSessionMessage(state.sessionId ? 'active_session' : 'no_active_session', { code: state.sessionCode || state.sessionId });
         updateSessionControls();
     }
 
@@ -393,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
         renderA0Boxes();
         wireA0Buttons();
-        document.getElementById('btn-upload-session-image').disabled = true;
+        updateSessionControls();
     }
 
     function renderA0Boxes() {
@@ -454,8 +452,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (data.status === 'ok') {
                     document.getElementById('a0-review').style.display = 'none';
                     state.a0 = null;
-                    document.getElementById('btn-upload-session-image').disabled = true;
-                    await loadSessionImages(state.sessionId);
+                    updateSessionControls();
+                    await loadTreeSessions(state.tree.id);
                     if (state.tree?.tree_code) await loadAssessment(state.tree.tree_code);
                 } else {
                     setA0Message('confirmation_failed', { message: unknownError(data.message) });
@@ -468,7 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cancelBtn.onclick = () => {
             document.getElementById('a0-review').style.display = 'none';
             state.a0 = null;
-            document.getElementById('btn-upload-session-image').disabled = true;
+            updateSessionControls();
         };
     }
 
@@ -481,6 +479,46 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderSessionImages();
         } catch (e) {
             console.error('Failed to load session images', e);
+        }
+    }
+
+    async function loadTreeSessions(treeId) {
+        if (!treeId) return;
+        try {
+            const res = await fetch(`/api/v1/trees/${treeId}/sessions`);
+            const data = await res.json();
+            if (data.status !== 'ok') {
+                state.sessions = [];
+                state.sessionImages = [];
+                state.sessionId = null;
+                state.sessionCode = null;
+                setSessionMessage('session_failed', { message: unknownError(data.message) });
+                renderSessionImages();
+                updateSessionControls();
+                return;
+            }
+
+            state.sessions = data.sessions || [];
+            const active = data.active_session || state.sessions.find((session) => session.status === 'active') || null;
+            state.sessionId = active?.id || null;
+            state.sessionCode = active?.session_code || null;
+            state.sessionImages = state.sessions.flatMap((session) =>
+                (session.images || []).map((image) => ({
+                    ...image,
+                    session_code: image.session_code || session.session_code
+                }))
+            ).sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+            if (state.sessionId) {
+                setSessionMessage('active_session', { code: state.sessionCode || state.sessionId });
+            } else {
+                setSessionMessage('no_active_session');
+            }
+            renderSessionImages();
+            updateSessionControls();
+        } catch (e) {
+            setSessionMessage('session_error', { message: e.message });
+            updateSessionControls();
         }
     }
 
@@ -546,7 +584,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderLocationInfo();
         renderActions();
         bindSessionActions();
-        await Promise.all([loadBarcode(code), loadAssessment(code)]);
+        await Promise.all([loadBarcode(code), loadAssessment(code), loadTreeSessions(state.tree.id)]);
 
         loading.style.display = 'none';
         content.style.display = 'block';
