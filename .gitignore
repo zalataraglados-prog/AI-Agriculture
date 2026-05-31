@@ -73,7 +73,13 @@ models/**/wandb/
 
 # Frontend local libraries and test assets
 frontend/static/lib/
-frontend/static/ortho_test.png
+frontend/static/*.png
+frontend/static/*.jpg
+frontend/static/*.jpeg
+frontend/static/*.gif
+frontend/static/*.webp
+frontend/static/*.tif
+frontend/static/*.tiff
 
 # Runtime data and uploaded images
 state/
