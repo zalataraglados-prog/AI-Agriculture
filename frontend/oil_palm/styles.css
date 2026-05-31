@@ -687,6 +687,19 @@ main {
     gap: 10px;
 }
 
+.embedded-list {
+    display: grid;
+    gap: 10px;
+}
+
+.embedded-list-head {
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
 .detection-actions,
 .det-actions,
 .action-bar {

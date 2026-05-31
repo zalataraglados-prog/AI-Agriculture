@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const orthoStatus = $('ortho-status');
     const detectionStatus = $('detection-status');
     const detectionList = $('detection-list');
+    const existingOrthoList = $('existing-ortho-list');
     const treeList = $('tree-list');
     const matchStatus = $('match-status');
     const matchReviewList = $('match-review-list');
@@ -17,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let orthoId = null;
     let detectionsCache = [];
     let matchReviewsCache = [];
+    let existingOrthomosaicsCache = [];
     let confirmedTreeCodes = [];
 
     const statusMemory = new Map();
@@ -73,13 +75,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function init() {
         try {
+            await loadExistingOrthomosaics();
+
             const res = await fetch('/api/v1/uav/missions');
             const data = await res.json();
             const missions = data.missions || [];
 
             if (!missions.length) return;
 
-            const lastMission = missions[missions.length - 1];
+            const lastMission = missions[0];
             missionId = lastMission.id;
             setStatus(missionStatus, 'current_mission', { name: lastMission.mission_name, id: missionId });
             btnRegisterOrtho.disabled = false;
@@ -91,7 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const orthoData = await orthoRes.json();
             if (orthoData && orthoData.id) {
                 orthoId = orthoData.id;
-                setStatus(orthoStatus, 'ortho_current', { url: orthoData.image_url, id: orthoId });
+                setStatus(orthoStatus, 'ortho_current', {
+                    url: orthoData.image_url || orthoData.orthomosaic?.image_url || '',
+                    id: orthoId
+                });
                 btnAiDetections.disabled = false;
                 buildOrthoLink();
                 await fetchDetections();
@@ -99,6 +106,67 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.log('Init state recovery skipped or failed', e);
         }
+    }
+
+    async function loadExistingOrthomosaics() {
+        if (!existingOrthoList) return;
+        try {
+            const res = await fetch('/api/v1/uav/orthomosaics?limit=50');
+            const data = await res.json();
+            existingOrthomosaicsCache = data.orthomosaics || [];
+            renderExistingOrthomosaics(existingOrthomosaicsCache);
+        } catch (e) {
+            existingOrthoList.innerHTML = `<div class="empty-state">${t('error_loading_data', { message: e.message })}</div>`;
+        }
+    }
+
+    function renderExistingOrthomosaics(orthomosaics) {
+        existingOrthoList.innerHTML = '';
+        if (!orthomosaics.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = t('no_existing_orthomosaics');
+            existingOrthoList.appendChild(empty);
+            return;
+        }
+
+        orthomosaics.slice(0, 8).forEach((ortho) => {
+            const item = document.createElement('div');
+            item.className = 'detection-item';
+
+            const body = document.createElement('div');
+            const title = document.createElement('span');
+            title.textContent = t('existing_ortho_label', {
+                id: ortho.id,
+                mission: ortho.mission_name || ortho.mission_id,
+                count: ortho.detection_count || 0
+            });
+            body.appendChild(title);
+
+            const actions = document.createElement('div');
+            actions.className = 'detection-actions';
+
+            const useBtn = document.createElement('button');
+            useBtn.className = 'btn small';
+            useBtn.textContent = t('view');
+            useBtn.addEventListener('click', () => selectExistingOrthomosaic(ortho));
+            actions.appendChild(useBtn);
+
+            item.append(body, actions);
+            existingOrthoList.appendChild(item);
+        });
+    }
+
+    async function selectExistingOrthomosaic(ortho) {
+        missionId = ortho.mission_id;
+        orthoId = ortho.id;
+        setStatus(missionStatus, 'current_mission', { name: ortho.mission_name || ortho.mission_id, id: missionId });
+        setStatus(orthoStatus, 'ortho_current', { url: ortho.image_url || '', id: orthoId });
+        btnRegisterOrtho.disabled = false;
+        btnAiDetections.disabled = false;
+        btnAutoMatch.disabled = false;
+        buildOrthoLink();
+        await fetchDetections();
     }
 
     btnCreateMission.addEventListener('click', async () => {
@@ -154,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus(orthoStatus, 'orthomosaic_registered', { id: orthoId });
             btnAiDetections.disabled = false;
             buildOrthoLink();
+            await loadExistingOrthomosaics();
         } catch (e) {
             setStatus(orthoStatus, 'error_prefix', { message: e.message });
         }
@@ -176,6 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tiles: data.tiles_processed || 0
             });
             await fetchDetections();
+            await loadExistingOrthomosaics();
         } catch (e) {
             setStatus(detectionStatus, 'detection_failed', { message: e.message });
         }
@@ -407,6 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('op:i18n-change', () => {
         renderRememberedStatuses();
+        renderExistingOrthomosaics(existingOrthomosaicsCache);
         renderDetections(detectionsCache);
         renderMatchReviews(matchReviewsCache);
         renderConfirmedTrees();

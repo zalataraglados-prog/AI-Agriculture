@@ -575,6 +575,9 @@ window.OP_I18N = (() => {
             bulk_confirming: '正在批量确认 {count} 个检测...',
             bulk_confirmed: '已批量确认 {count} 个检测',
             bulk_confirm_partial: '批量确认完成：成功 {confirmed}，失败 {failed}',
+            existing_orthomosaics: '已有正射图',
+            no_existing_orthomosaics: '暂无已登记正射图',
+            existing_ortho_label: '正射图 #{id} · {mission} · {count} 个检测',
         },
         en: {
             language: 'Language',
@@ -714,6 +717,9 @@ window.OP_I18N = (() => {
             bulk_confirming: 'Confirming {count} detections...',
             bulk_confirmed: '{count} detections confirmed',
             bulk_confirm_partial: 'Bulk confirm complete: {confirmed} succeeded, {failed} failed',
+            existing_orthomosaics: 'Existing Orthomosaics',
+            no_existing_orthomosaics: 'No registered orthomosaics yet',
+            existing_ortho_label: 'Ortho #{id} · {mission} · {count} detections',
         },
         ms: {
             language: 'Bahasa',
@@ -853,6 +859,9 @@ window.OP_I18N = (() => {
             bulk_confirming: 'Mengesahkan {count} pengesanan...',
             bulk_confirmed: '{count} pengesanan disahkan',
             bulk_confirm_partial: 'Sahkan pukal selesai: {confirmed} berjaya, {failed} gagal',
+            existing_orthomosaics: 'Ortomosaik Sedia Ada',
+            no_existing_orthomosaics: 'Belum ada ortomosaik berdaftar',
+            existing_ortho_label: 'Orto #{id} · {mission} · {count} pengesanan',
         },
     };
 
