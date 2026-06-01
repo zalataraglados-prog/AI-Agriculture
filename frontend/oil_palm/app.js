@@ -53,6 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (orthoId) btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
     }
 
+    function existingOrthoLabel(ortho) {
+        return t('existing_ortho_label', {
+            id: ortho.id,
+            mission: ortho.mission_name || ortho.mission_id,
+            count: ortho.detection_count || 0
+        });
+    }
+
     async function parseJsonResponse(res) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.status === 'error') {
@@ -130,31 +138,72 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        orthomosaics.slice(0, 8).forEach((ortho) => {
-            const item = document.createElement('div');
-            item.className = 'detection-item';
+        const picker = document.createElement('div');
+        picker.className = 'ortho-picker';
 
-            const body = document.createElement('div');
-            const title = document.createElement('span');
-            title.textContent = t('existing_ortho_label', {
-                id: ortho.id,
-                mission: ortho.mission_name || ortho.mission_id,
-                count: ortho.detection_count || 0
-            });
-            body.appendChild(title);
+        const select = document.createElement('select');
+        select.className = 'ortho-select';
+        select.setAttribute('aria-label', t('existing_orthomosaics'));
 
-            const actions = document.createElement('div');
-            actions.className = 'detection-actions';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = t('select_existing_ortho');
+        select.appendChild(placeholder);
 
-            const useBtn = document.createElement('button');
-            useBtn.className = 'btn small';
-            useBtn.textContent = t('view');
-            useBtn.addEventListener('click', () => selectExistingOrthomosaic(ortho));
-            actions.appendChild(useBtn);
-
-            item.append(body, actions);
-            existingOrthoList.appendChild(item);
+        orthomosaics.forEach((ortho) => {
+            const option = document.createElement('option');
+            option.value = String(ortho.id);
+            option.textContent = existingOrthoLabel(ortho);
+            select.appendChild(option);
         });
+
+        if (orthoId && orthomosaics.some((ortho) => String(ortho.id) === String(orthoId))) {
+            select.value = String(orthoId);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'ortho-picker-actions';
+
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'btn small';
+
+        const openLink = document.createElement('a');
+        openLink.className = 'btn btn-outline small';
+        openLink.textContent = t('open_ortho_viewer');
+
+        const summary = document.createElement('div');
+        summary.className = 'embedded-list-status';
+
+        function selectedOrtho() {
+            return orthomosaics.find((ortho) => String(ortho.id) === String(select.value));
+        }
+
+        function updatePickerState() {
+            const selected = selectedOrtho();
+            const isCurrent = Boolean(selected && String(selected.id) === String(orthoId));
+            loadBtn.disabled = !selected || isCurrent;
+            loadBtn.textContent = isCurrent ? t('current_ortho_loaded') : t('load_selected_ortho');
+            openLink.style.display = selected ? 'inline-flex' : 'none';
+            openLink.href = selected ? `ortho_viewer.html?ortho_id=${selected.id}` : '#';
+            summary.textContent = selected
+                ? t(isCurrent ? 'existing_ortho_current' : 'existing_ortho_selected', {
+                    id: selected.id,
+                    mission: selected.mission_name || selected.mission_id,
+                    count: selected.detection_count || 0
+                })
+                : t('select_existing_ortho');
+        }
+
+        select.addEventListener('change', updatePickerState);
+        loadBtn.addEventListener('click', () => {
+            const selected = selectedOrtho();
+            if (selected) selectExistingOrthomosaic(selected);
+        });
+
+        actions.append(loadBtn, openLink);
+        picker.append(select, actions, summary);
+        existingOrthoList.appendChild(picker);
+        updatePickerState();
     }
 
     async function selectExistingOrthomosaic(ortho) {
@@ -162,10 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
         orthoId = ortho.id;
         setStatus(missionStatus, 'current_mission', { name: ortho.mission_name || ortho.mission_id, id: missionId });
         setStatus(orthoStatus, 'ortho_current', { url: ortho.image_url || '', id: orthoId });
+        $('ortho-url').value = ortho.image_url || '';
         btnRegisterOrtho.disabled = false;
         btnAiDetections.disabled = false;
         btnAutoMatch.disabled = false;
         buildOrthoLink();
+        renderExistingOrthomosaics(existingOrthomosaicsCache);
         await fetchDetections();
     }
 
@@ -366,6 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             detectionsCache = data.detections || [];
             renderDetections(detectionsCache);
+            setStatus(detectionStatus, 'detections_loaded', { count: detectionsCache.length });
         } catch (e) {
             console.error('fetch detections failed', e);
         }

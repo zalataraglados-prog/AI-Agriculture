@@ -700,12 +700,54 @@ main {
     gap: 10px;
 }
 
+.ortho-picker-host,
+.ortho-picker {
+    display: grid;
+    gap: 10px;
+}
+
 .embedded-list-head {
     color: var(--text-dim);
     font-size: 0.68rem;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+}
+
+.ortho-select {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    background: rgba(2, 6, 23, 0.38);
+    color: var(--text);
+    font: inherit;
+}
+
+.ortho-picker-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ortho-picker-actions .btn {
+    flex: 1 1 150px;
+    text-decoration: none;
+}
+
+.embedded-list-status {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+#detection-list,
+#match-review-list {
+    max-height: 330px;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 .detection-actions,
