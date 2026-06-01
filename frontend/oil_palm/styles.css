@@ -591,6 +591,14 @@ main {
     color: #ecfdf5;
 }
 
+.btn.active,
+.btn[aria-pressed="true"] {
+    background: rgba(14, 165, 233, 0.18);
+    border-color: rgba(224, 242, 254, 0.62);
+    color: #e0f2fe;
+    box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.22);
+}
+
 .btn.small {
     min-height: 32px;
     padding: 0 10px;

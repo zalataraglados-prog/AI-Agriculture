@@ -9,6 +9,7 @@
     var detectionsCache = [];
     var selectedDetectionIds = new Set();
     var bulkConfirming = false;
+    var selectionMode = false;
     var manualMode = false;
     var orthoWidth = 0;
     var orthoHeight = 0;
@@ -21,6 +22,8 @@
         rejected: '#ef4444',
         corrected: '#6366f1'
     };
+    var BULK_SELECTED_FILL = '#0284c7';
+    var BULK_SELECTED_STROKE = '#e0f2fe';
 
     function t(key, params) {
         if (window.OP_I18N) return window.OP_I18N.t(key, params || {});
@@ -73,14 +76,20 @@
     function updateBulkControls() {
         var pending = pendingDetections();
         pruneSelection();
+        if (!pending.length) selectionMode = false;
         var selected = selectedDetectionIds.size;
         document.getElementById('bulk-selection-count').textContent = selected + ' / ' + pending.length;
+        var modeBtn = document.getElementById('btn-selection-mode');
+        modeBtn.disabled = bulkConfirming || pending.length === 0;
+        modeBtn.classList.toggle('active', selectionMode);
+        modeBtn.setAttribute('aria-pressed', selectionMode ? 'true' : 'false');
+        modeBtn.textContent = selectionMode ? t('selection_mode_on') : t('selection_mode');
         document.getElementById('btn-select-all-pending').disabled = bulkConfirming || pending.length === 0;
         document.getElementById('btn-clear-selection').disabled = bulkConfirming || selected === 0;
         document.getElementById('btn-confirm-selected').disabled = bulkConfirming || selected === 0;
     }
 
-    function toggleDetectionSelection(detId) {
+    function toggleDetectionSelection(detId, focusDet) {
         var id = String(detId);
         if (selectedDetectionIds.has(id)) {
             selectedDetectionIds.delete(id);
@@ -88,8 +97,74 @@
             selectedDetectionIds.add(id);
         }
         renderDetections(detectionsCache);
-        if (selectedDetection) selectDetection(selectedDetection, false);
+        if (focusDet || selectedDetection) selectDetection(focusDet || selectedDetection, false);
         updateBulkControls();
+    }
+
+    function toggleSelectionMode() {
+        selectionMode = !selectionMode;
+        setStatus(selectionMode ? 'selection_mode_enabled' : 'selection_mode_disabled');
+        updateBulkControls();
+    }
+
+    function findDetectionById(detId) {
+        return detectionsCache.find(function (det) {
+            return String(det.id) === String(detId);
+        });
+    }
+
+    function markerOptions(det, focused) {
+        var isSelected = selectedDetectionIds.has(String(det.id));
+        var statusColor = STATUS_COLORS[det.review_status] || '#94a3b8';
+        var opacity = det.review_status === 'confirmed' ? 0.6 : 0.85;
+
+        if (isSelected) {
+            return {
+                radius: focused ? 23 : 21,
+                style: {
+                    color: BULK_SELECTED_STROKE,
+                    fillColor: BULK_SELECTED_FILL,
+                    fillOpacity: 0.96,
+                    opacity: 1,
+                    weight: focused ? 6 : 4,
+                    dashArray: '4 3'
+                }
+            };
+        }
+
+        if (focused) {
+            return {
+                radius: 18,
+                style: {
+                    color: '#f8fafc',
+                    fillColor: statusColor,
+                    fillOpacity: 1,
+                    opacity: 1,
+                    weight: 4,
+                    dashArray: null
+                }
+            };
+        }
+
+        return {
+            radius: 15,
+            style: {
+                color: statusColor,
+                fillColor: statusColor,
+                fillOpacity: opacity,
+                opacity: 1,
+                weight: 2,
+                dashArray: null
+            }
+        };
+    }
+
+    function applyMarkerStyle(det, focused) {
+        var marker = detectionMarkers[det.id];
+        if (!marker) return;
+        var options = markerOptions(det, focused);
+        marker.setStyle(options.style);
+        if (marker.setRadius) marker.setRadius(options.radius);
     }
 
     function updateManualButton() {
@@ -227,16 +302,16 @@
             var cy = det.crown_center_y;
             if (cx === null || cy === null) return;
 
-            var isSelected = selectedDetectionIds.has(String(det.id));
-            var color = STATUS_COLORS[det.review_status] || '#94a3b8';
-            var opacity = det.review_status === 'confirmed' ? 0.6 : 0.85;
+            var options = markerOptions(det, false);
 
             var circle = L.circle([cy, cx], {
-                radius: isSelected ? 20 : 15,
-                color: color,
-                fillColor: color,
-                fillOpacity: isSelected ? 1 : opacity,
-                weight: isSelected ? 5 : 2
+                radius: options.radius,
+                color: options.style.color,
+                fillColor: options.style.fillColor,
+                fillOpacity: options.style.fillOpacity,
+                opacity: options.style.opacity,
+                weight: options.style.weight,
+                dashArray: options.style.dashArray
             }).addTo(map);
 
             circle.bindTooltip('#' + det.id + ' ' + (det.confidence * 100).toFixed(0) + '%', {
@@ -246,6 +321,10 @@
             });
 
             circle.on('click', function () {
+                if (selectionMode && det.review_status === 'pending') {
+                    toggleDetectionSelection(det.id, det);
+                    return;
+                }
                 selectDetection(det, true);
             });
 
@@ -258,22 +337,12 @@
         selectedDetection = det;
 
         Object.keys(detectionMarkers).forEach(function (key) {
-            var isBulkSelected = selectedDetectionIds.has(String(key));
-            detectionMarkers[key].setStyle({
-                weight: isBulkSelected ? 5 : 2,
-                fillOpacity: isBulkSelected ? 1 : 0.85
-            });
-            if (detectionMarkers[key].setRadius) {
-                detectionMarkers[key].setRadius(isBulkSelected ? 20 : 15);
-            }
+            var markerDet = findDetectionById(key);
+            if (markerDet) applyMarkerStyle(markerDet, String(det.id) === String(key));
         });
 
-        if (detectionMarkers[det.id]) {
-            detectionMarkers[det.id].setStyle({ weight: 4, fillOpacity: 1 });
-            if (detectionMarkers[det.id].setRadius) {
-                detectionMarkers[det.id].setRadius(selectedDetectionIds.has(String(det.id)) ? 20 : 17);
-            }
-            if (panToMarker) map.panTo(detectionMarkers[det.id].getLatLng());
+        if (detectionMarkers[det.id] && panToMarker) {
+            map.panTo(detectionMarkers[det.id].getLatLng());
         }
 
         document.getElementById('detection-detail').style.display = 'block';
@@ -292,7 +361,7 @@
             selectBtn.textContent = selectedDetectionIds.has(String(det.id))
                 ? t('unselect_detection')
                 : t('select_detection');
-            selectBtn.onclick = function () { toggleDetectionSelection(det.id); };
+            selectBtn.onclick = function () { toggleDetectionSelection(det.id, det); };
             actionsDiv.appendChild(selectBtn);
 
             var confirmBtn = document.createElement('button');
@@ -462,6 +531,7 @@
         }
     });
 
+    document.getElementById('btn-selection-mode').addEventListener('click', toggleSelectionMode);
     document.getElementById('btn-select-all-pending').addEventListener('click', selectAllPending);
     document.getElementById('btn-clear-selection').addEventListener('click', clearSelection);
     document.getElementById('btn-confirm-selected').addEventListener('click', confirmSelectedDetections);
