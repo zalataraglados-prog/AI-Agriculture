@@ -461,19 +461,17 @@ main {
 .workflow-grid {
     display: flex;
     align-items: stretch;
+    flex-wrap: wrap;
     gap: 18px;
-    overflow-x: auto;
-    overflow-y: visible;
-    padding: 0 4px 10px 0;
-    scroll-snap-type: x proximity;
+    overflow: visible;
+    padding: 0;
 }
 
 .workflow-step {
-    flex: 0 0 clamp(290px, 30vw, 420px);
+    flex: 1 1 clamp(260px, 22vw, 360px);
     min-width: 260px;
-    max-width: min(720px, calc(100vw - 120px));
+    max-width: min(720px, 100%);
     min-height: 100%;
-    scroll-snap-align: start;
     transition: border-color 0.18s ease, background 0.18s ease;
 }
 
