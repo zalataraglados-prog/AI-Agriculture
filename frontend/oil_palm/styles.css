@@ -709,20 +709,27 @@ main {
 }
 
 .ortho-picker-actions {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-    flex-wrap: wrap;
 }
 
 .ortho-picker-actions .btn {
-    flex: 1 1 150px;
+    width: 100%;
+    min-width: 0;
+    padding-inline: 8px;
     text-decoration: none;
+    white-space: normal;
 }
 
 .ortho-list-item.is-current {
     border-color: rgba(14, 165, 233, 0.46);
     background: rgba(14, 165, 233, 0.12);
+}
+
+.ortho-list-item {
+    align-items: stretch;
+    flex-direction: column;
 }
 
 .ortho-list-body {
@@ -731,15 +738,16 @@ main {
 
 .ortho-list-body span {
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+    white-space: normal;
 }
 
 #existing-ortho-list,
 #detection-list,
 #match-review-list {
     max-height: 330px;
+    overflow-x: hidden;
     overflow-y: auto;
     padding-right: 4px;
 }
