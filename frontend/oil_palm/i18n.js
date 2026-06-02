@@ -19,6 +19,7 @@ window.OP_I18N = (() => {
             top_structured_facts: '结构化事实',
             top_tree_profile: '树档案',
             top_map_review: '地图复核',
+            resize_step: '拖动调整步骤宽度',
 
             index_title: '油棕 UAV 建图与复核',
             index_subtitle: '任务接入、正射图登记、树冠候选复核与树资产绑定。',
@@ -163,6 +164,7 @@ window.OP_I18N = (() => {
             top_structured_facts: 'Structured facts',
             top_tree_profile: 'Tree profile',
             top_map_review: 'Map review',
+            resize_step: 'Drag to resize step width',
 
             index_title: 'Oil Palm UAV Mapping & Review',
             index_subtitle: 'Mission intake, orthomosaic registration, tree-crown review, and registry linkage.',
@@ -307,6 +309,7 @@ window.OP_I18N = (() => {
             top_structured_facts: 'Fakta berstruktur',
             top_tree_profile: 'Profil pokok',
             top_map_review: 'Semakan peta',
+            resize_step: 'Seret untuk ubah lebar langkah',
 
             index_title: 'Pemetaan & Semakan UAV Kelapa Sawit',
             index_subtitle: 'Kemasukan misi, pendaftaran ortomosaik, semakan kanopi, dan pautan daftar pokok.',

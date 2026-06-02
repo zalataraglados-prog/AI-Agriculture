@@ -53,6 +53,76 @@ document.addEventListener('DOMContentLoaded', () => {
         if (orthoId) btnViewOrtho.href = `ortho_viewer.html?ortho_id=${orthoId}`;
     }
 
+    function workflowStepBounds() {
+        return {
+            min: 260,
+            max: Math.min(720, Math.max(320, window.innerWidth - 120))
+        };
+    }
+
+    function setWorkflowStepWidth(step, width) {
+        const bounds = workflowStepBounds();
+        const clamped = Math.max(bounds.min, Math.min(bounds.max, width));
+        step.style.flexBasis = `${Math.round(clamped)}px`;
+    }
+
+    function updateWorkflowResizeLabels() {
+        document.querySelectorAll('.step-resize-handle').forEach((handle) => {
+            handle.setAttribute('aria-label', t('resize_step'));
+            handle.title = t('resize_step');
+        });
+    }
+
+    function startWorkflowStepResize(event) {
+        if (window.matchMedia('(max-width: 760px)').matches) return;
+        const handle = event.currentTarget;
+        const step = handle.closest('.workflow-step');
+        if (!step) return;
+
+        event.preventDefault();
+        const startX = event.clientX;
+        const startWidth = step.getBoundingClientRect().width;
+        step.classList.add('is-resizing');
+        handle.setPointerCapture?.(event.pointerId);
+
+        function onPointerMove(moveEvent) {
+            setWorkflowStepWidth(step, startWidth + moveEvent.clientX - startX);
+        }
+
+        function onPointerUp(upEvent) {
+            step.classList.remove('is-resizing');
+            handle.releasePointerCapture?.(upEvent.pointerId);
+            handle.removeEventListener('pointermove', onPointerMove);
+            handle.removeEventListener('pointerup', onPointerUp);
+            handle.removeEventListener('pointercancel', onPointerUp);
+        }
+
+        handle.addEventListener('pointermove', onPointerMove);
+        handle.addEventListener('pointerup', onPointerUp);
+        handle.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function bindWorkflowStepResizing() {
+        const grid = document.querySelector('.workflow-grid');
+        if (!grid) return;
+        const steps = Array.from(grid.querySelectorAll('.workflow-step'));
+        steps.forEach((step, index) => {
+            if (index === steps.length - 1 || step.querySelector('.step-resize-handle')) return;
+            const handle = document.createElement('button');
+            handle.type = 'button';
+            handle.className = 'step-resize-handle';
+            handle.setAttribute('aria-orientation', 'vertical');
+            handle.addEventListener('pointerdown', startWorkflowStepResize);
+            handle.addEventListener('keydown', (event) => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                event.preventDefault();
+                setWorkflowStepWidth(step, step.getBoundingClientRect().width + (event.key === 'ArrowRight' ? 32 : -32));
+            });
+            step.appendChild(handle);
+        });
+        updateWorkflowResizeLabels();
+    }
+
     function existingOrthoLabel(ortho) {
         return t('existing_ortho_label', {
             id: ortho.id,
@@ -492,6 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('op:i18n-change', () => {
         renderRememberedStatuses();
+        updateWorkflowResizeLabels();
         renderExistingOrthomosaics(existingOrthomosaicsCache);
         renderDetections(detectionsCache);
         renderMatchReviews(matchReviewsCache);
@@ -502,5 +573,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.rejectDetection = rejectDetection;
     window.matchToTree = matchToTree;
 
+    bindWorkflowStepResizing();
     init();
 });

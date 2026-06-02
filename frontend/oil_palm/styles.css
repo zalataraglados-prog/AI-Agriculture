@@ -459,13 +459,64 @@ main {
 }
 
 .workflow-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    display: flex;
+    align-items: stretch;
     gap: 18px;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 0 4px 10px 0;
+    scroll-snap-type: x proximity;
 }
 
 .workflow-step {
+    flex: 0 0 clamp(290px, 30vw, 420px);
+    min-width: 260px;
+    max-width: min(720px, calc(100vw - 120px));
     min-height: 100%;
+    scroll-snap-align: start;
+    transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.workflow-step.is-resizing {
+    border-color: rgba(96, 165, 250, 0.46);
+    background: rgba(30, 41, 59, 0.86);
+    user-select: none;
+}
+
+.step-resize-handle {
+    position: absolute;
+    top: 16px;
+    right: -12px;
+    bottom: 16px;
+    z-index: 4;
+    width: 18px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    cursor: ew-resize;
+    touch-action: none;
+}
+
+.step-resize-handle::before {
+    content: "";
+    width: 4px;
+    height: 42px;
+    border-left: 1px solid rgba(148, 163, 184, 0.38);
+    border-right: 1px solid rgba(148, 163, 184, 0.38);
+    opacity: 0.62;
+}
+
+.step-resize-handle:hover::before,
+.step-resize-handle:focus-visible::before {
+    border-color: rgba(96, 165, 250, 0.78);
+    opacity: 1;
+}
+
+.step-resize-handle:focus-visible {
+    outline: 2px solid rgba(96, 165, 250, 0.72);
+    outline-offset: 2px;
 }
 
 .step-label {
@@ -1360,6 +1411,22 @@ main {
     .stats-grid,
     .assessment-grid {
         grid-template-columns: 1fr;
+    }
+
+    .workflow-grid {
+        display: grid;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    .workflow-step {
+        flex-basis: auto !important;
+        max-width: none;
+        min-width: 0;
+    }
+
+    .step-resize-handle {
+        display: none;
     }
 
     .panel,
