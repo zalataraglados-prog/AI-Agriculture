@@ -138,72 +138,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const picker = document.createElement('div');
-        picker.className = 'ortho-picker';
-
-        const select = document.createElement('select');
-        select.className = 'ortho-select';
-        select.setAttribute('aria-label', t('existing_orthomosaics'));
-
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = t('select_existing_ortho');
-        select.appendChild(placeholder);
-
         orthomosaics.forEach((ortho) => {
-            const option = document.createElement('option');
-            option.value = String(ortho.id);
-            option.textContent = existingOrthoLabel(ortho);
-            select.appendChild(option);
-        });
+            const isCurrent = String(ortho.id) === String(orthoId);
+            const item = document.createElement('div');
+            item.className = `detection-item ortho-list-item${isCurrent ? ' is-current' : ''}`;
 
-        if (orthoId && orthomosaics.some((ortho) => String(ortho.id) === String(orthoId))) {
-            select.value = String(orthoId);
-        }
+            const body = document.createElement('div');
+            body.className = 'ortho-list-body';
+            const title = document.createElement('span');
+            title.textContent = existingOrthoLabel(ortho);
+            body.appendChild(title);
 
-        const actions = document.createElement('div');
-        actions.className = 'ortho-picker-actions';
+            const actions = document.createElement('div');
+            actions.className = 'ortho-picker-actions';
 
-        const loadBtn = document.createElement('button');
-        loadBtn.className = 'btn small';
-
-        const openLink = document.createElement('a');
-        openLink.className = 'btn btn-outline small';
-        openLink.textContent = t('open_ortho_viewer');
-
-        const summary = document.createElement('div');
-        summary.className = 'embedded-list-status';
-
-        function selectedOrtho() {
-            return orthomosaics.find((ortho) => String(ortho.id) === String(select.value));
-        }
-
-        function updatePickerState() {
-            const selected = selectedOrtho();
-            const isCurrent = Boolean(selected && String(selected.id) === String(orthoId));
-            loadBtn.disabled = !selected || isCurrent;
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'btn small';
+            loadBtn.disabled = isCurrent;
             loadBtn.textContent = isCurrent ? t('current_ortho_loaded') : t('load_selected_ortho');
-            openLink.style.display = selected ? 'inline-flex' : 'none';
-            openLink.href = selected ? `ortho_viewer.html?ortho_id=${selected.id}` : '#';
-            summary.textContent = selected
-                ? t(isCurrent ? 'existing_ortho_current' : 'existing_ortho_selected', {
-                    id: selected.id,
-                    mission: selected.mission_name || selected.mission_id,
-                    count: selected.detection_count || 0
-                })
-                : t('select_existing_ortho');
-        }
+            loadBtn.addEventListener('click', () => selectExistingOrthomosaic(ortho));
 
-        select.addEventListener('change', updatePickerState);
-        loadBtn.addEventListener('click', () => {
-            const selected = selectedOrtho();
-            if (selected) selectExistingOrthomosaic(selected);
+            const openLink = document.createElement('a');
+            openLink.className = 'btn btn-outline small';
+            openLink.href = `ortho_viewer.html?ortho_id=${ortho.id}`;
+            openLink.textContent = t('open_ortho_viewer');
+
+            actions.append(loadBtn, openLink);
+            item.append(body, actions);
+            existingOrthoList.appendChild(item);
         });
-
-        actions.append(loadBtn, openLink);
-        picker.append(select, actions, summary);
-        existingOrthoList.appendChild(picker);
-        updatePickerState();
     }
 
     async function selectExistingOrthomosaic(ortho) {

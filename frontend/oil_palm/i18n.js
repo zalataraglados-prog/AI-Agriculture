@@ -583,11 +583,8 @@ window.OP_I18N = (() => {
             existing_orthomosaics: '已有正射图',
             no_existing_orthomosaics: '暂无已登记正射图',
             existing_ortho_label: '正射图 #{id} · {mission} · {count} 个检测',
-            select_existing_ortho: '选择已有正射图',
             load_selected_ortho: '加载到当前流程',
             current_ortho_loaded: '已加载',
-            existing_ortho_selected: '已选择：正射图 #{id} · {mission} · {count} 个检测',
-            existing_ortho_current: '当前已加载：正射图 #{id} · {mission} · {count} 个检测',
         },
         en: {
             language: 'Language',
@@ -735,11 +732,8 @@ window.OP_I18N = (() => {
             existing_orthomosaics: 'Existing Orthomosaics',
             no_existing_orthomosaics: 'No registered orthomosaics yet',
             existing_ortho_label: 'Ortho #{id} · {mission} · {count} detections',
-            select_existing_ortho: 'Select an existing orthomosaic',
             load_selected_ortho: 'Load Here',
             current_ortho_loaded: 'Loaded',
-            existing_ortho_selected: 'Selected: Ortho #{id} · {mission} · {count} detections',
-            existing_ortho_current: 'Current: Ortho #{id} · {mission} · {count} detections',
         },
         ms: {
             language: 'Bahasa',
@@ -887,11 +881,8 @@ window.OP_I18N = (() => {
             existing_orthomosaics: 'Ortomosaik Sedia Ada',
             no_existing_orthomosaics: 'Belum ada ortomosaik berdaftar',
             existing_ortho_label: 'Orto #{id} · {mission} · {count} pengesanan',
-            select_existing_ortho: 'Pilih ortomosaik sedia ada',
             load_selected_ortho: 'Muat Di Sini',
             current_ortho_loaded: 'Dimuat',
-            existing_ortho_selected: 'Dipilih: Orto #{id} · {mission} · {count} pengesanan',
-            existing_ortho_current: 'Semasa: Orto #{id} · {mission} · {count} pengesanan',
         },
     };
 
