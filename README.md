@@ -89,6 +89,10 @@ pytest -q
 - 如仅需运行 AI 模块测试，可使用 `pytest -q tests`
 - `tests/test_infer_smoke.py` 依赖 `torch` 与 `torchvision`
 
+## 无人机试验学术支持材料
+
+PalmAI Agri Nexus 的 [03 号学术支持信](doc/uas/README_CN.md)已整理为英文 Word 和在线阅读版，供老师审阅、确认后签署。
+
 ## License
 
 本项目使用 MIT License，详见根目录 `LICENSE`。
