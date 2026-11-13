@@ -1,28 +1,22 @@
-# Academic Support Letter
+Date: ____________________
 
-*Draft for faculty review and signature*
-
-Date: ____________________<br>
 To Whom It May Concern,
 
-Re: Academic support for proposed PalmAI Agri Nexus UAS trials
+**Re: Academic support for PalmAI Agri Nexus**
 
-I support the PalmAI Agri Nexus student team at Xiamen University Malaysia in seeking permission for supervised unmanned aircraft system (UAS) trials. The proposed work would explore the use of aerial imagery in oil-palm monitoring as part of the team's AI-Agriculture project.
+I am writing in support of the PalmAI Agri Nexus team at Xiamen University Malaysia and its application to conduct supervised drone trials for an academic project on oil-palm monitoring.
 
-These trials would let the students assess how image blur, canopy occlusion and coverage affect the usefulness of field images. They would also check whether the images and associated field records can be organised and transferred into their data-analysis workflow. The intended academic outputs are an image-quality assessment, a dataset assembled within the permissions granted, and a short report of findings and limitations. This work would inform later model development and evaluation.
+The students plan to examine how image blur and tree-canopy cover affect the usefulness of aerial images for their project. A small trial in field conditions would help them assess the images they can obtain and improve their approach to collecting data. I consider this a useful part of their academic work, as the quality of the data will shape what they can reasonably conclude from their analysis.
 
-For an initial trial, I recommend daytime operation with a single aircraft at a controlled site, within the remote pilot's visual line of sight, with AI processing carried out after landing. The aircraft configuration, personnel, site, dates and operating limits remain subject to confirmation and approval. The team must disclose any self-developed flight controls, autonomous functions or additional payloads for assessment before including them. No flight should begin until the required permissions and safety arrangements are in place.
+I support a limited initial trial using one aircraft in daylight, within the pilot's visual line of sight, with image analysis carried out after landing. The team will need to confirm the aircraft, site and operating arrangements, and obtain the required permissions before any flight. The collection and use of images must also follow the conditions set by the relevant authorities and rights holders.
 
-The students should keep records of the activity and comply with site, privacy and image-use restrictions. Use of imagery for model development, evaluation, project documentation or public presentation must stay within the permissions granted by the relevant authorities and rights holders.
+This letter provides academic support only. It does not authorise flight or certify the aircraft or pilot, and it makes no commitment of university funding, insurance or indemnity. Responsibility for the trial remains with its operator.
 
-My support is limited to the academic purpose of the proposed work and the student affiliation I have verified. It does not certify pilot competence, airworthiness or flight-control safety, or authorise any flight. It does not appoint me as the operator or Accountable Manager, or commit the University to funding, insurance, indemnity or institutional sponsorship.
-
-I would appreciate your consideration of the team's application. Please contact me using the details below if further academic confirmation is needed.
+Please contact me if you need further information about the academic purpose of the project.
 
 Yours faithfully,
 
-Name: Professor Zhang<br>
-Academic title / School / Department: __________________________________<br>
-Institutional email: __________________________________________________<br>
-Telephone (optional): ________________________________________________<br>
-Signature: __________________________   Date: _________________________
+Signature: ______________________________<br>
+Name: __________________________________<br>
+Position / School: _________________________<br>
+Institutional email: ________________________
